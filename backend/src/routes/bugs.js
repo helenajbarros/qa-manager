@@ -1,0 +1,11 @@
+const { Router } = require("express");
+const c = require("../controllers/bugsController");
+const router = Router();
+router.get("/",                    c.index);
+router.get("/:id",                 c.show);
+router.post("/",                   c.store);
+router.put("/:id",                 c.update);
+router.delete("/:id",              c.destroy);
+router.post("/:id/files",          ...c.uploadFile);
+router.delete("/:id/files/:fileId",c.deleteFile);
+module.exports = router;
