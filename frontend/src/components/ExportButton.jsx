@@ -8,14 +8,18 @@ function getToken() { return localStorage.getItem("qa_token"); }
 
 async function fetchData(projectId) {
   const res  = await fetch(`${getBase()}/export${projectId?`?project_id=${projectId}`:""}`, { headers:{Authorization:`Bearer ${getToken()}`} });
+  if (!res.ok) throw new Error(`Erro ${res.status} — tente novamente em 30 segundos`);
   const json = await res.json();
-  return json.data ?? json;
+  const data = json.data ?? json;
+  if (!data.testCases) throw new Error("Dados incompletos — tente novamente");
+  return data;
 }
 
 async function fetchDashboard(projectId) {
   const res  = await fetch(`${getBase()}/dashboard${projectId?`?project_id=${projectId}`:""}`, { headers:{Authorization:`Bearer ${getToken()}`} });
+  if (!res.ok) return {};
   const json = await res.json();
-  return json.data ?? json;
+  return json.data ?? json ?? {};
 }
 
 // ── XLSX ──────────────────────────────────────────────────────
@@ -313,11 +317,13 @@ export function ExportButton({ style }) {
   return (
     <div style={{display:"inline-flex",flexDirection:"column",gap:4}}>
       <div style={{display:"flex",gap:8}}>
-        <button className="btn" onClick={()=>handle("xlsx")} disabled={!!loading} style={style}>
+        <button className="btn" onClick={()=>handle("xlsx")} disabled={!!loading}
+          style={{...style, background:"#dee8fc", color:"#1E3A5F", border:"none", fontWeight:600}}>
           {loading==="xlsx" ? "⏳ Gerando…" : "⬇ Excel"}
         </button>
-        <button className="btn" onClick={()=>handle("html")} disabled={!!loading} style={{...style,background:"var(--accent-2,#7C3AED)"}}>
-          {loading==="html" ? "⏳ Gerando…" : "📊 Relatório HTML"}
+        <button className="btn" onClick={()=>handle("html")} disabled={!!loading}
+          style={{...style, background:"#dee8fc", color:"#1E3A5F", border:"none", fontWeight:600}}>
+          {loading==="html" ? "⏳ Gerando…" : "📊 HTML + PDF"}
         </button>
       </div>
       {error && <span style={{fontSize:11,color:"var(--danger)"}}>{error}</span>}
