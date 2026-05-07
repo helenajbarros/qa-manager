@@ -1,10 +1,4 @@
 const { db } = require("../database/connection");
-const path   = require("path");
-const fs     = require("fs");
-
-function getUploadDir() {
-  return process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../../uploads");
-}
 
 function findAll() {
   return db.prepare(`
@@ -30,19 +24,20 @@ function update(id, { name, description, active, logo_url }) {
   const cur = findById(id);
   if (!cur) return null;
   db.prepare("UPDATE projects SET name=?, description=?, active=?, logo_url=? WHERE id=?")
-    .run(name?.trim() ?? cur.name, description ?? cur.description,
-         active !== undefined ? (active ? 1 : 0) : cur.active,
-         logo_url !== undefined ? logo_url : cur.logo_url, id);
+    .run(
+      name?.trim()  ?? cur.name,
+      description   ?? cur.description,
+      active !== undefined ? (active ? 1 : 0) : cur.active,
+      logo_url !== undefined ? logo_url : cur.logo_url,
+      id
+    );
   return findById(id);
 }
 
-function saveLogo(id, filename) {
-  const cur = findById(id);
-  if (cur?.logo_url) {
-    const old = path.resolve(getUploadDir(), cur.logo_url);
-    if (fs.existsSync(old)) fs.unlinkSync(old);
-  }
-  db.prepare("UPDATE projects SET logo_url=? WHERE id=?").run(filename, id);
+// Salva logo como base64 no banco — não depende de disco
+function saveLogo(id, fileBuffer, mimetype) {
+  const base64 = `data:${mimetype};base64,${fileBuffer.toString("base64")}`;
+  db.prepare("UPDATE projects SET logo_url=? WHERE id=?").run(base64, id);
   return findById(id);
 }
 
