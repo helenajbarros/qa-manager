@@ -12,6 +12,12 @@ export const usersApi = {
   update: (id, d)    => api.put(`/users/${id}`, d),
   delete: (id)       => api.delete(`/users/${id}`),
 };
+function getApiBase() {
+  return import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : "/api";
+}
+
 export const projectsApi = {
   list:       ()         => api.get("/projects"),
   get:        (id)       => api.get(`/projects/${id}`),
@@ -21,7 +27,7 @@ export const projectsApi = {
   uploadLogo: (id, file) => {
     const fd = new FormData(); fd.append("logo", file);
     const token = localStorage.getItem("qa_token");
-    return fetch(`/api/projects/${id}/logo`, {
+    return fetch(`${getApiBase()}/projects/${id}/logo`, {
       method: "POST", body: fd,
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     }).then(r => r.json()).then(j => j.data ?? j);
