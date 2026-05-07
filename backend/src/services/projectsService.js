@@ -2,6 +2,10 @@ const { db } = require("../database/connection");
 const path   = require("path");
 const fs     = require("fs");
 
+function getUploadDir() {
+  return process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../../uploads");
+}
+
 function findAll() {
   return db.prepare(`
     SELECT p.*,
@@ -35,7 +39,7 @@ function update(id, { name, description, active, logo_url }) {
 function saveLogo(id, filename) {
   const cur = findById(id);
   if (cur?.logo_url) {
-    const old = path.resolve(__dirname, "../../uploads", cur.logo_url);
+    const old = path.resolve(getUploadDir(), cur.logo_url);
     if (fs.existsSync(old)) fs.unlinkSync(old);
   }
   db.prepare("UPDATE projects SET logo_url=? WHERE id=?").run(filename, id);

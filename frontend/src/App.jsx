@@ -9,6 +9,7 @@ import Cycles    from "./pages/Cycles.jsx";
 import Bugs      from "./pages/Bugs.jsx";
 import Users     from "./pages/Users.jsx";
 import Projects  from "./pages/Projects.jsx";
+import Backup    from "./pages/Backup.jsx";
 
 function Guard({ children, adminOnly }) {
   const { user, loading, isAdmin } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/bugs"       element={<Guard><Bugs /></Guard>} />
           <Route path="/projects"   element={<Guard adminOnly><Projects /></Guard>} />
           <Route path="/users"      element={<Guard adminOnly><Users /></Guard>} />
+          <Route path="/backup"     element={<Guard adminOnly><Backup /></Guard>} />
           <Route path="*"           element={<Navigate to="/" replace />} />
         </Routes>
       </main>

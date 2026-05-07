@@ -1,4 +1,8 @@
-const BASE = "/api";
+// Em produção usa a URL do backend via variável de ambiente do Vite
+// Em desenvolvimento usa o proxy do vite.config.js
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "/api";
 
 function getToken() {
   return localStorage.getItem("qa_token");
@@ -6,7 +10,7 @@ function getToken() {
 
 async function request(method, path, body) {
   const headers = { "Content-Type": "application/json" };
-  const token = getToken();
+  const token   = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE}${path}`, {
@@ -23,8 +27,8 @@ async function request(method, path, body) {
 }
 
 export const api = {
-  get:    (path)        => request("GET",    path),
-  post:   (path, body)  => request("POST",   path, body),
-  put:    (path, body)  => request("PUT",    path, body),
-  delete: (path)        => request("DELETE", path),
+  get:    (path)       => request("GET",    path),
+  post:   (path, body) => request("POST",   path, body),
+  put:    (path, body) => request("PUT",    path, body),
+  delete: (path)       => request("DELETE", path),
 };

@@ -73,6 +73,10 @@ export default function Sidebar() {
               className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
               <span className="nav-icon">👥</span>Usuários
             </NavLink>
+            <NavLink to="/backup"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+              <span className="nav-icon">💾</span>Backup
+            </NavLink>
           </>
         )}
       </nav>

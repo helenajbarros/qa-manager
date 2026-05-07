@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: qa-manager-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install --production=false
+    startCommand: node src/server.js
+    plan: free
+    healthCheckPath: /api/health
+    disk:
+      name: qa-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: FRONTEND_URL
+        sync: false
