@@ -1,95 +1,20 @@
-const { db } = require("../database/connection");
+const { pool } = require("../database/connection");
 
-function getExportData({ project_id } = {}) {
-  const pWhere  = project_id ? `AND c.project_id = ${Number(project_id)}` : "";
-  const pWhereM = project_id ? `AND m.project_id = ${Number(project_id)}` : "";
-  const pWhereB = project_id ? `AND b.project_id = ${Number(project_id)}` : "";
+async function getExportData({ project_id } = {}) {
+  const pid = project_id ? parseInt(project_id) : null;
+  const pM = pid ? `AND m.project_id = ${pid}` : "";
+  const pC = pid ? `AND c.project_id = ${pid}` : "";
+  const pB = pid ? `AND b.project_id = ${pid}` : "";
 
-  // ── Test Cases ──────────────────────────────────────────────
-  const testCases = db.prepare(`
-    SELECT tc.id, tc.title, tc.priority, tc.description,
-           tc.preconditions, tc.steps, tc.expected_result,
-           m.name AS module, u.name AS assigned_to,
-           tc.created_at
-    FROM test_cases tc
-    JOIN modules m ON m.id = tc.module_id
-    LEFT JOIN users u ON u.id = tc.assigned_to_id
-    WHERE 1=1 ${pWhereM}
-    ORDER BY m.name, tc.id
-  `).all();
+  const [tc, cy, ex, bg, md] = await Promise.all([
+    pool.query(`SELECT tc.id,tc.title,tc.priority,tc.description,tc.preconditions,tc.steps,tc.expected_result,m.name AS module,u.name AS assigned_to,tc.created_at FROM test_cases tc JOIN modules m ON m.id=tc.module_id LEFT JOIN users u ON u.id=tc.assigned_to_id WHERE 1=1 ${pM} ORDER BY tc.id`),
+    pool.query(`SELECT c.*,COUNT(e.id)::int AS total,SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END)::int AS passed,SUM(CASE WHEN e.status='failed' THEN 1 ELSE 0 END)::int AS failed,SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END)::int AS blocked,SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END)::int AS not_executed FROM test_cycles c LEFT JOIN test_executions e ON e.cycle_id=c.id WHERE 1=1 ${pC} GROUP BY c.id ORDER BY c.created_at DESC`),
+    pool.query(`SELECT e.id,c.name AS cycle,c.version,tc.id AS tc_id,tc.title AS test_case,m.name AS module,e.status,e.comment,e.evidence_url,e.notes,eu.name AS executed_by,au.name AS assigned_to,b.title AS bug_title,b.id AS bug_id,e.executed_at FROM test_executions e JOIN test_cycles c ON c.id=e.cycle_id JOIN test_cases tc ON tc.id=e.test_case_id JOIN modules m ON m.id=tc.module_id LEFT JOIN users eu ON eu.id=e.executed_by_id LEFT JOIN users au ON au.id=e.assigned_to_id LEFT JOIN bugs b ON b.id=e.bug_id WHERE 1=1 ${pC} ORDER BY c.name,m.name,tc.id`),
+    pool.query(`SELECT b.id,b.title,b.severity,b.status,m.name AS module,tc.id AS tc_id,tc.title AS test_case,b.comment,b.description,b.tracker_url,u.name AS created_by,b.created_at FROM bugs b LEFT JOIN modules m ON m.id=b.module_id LEFT JOIN test_cases tc ON tc.id=b.test_case_id LEFT JOIN users u ON u.id=b.created_by_id WHERE 1=1 ${pB} ORDER BY b.created_at DESC`),
+    pool.query(`SELECT m.name AS module,COUNT(DISTINCT tc.id)::int AS total_cases,COUNT(e.id)::int AS total_executions,SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END)::int AS passed,SUM(CASE WHEN e.status='failed' THEN 1 ELSE 0 END)::int AS failed,SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END)::int AS blocked,COUNT(DISTINCT b.id)::int AS total_bugs,SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END)::int AS open_bugs FROM modules m LEFT JOIN test_cases tc ON tc.module_id=m.id LEFT JOIN test_executions e ON e.test_case_id=tc.id LEFT JOIN bugs b ON b.module_id=m.id WHERE 1=1 ${pM} GROUP BY m.id ORDER BY m.name`),
+  ]);
 
-  // ── Cycles summary ──────────────────────────────────────────
-  const cycles = db.prepare(`
-    SELECT c.id, c.name, c.version, c.status,
-           c.start_date, c.end_date, c.test_types,
-           COUNT(e.id)  AS total,
-           SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END) AS passed,
-           SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END) AS failed,
-           SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END) AS blocked,
-           SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
-    FROM test_cycles c
-    LEFT JOIN test_executions e ON e.cycle_id = c.id
-    WHERE 1=1 ${pWhere.replace("c.project_id", "c.project_id")}
-    GROUP BY c.id ORDER BY c.created_at DESC
-  `).all();
-
-  // ── All executions ──────────────────────────────────────────
-  const executions = db.prepare(`
-    SELECT e.id,
-           c.name  AS cycle, c.version,
-           tc.id   AS tc_id, tc.title AS test_case,
-           m.name  AS module,
-           e.status, e.comment, e.evidence_url, e.notes,
-           eu.name AS executed_by,
-           au.name AS assigned_to,
-           b.title AS bug_title, b.id AS bug_id,
-           e.executed_at, e.created_at
-    FROM test_executions e
-    JOIN test_cycles c  ON c.id  = e.cycle_id
-    JOIN test_cases tc  ON tc.id = e.test_case_id
-    JOIN modules    m   ON m.id  = tc.module_id
-    LEFT JOIN users eu  ON eu.id = e.executed_by_id
-    LEFT JOIN users au  ON au.id = e.assigned_to_id
-    LEFT JOIN bugs  b   ON b.id  = e.bug_id
-    WHERE 1=1 ${pWhere}
-    ORDER BY c.name, m.name, tc.id
-  `).all();
-
-  // ── Bugs ────────────────────────────────────────────────────
-  const bugs = db.prepare(`
-    SELECT b.id, b.title, b.severity, b.status,
-           m.name AS module,
-           tc.id  AS tc_id, tc.title AS test_case,
-           b.comment, b.description, b.tracker_url,
-           u.name AS created_by,
-           b.created_at
-    FROM bugs b
-    LEFT JOIN modules    m  ON m.id  = b.module_id
-    LEFT JOIN test_cases tc ON tc.id = b.test_case_id
-    LEFT JOIN users      u  ON u.id  = b.created_by_id
-    WHERE 1=1 ${pWhereB}
-    ORDER BY b.created_at DESC
-  `).all();
-
-  // ── Module summary ──────────────────────────────────────────
-  const modules = db.prepare(`
-    SELECT m.name AS module,
-           COUNT(DISTINCT tc.id)  AS total_cases,
-           COUNT(e.id)            AS total_executions,
-           SUM(CASE WHEN e.status='passed'  THEN 1 ELSE 0 END) AS passed,
-           SUM(CASE WHEN e.status='failed'  THEN 1 ELSE 0 END) AS failed,
-           SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END) AS blocked,
-           COUNT(DISTINCT b.id)   AS total_bugs,
-           SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END)    AS open_bugs
-    FROM modules m
-    LEFT JOIN test_cases      tc ON tc.module_id = m.id
-    LEFT JOIN test_executions e  ON e.test_case_id = tc.id
-    LEFT JOIN bugs            b  ON b.module_id = m.id
-    WHERE 1=1 ${pWhereM}
-    GROUP BY m.id ORDER BY m.name
-  `).all();
-
-  return { testCases, cycles, executions, bugs, modules };
+  return { testCases: tc.rows, cycles: cy.rows, executions: ex.rows, bugs: bg.rows, modules: md.rows };
 }
 
 module.exports = { getExportData };

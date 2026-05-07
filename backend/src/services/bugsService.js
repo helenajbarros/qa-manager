@@ -1,12 +1,10 @@
-const { db } = require("../database/connection");
-const path   = require("path");
-const fs     = require("fs");
+const { pool } = require("../database/connection");
 
-function extractModuleId(title) {
-  const m = title.match(/^\[(.+?)\]/);
-  if (!m) return null;
-  const r = db.prepare("SELECT id FROM modules WHERE LOWER(name)=?").get(m[1].trim().toLowerCase());
-  return r?.id ?? null;
+async function extractModuleId(title) {
+  const match = title.match(/^\[(.+?)\]/);
+  if (!match) return null;
+  const res = await pool.query("SELECT id FROM modules WHERE LOWER(name) = $1", [match[1].trim().toLowerCase()]);
+  return res.rows[0]?.id ?? null;
 }
 
 const BASE = `
@@ -17,64 +15,70 @@ const BASE = `
   LEFT JOIN test_cases tc ON tc.id = b.test_case_id
 `;
 
-function getFiles(bug_id) {
-  return db.prepare("SELECT * FROM evidence_files WHERE ref_type='bug' AND ref_id=? ORDER BY created_at").all(bug_id);
+async function getFiles(bug_id) {
+  const res = await pool.query("SELECT * FROM evidence_files WHERE ref_type='bug' AND ref_id=$1 ORDER BY created_at", [bug_id]);
+  return res.rows;
 }
 
-function attachFiles(bug) {
-  return bug ? { ...bug, evidence_files: getFiles(bug.id) } : undefined;
+async function attachFiles(bug) {
+  if (!bug) return undefined;
+  return { ...bug, evidence_files: await getFiles(bug.id) };
 }
 
-function findAll({ status, severity, module_id, project_id, search } = {}) {
-  const c = []; const p = [];
-  if (project_id) { c.push("b.project_id=?"); p.push(project_id); }
-  if (status)     { c.push("b.status=?");      p.push(status); }
-  if (severity)   { c.push("b.severity=?");    p.push(severity); }
-  if (module_id)  { c.push("b.module_id=?");   p.push(module_id); }
-  if (search)     { c.push("(LOWER(b.title) LIKE ? OR LOWER(b.description) LIKE ?)");
-                    p.push(`%${search.toLowerCase()}%`,`%${search.toLowerCase()}%`); }
-  const w = c.length ? `WHERE ${c.join(" AND ")}` : "";
-  return db.prepare(`${BASE} ${w} ORDER BY b.created_at DESC`).all(...p).map(attachFiles);
+async function findAll({ status, severity, module_id, project_id, search } = {}) {
+  const conds = ["1=1"]; const params = [];
+  if (project_id) { params.push(project_id); conds.push(`b.project_id = $${params.length}`); }
+  if (status)     { params.push(status);      conds.push(`b.status = $${params.length}`); }
+  if (severity)   { params.push(severity);    conds.push(`b.severity = $${params.length}`); }
+  if (module_id)  { params.push(module_id);   conds.push(`b.module_id = $${params.length}`); }
+  if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(b.title) LIKE $${params.length}`); }
+  const res = await pool.query(`${BASE} WHERE ${conds.join(" AND ")} ORDER BY b.created_at DESC`, params);
+  return Promise.all(res.rows.map(attachFiles));
 }
 
-function findById(id) { return attachFiles(db.prepare(`${BASE} WHERE b.id=?`).get(id)); }
+async function findById(id) {
+  const res = await pool.query(`${BASE} WHERE b.id=$1`, [id]);
+  return attachFiles(res.rows[0]);
+}
 
-function create({ title, description, comment, tracker_url, severity, status, module_id, test_case_id, created_by_id, project_id }) {
-  const mod = module_id ?? extractModuleId(title);
-  const r = db.prepare(`
+async function create({ title, description, comment, tracker_url, severity, status, module_id, test_case_id, created_by_id, project_id }) {
+  const mod = module_id ?? await extractModuleId(title);
+  const res = await pool.query(`
     INSERT INTO bugs (title,description,comment,tracker_url,severity,status,module_id,test_case_id,created_by_id,project_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?)
-  `).run(title.trim(), description??null, comment??null, tracker_url??null,
-         severity??"medium", status??"open", mod, test_case_id??null, created_by_id??null, project_id??1);
-  return findById(r.lastInsertRowid);
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id
+  `, [title.trim(), description??null, comment??null, tracker_url??null, severity??"medium", status??"open", mod, test_case_id??null, created_by_id??null, project_id??1]);
+  return findById(res.rows[0].id);
 }
 
-function update(id, { title, description, comment, tracker_url, severity, status, module_id, test_case_id }) {
-  const mod = module_id !== undefined ? module_id : extractModuleId(title);
-  db.prepare(`
-    UPDATE bugs SET title=?,description=?,comment=?,tracker_url=?,severity=?,status=?,module_id=?,test_case_id=?
-    WHERE id=?
-  `).run(title.trim(), description??null, comment??null, tracker_url??null,
-         severity??"medium", status??"open", mod, test_case_id??null, id);
+async function update(id, { title, description, comment, tracker_url, severity, status, module_id, test_case_id }) {
+  const mod = module_id !== undefined ? module_id : await extractModuleId(title);
+  await pool.query(`
+    UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,status=$6,module_id=$7,test_case_id=$8
+    WHERE id=$9
+  `, [title.trim(), description??null, comment??null, tracker_url??null, severity??"medium", status??"open", mod, test_case_id??null, id]);
   return findById(id);
 }
 
-function addFile(bug_id, { filename, originalname, mimetype, size }) {
-  db.prepare("INSERT INTO evidence_files (ref_type,ref_id,filename,originalname,mimetype,size) VALUES ('bug',?,?,?,?,?)")
-    .run(bug_id, filename, originalname, mimetype, size);
+async function addFile(bug_id, { filename, originalname, mimetype, size }) {
+  await pool.query("INSERT INTO evidence_files (ref_type,ref_id,filename,originalname,mimetype,size) VALUES ('bug',$1,$2,$3,$4,$5)",
+    [bug_id, filename, originalname, mimetype, size]);
   return getFiles(bug_id);
 }
 
-function removeFile(bug_id, file_id) {
-  const f = db.prepare("SELECT * FROM evidence_files WHERE id=? AND ref_type='bug' AND ref_id=?").get(file_id, bug_id);
-  if (f) {
-    const full = path.resolve(__dirname, "../../uploads", f.filename);
+async function removeFile(bug_id, file_id) {
+  const res = await pool.query("SELECT * FROM evidence_files WHERE id=$1 AND ref_type='bug' AND ref_id=$2", [file_id, bug_id]);
+  if (res.rows[0]) {
+    const path = require("path"), fs = require("fs");
+    const full = path.resolve(process.env.QA_UPLOAD_DIR || "uploads", res.rows[0].filename);
     if (fs.existsSync(full)) fs.unlinkSync(full);
-    db.prepare("DELETE FROM evidence_files WHERE id=?").run(file_id);
+    await pool.query("DELETE FROM evidence_files WHERE id=$1", [file_id]);
   }
   return getFiles(bug_id);
 }
 
-function remove(id) { return db.prepare("DELETE FROM bugs WHERE id=?").run(id); }
+async function remove(id) {
+  const res = await pool.query("DELETE FROM bugs WHERE id=$1", [id]);
+  return { changes: res.rowCount };
+}
 
 module.exports = { findAll, findById, create, update, remove, addFile, removeFile };

@@ -1,119 +1,62 @@
-const path = require("path");
-const fs   = require("fs");
+const { Pool } = require("pg");
 
-// Usa o diretório injetado pelo server.js ou fallback local
-function getDbPath() {
-  // Render gratuito nao tem /data — usa diretorio local do app
-  const dir = process.env.QA_DATA_DIR || path.resolve(__dirname, "../../data");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+});
+
+async function initDatabase() {
+  const client = await pool.connect();
   try {
-    fs.mkdirSync(dir, { recursive: true });
-  } catch(e) {
-    // fallback para diretorio temporario se nao tiver permissao
-    const tmp = path.resolve(__dirname, "../data");
-    fs.mkdirSync(tmp, { recursive: true });
-    return path.join(tmp, "qa_system.db");
+    await client.query("SELECT 1");
+    console.log("[DB] Conectado ao PostgreSQL!");
+  } finally {
+    client.release();
   }
-  return path.join(dir, "qa_system.db");
 }
 
-let _db = null;
-let _inTx = false;
+// API compatível com o resto do código
+const db = {
+  // Executa query e retorna todas as linhas
+  prepare: (sql) => ({
+    all:  (...params) => query(sql, flatParams(params)),
+    get:  (...params) => queryOne(sql, flatParams(params)),
+    run:  (...params) => execute(sql, flatParams(params)),
+  }),
+  exec: (sql) => pool.query(sql),
+};
 
-function persist() {
-  if (!_db || _inTx) return;
-  fs.writeFileSync(getDbPath(), Buffer.from(_db.export()));
-}
-
-function norm(params) {
-  if (!params.length) return undefined;
+function flatParams(params) {
+  if (!params.length) return [];
   if (params.length === 1 && Array.isArray(params[0])) return params[0];
   return params;
 }
 
-function getMeta() {
-  const stmt = _db.prepare("SELECT changes() AS c, last_insert_rowid() AS id");
-  let row = { c: 0, id: 0 };
-  if (stmt.step()) row = stmt.getAsObject();
-  stmt.free();
-  return row;
+async function query(sql, params = []) {
+  const pgSql = toPgSql(sql);
+  const res = await pool.query(pgSql, params);
+  return res.rows;
 }
 
-async function initDatabase() {
-  if (_db) return;
-  const SQL    = await require("sql.js")();
-  const dbPath = getDbPath();
-  _db = fs.existsSync(dbPath)
-    ? new SQL.Database(fs.readFileSync(dbPath))
-    : new SQL.Database();
-  _db.run("PRAGMA foreign_keys = ON;");
-  console.log(`[DB] Banco em: ${dbPath}`);
+async function queryOne(sql, params = []) {
+  const pgSql = toPgSql(sql);
+  const res = await pool.query(pgSql, params);
+  return res.rows[0];
 }
 
-function prepare(sql) {
-  const isWrite = /^\s*(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER)/i.test(sql);
+async function execute(sql, params = []) {
+  const pgSql = toPgSql(sql);
+  const res = await pool.query(pgSql, params);
   return {
-    all(...params) {
-      const args = norm(params);
-      const stmt = _db.prepare(sql);
-      const rows = [];
-      if (args) stmt.bind(args);
-      while (stmt.step()) rows.push(sanitize(stmt.getAsObject()));
-      stmt.free();
-      return rows;
-    },
-    get(...params) {
-      const args = norm(params);
-      const stmt = _db.prepare(sql);
-      if (args) stmt.bind(args);
-      const row = stmt.step() ? sanitize(stmt.getAsObject()) : undefined;
-      stmt.free();
-      return row;
-    },
-    run(...params) {
-      const args = norm(params);
-      _db.run(sql, args);
-      const meta = getMeta();
-      if (isWrite) persist();
-      return { changes: meta.c, lastInsertRowid: meta.id };
-    },
+    changes: res.rowCount,
+    lastInsertRowid: res.rows[0]?.id ?? null,
   };
 }
 
-function sanitize(obj) {
-  if (!obj) return obj;
-  const out = {};
-  for (const [k, v] of Object.entries(obj))
-    out[k] = typeof v === "bigint" ? Number(v) : v;
-  return out;
+// Converte ? para $1, $2... (sintaxe PostgreSQL)
+function toPgSql(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
 }
 
-const db = {
-  prepare,
-  exec(sql) { _db.run(sql); persist(); },
-  pragma() {},
-  transaction(fn) {
-    return function (...args) {
-      if (_inTx) return fn(...args);
-      _inTx = true;
-      _db.run("BEGIN;");
-      try {
-        const r = fn(...args);
-        _db.run("COMMIT;");
-        _inTx = false;
-        persist();
-        return r;
-      } catch (e) {
-        _inTx = false;
-        try { _db.run("ROLLBACK;"); } catch (_) {}
-        throw e;
-      }
-    };
-  },
-};
-
-function exportDb() {
-  if (!_db) throw new Error('Banco não inicializado');
-  return Buffer.from(_db.export());
-}
-
-module.exports = { db, initDatabase, exportDb };
+module.exports = { db, pool, initDatabase, query, queryOne, execute };

@@ -1,92 +1,68 @@
 const { Router } = require("express");
 const { authenticate, requireAdmin } = require("../middlewares/auth");
-const { db, exportDb, initDatabase } = require("../database/connection");
-const { runMigrations } = require("../database/migrations");
+const { pool } = require("../database/connection");
 const multer = require("multer");
-const path   = require("path");
-const fs     = require("fs");
-
 const router = Router();
 
-// Multer em memória para receber o .db
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits:  { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: (_req, file, cb) => {
-    if (file.originalname.endsWith(".db")) cb(null, true);
-    else cb(new Error("Apenas arquivos .db são aceitos"));
-  },
-});
-
-// ── GET /api/backup/info ─────────────────────────────────────
-router.get("/info", authenticate, requireAdmin, (req, res, next) => {
+// Info do banco
+router.get("/info", authenticate, requireAdmin, async (req, res, next) => {
   try {
-    const counts = {
-      projects:        db.prepare("SELECT COUNT(*) AS c FROM projects").get().c,
-      users:           db.prepare("SELECT COUNT(*) AS c FROM users").get().c,
-      modules:         db.prepare("SELECT COUNT(*) AS c FROM modules").get().c,
-      test_cases:      db.prepare("SELECT COUNT(*) AS c FROM test_cases").get().c,
-      test_cycles:     db.prepare("SELECT COUNT(*) AS c FROM test_cycles").get().c,
-      test_executions: db.prepare("SELECT COUNT(*) AS c FROM test_executions").get().c,
-      bugs:            db.prepare("SELECT COUNT(*) AS c FROM bugs").get().c,
-      evidence_files:  db.prepare("SELECT COUNT(*) AS c FROM evidence_files").get().c,
-    };
-
-    let sizeKB = 0;
-    try { sizeKB = Math.round(exportDb().length / 1024); } catch(_) {}
-
-    res.json({
-      success: true,
-      data: { size_kb: sizeKB, counts, generated_at: new Date().toISOString() },
-    });
+    const tables = ["projects","users","modules","test_cases","test_cycles","test_executions","bugs","evidence_files"];
+    const counts = {};
+    for (const t of tables) {
+      const r = await pool.query(`SELECT COUNT(*)::int AS c FROM ${t}`);
+      counts[t] = r.rows[0].c;
+    }
+    res.json({ success: true, data: { size_kb: 0, counts, generated_at: new Date().toISOString() } });
   } catch(e) { next(e); }
 });
 
-// ── GET /api/backup/download ─────────────────────────────────
-router.get("/download", authenticate, requireAdmin, (req, res, next) => {
+// Download backup como SQL
+router.get("/download", authenticate, requireAdmin, async (req, res, next) => {
   try {
-    const buffer   = exportDb();
-    const filename = `qa_backup_${new Date().toISOString().slice(0,19).replace(/[:.]/g,"-")}.db`;
-    res.setHeader("Content-Type", "application/octet-stream");
+    const tables = ["projects","users","modules","test_cases","test_cycles","bugs","test_executions","evidence_files"];
+    let sql = `-- QA Manager Backup\n-- ${new Date().toISOString()}\n\n`;
+
+    for (const table of tables) {
+      const res2 = await pool.query(`SELECT * FROM ${table} ORDER BY id`);
+      if (res2.rows.length === 0) continue;
+      sql += `-- ${table}\n`;
+      for (const row of res2.rows) {
+        const cols = Object.keys(row).join(",");
+        const vals = Object.values(row).map(v =>
+          v === null ? "NULL" : `'${String(v).replace(/'/g, "''")}'`
+        ).join(",");
+        sql += `INSERT INTO ${table} (${cols}) VALUES (${vals}) ON CONFLICT DO NOTHING;\n`;
+      }
+      sql += "\n";
+    }
+
+    const filename = `qa_backup_${new Date().toISOString().slice(0,19).replace(/[:.]/g,"-")}.sql`;
+    res.setHeader("Content-Type", "text/plain");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Length", buffer.length);
-    res.send(buffer);
+    res.send(sql);
   } catch(e) { next(e); }
 });
 
-// ── POST /api/backup/restore ─────────────────────────────────
+// Restore via SQL
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50*1024*1024 } });
 router.post("/restore", authenticate, requireAdmin, upload.single("backup"), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, error: "Arquivo .db obrigatório" });
-
-    const dbPath = path.join(
-      process.env.QA_DATA_DIR || path.resolve(__dirname, "../../data"),
-      "qa_system.db"
-    );
-
-    // Salva backup do banco atual antes de sobrescrever
-    const safetyPath = dbPath.replace(".db", `_before_restore_${Date.now()}.db`);
+    if (!req.file) return res.status(400).json({ success: false, error: "Arquivo obrigatório" });
+    const sql = req.file.buffer.toString("utf8");
+    const statements = sql.split("\n").filter(l => l.startsWith("INSERT INTO"));
+    const client = await pool.connect();
     try {
-      const current = exportDb();
-      fs.writeFileSync(safetyPath, current);
-    } catch(_) {}
-
-    // Salva o novo banco em disco
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    fs.writeFileSync(dbPath, req.file.buffer);
-
-    // Reinicializa a conexão com o novo banco
-    await initDatabase(true); // force reload
-    runMigrations();
-
-    res.json({
-      success: true,
-      data: {
-        message:  "Banco restaurado com sucesso!",
-        size_kb:  Math.round(req.file.buffer.length / 1024),
-        restored_at: new Date().toISOString(),
-      },
-    });
+      await client.query("BEGIN");
+      for (const stmt of statements) {
+        try { await client.query(stmt); } catch(e) { /* ignora conflitos */ }
+      }
+      await client.query("COMMIT");
+    } catch(e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally { client.release(); }
+    res.json({ success: true, data: { message: "Banco restaurado!", restored_at: new Date().toISOString() } });
   } catch(e) { next(e); }
 });
 

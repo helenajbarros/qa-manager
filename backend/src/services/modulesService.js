@@ -1,30 +1,41 @@
-const { db } = require("../database/connection");
+const { pool } = require("../database/connection");
 
-function findAll({ project_id, search } = {}) {
-  const conds = []; const params = [];
-  if (project_id) { conds.push("m.project_id = ?"); params.push(project_id); }
-  if (search)     { conds.push("LOWER(m.name) LIKE ?"); params.push(`%${search.toLowerCase()}%`); }
-  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
-  return db.prepare(`
-    SELECT m.*, COUNT(tc.id) AS test_count
+async function findAll({ project_id, search } = {}) {
+  const conds = ["1=1"]; const params = [];
+  if (project_id) { params.push(project_id); conds.push(`m.project_id = $${params.length}`); }
+  if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(m.name) LIKE $${params.length}`); }
+  const res = await pool.query(`
+    SELECT m.*, COUNT(tc.id)::int AS test_count
     FROM modules m LEFT JOIN test_cases tc ON tc.module_id = m.id
-    ${where} GROUP BY m.id ORDER BY m.name
-  `).all(...params);
+    WHERE ${conds.join(" AND ")} GROUP BY m.id ORDER BY m.name
+  `, params);
+  return res.rows;
 }
 
-function findById(id) { return db.prepare("SELECT * FROM modules WHERE id=?").get(id); }
-
-function create({ name, description, project_id }) {
-  const r = db.prepare("INSERT INTO modules (name,description,project_id) VALUES (?,?,?)")
-    .run(name.trim(), description??null, project_id??1);
-  return findById(r.lastInsertRowid);
+async function findById(id) {
+  const res = await pool.query("SELECT * FROM modules WHERE id = $1", [id]);
+  return res.rows[0];
 }
 
-function update(id, { name, description }) {
-  db.prepare("UPDATE modules SET name=?,description=? WHERE id=?").run(name.trim(), description??null, id);
-  return findById(id);
+async function create({ name, description, project_id }) {
+  const res = await pool.query(
+    "INSERT INTO modules (name,description,project_id) VALUES ($1,$2,$3) RETURNING *",
+    [name.trim(), description ?? null, project_id ?? 1]
+  );
+  return res.rows[0];
 }
 
-function remove(id) { return db.prepare("DELETE FROM modules WHERE id=?").run(id); }
+async function update(id, { name, description }) {
+  const res = await pool.query(
+    "UPDATE modules SET name=$1, description=$2 WHERE id=$3 RETURNING *",
+    [name.trim(), description ?? null, id]
+  );
+  return res.rows[0];
+}
+
+async function remove(id) {
+  const res = await pool.query("DELETE FROM modules WHERE id=$1", [id]);
+  return { changes: res.rowCount };
+}
 
 module.exports = { findAll, findById, create, update, remove };

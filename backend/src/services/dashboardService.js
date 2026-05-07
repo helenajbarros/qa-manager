@@ -1,75 +1,70 @@
-const { db } = require("../database/connection");
+const { pool } = require("../database/connection");
 
-function getDashboard({ project_id } = {}) {
-  const pWhere = project_id ? `AND c.project_id = ${project_id}` : "";
-  const bWhere = project_id ? `AND b.project_id = ${project_id}` : "";
-  const mWhere = project_id ? `AND m.project_id = ${project_id}` : "";
+async function getDashboard({ project_id } = {}) {
+  const pWhere  = project_id ? `AND c.project_id = ${parseInt(project_id)}` : "";
+  const pWhereM = project_id ? `AND m.project_id = ${parseInt(project_id)}` : "";
+  const pWhereB = project_id ? `AND b.project_id = ${parseInt(project_id)}` : "";
 
-  const exec = db.prepare(`
+  const execRes = await pool.query(`
     SELECT
-      COUNT(*)  AS total,
-      SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END) AS passed,
-      SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END) AS failed,
-      SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END) AS blocked,
-      SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
+      COUNT(*)::int AS total,
+      SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END)::int AS passed,
+      SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END)::int AS failed,
+      SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END)::int AS blocked,
+      SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END)::int AS not_executed
     FROM test_executions e
-    JOIN test_cycles c ON c.id = e.cycle_id
-    WHERE 1=1 ${pWhere}
-  `).get();
+    JOIN test_cycles c ON c.id = e.cycle_id WHERE 1=1 ${pWhere}
+  `);
+  const exec = execRes.rows[0];
 
-  const totalCases = db.prepare(`
-    SELECT COUNT(*) AS c FROM test_cases tc
-    JOIN modules m ON m.id = tc.module_id WHERE 1=1 ${mWhere}
-  `).get().c;
+  const tcRes = await pool.query(`SELECT COUNT(*)::int AS c FROM test_cases tc JOIN modules m ON m.id=tc.module_id WHERE 1=1 ${pWhereM}`);
+  const totalCases = tcRes.rows[0].c;
 
-  const bugs = db.prepare(`
-    SELECT COUNT(*) AS total,
-      SUM(CASE WHEN status='open'        THEN 1 ELSE 0 END) AS open,
-      SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
-      SUM(CASE WHEN status='fixed'       THEN 1 ELSE 0 END) AS fixed,
-      SUM(CASE WHEN status='closed'      THEN 1 ELSE 0 END) AS closed
-    FROM bugs b WHERE 1=1 ${bWhere}
-  `).get();
+  const bugsRes = await pool.query(`
+    SELECT COUNT(*)::int AS total,
+      SUM(CASE WHEN status='open'        THEN 1 ELSE 0 END)::int AS open,
+      SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END)::int AS in_progress,
+      SUM(CASE WHEN status='fixed'       THEN 1 ELSE 0 END)::int AS fixed,
+      SUM(CASE WHEN status='closed'      THEN 1 ELSE 0 END)::int AS closed
+    FROM bugs b WHERE 1=1 ${pWhereB}
+  `);
+  const bugs = bugsRes.rows[0];
 
-  const moduleStats = db.prepare(`
+  const modRes = await pool.query(`
     SELECT m.id, m.name,
-      COUNT(DISTINCT tc.id) AS total_cases,
-      COUNT(e.id)           AS total_executions,
-      SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END) AS passed,
-      SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END) AS failed,
-      SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END) AS blocked,
-      SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
+      COUNT(DISTINCT tc.id)::int AS total_cases,
+      COUNT(e.id)::int           AS total_executions,
+      SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END)::int AS passed,
+      SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END)::int AS failed,
+      SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END)::int AS blocked,
+      SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END)::int AS not_executed
     FROM modules m
     LEFT JOIN test_cases tc ON tc.module_id = m.id
     LEFT JOIN test_executions e ON e.test_case_id = tc.id
     LEFT JOIN test_cycles c ON c.id = e.cycle_id
-    WHERE 1=1 ${mWhere}
-    GROUP BY m.id ORDER BY total_executions DESC
-  `).all();
+    WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_executions DESC
+  `);
 
-  const bugsPerModule = db.prepare(`
+  const bpmRes = await pool.query(`
     SELECT m.id, m.name,
-      COUNT(b.id) AS total_bugs,
-      SUM(CASE WHEN b.status='open'  THEN 1 ELSE 0 END) AS open_bugs,
-      SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed_bugs
+      COUNT(b.id)::int AS total_bugs,
+      SUM(CASE WHEN b.status='open'  THEN 1 ELSE 0 END)::int AS open_bugs,
+      SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END)::int AS fixed_bugs
     FROM modules m LEFT JOIN bugs b ON b.module_id = m.id
-    WHERE 1=1 ${mWhere}
-    GROUP BY m.id ORDER BY total_bugs DESC
-  `).all();
+    WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC
+  `);
 
-  // Todos os ciclos com métricas detalhadas (não só 5)
-  const cycles = db.prepare(`
+  const cyclesRes = await pool.query(`
     SELECT c.*,
-      COUNT(e.id) AS total_executions,
-      SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END) AS passed,
-      SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END) AS failed,
-      SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END) AS blocked,
-      SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
+      COUNT(e.id)::int AS total_executions,
+      SUM(CASE WHEN e.status='passed'       THEN 1 ELSE 0 END)::int AS passed,
+      SUM(CASE WHEN e.status='failed'       THEN 1 ELSE 0 END)::int AS failed,
+      SUM(CASE WHEN e.status='blocked'      THEN 1 ELSE 0 END)::int AS blocked,
+      SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END)::int AS not_executed
     FROM test_cycles c
     LEFT JOIN test_executions e ON e.cycle_id = c.id
-    WHERE 1=1 ${pWhere}
-    GROUP BY c.id ORDER BY c.created_at DESC
-  `).all();
+    WHERE 1=1 ${pWhere} GROUP BY c.id ORDER BY c.created_at DESC
+  `);
 
   const executed = exec.total - exec.not_executed;
   const rate = (n) => executed > 0 ? +((n/executed)*100).toFixed(1) : 0;
@@ -85,9 +80,9 @@ function getDashboard({ project_id } = {}) {
       block_rate:   rate(exec.blocked),
     },
     bugs,
-    modules: moduleStats,
-    bugs_per_module: bugsPerModule,
-    cycles,
+    modules:        modRes.rows,
+    bugs_per_module: bpmRes.rows,
+    cycles:         cyclesRes.rows,
   };
 }
 

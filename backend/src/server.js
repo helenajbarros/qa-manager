@@ -10,33 +10,14 @@ const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
 const { authenticate }  = require("./middlewares/auth");
 
-// Railway fornece /data como volume persistente
-// Localmente usa ./data e ./uploads
-// Define diretorios de dados — com fallback se nao tiver permissao
-function safeDir(preferred, fallback) {
-  try { fs.mkdirSync(preferred, { recursive: true }); return preferred; }
-  catch(e) { fs.mkdirSync(fallback, { recursive: true }); return fallback; }
-}
-
-const DATA_DIR   = safeDir(
-  process.env.QA_DATA_DIR   || path.resolve(__dirname, "../data"),
-  path.resolve(__dirname, "../data")
-);
-const UPLOAD_DIR = safeDir(
-  process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads"),
-  path.resolve(__dirname, "../uploads")
-);
-
-process.env.QA_DATA_DIR   = DATA_DIR;
+const UPLOAD_DIR = process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads");
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch(_) {}
 process.env.QA_UPLOAD_DIR = UPLOAD_DIR;
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
-  credentials: true,
-}));
+app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
 app.use(express.json());
 app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
@@ -54,21 +35,16 @@ app.use("/api/backup",     require("./routes/backup"));
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })
 );
-
 app.use(errorHandler);
 
 async function start() {
   await initDatabase();
-  runMigrations();
-  runSeed();
+  await runMigrations();
+  await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);
-    console.log(`   Ambiente: ${process.env.NODE_ENV || "development"}`);
-    console.log(`   Dados em: ${DATA_DIR}\n`);
+    console.log(`   DB: PostgreSQL (Supabase)\n`);
   });
 }
 
-start().catch(err => {
-  console.error("Erro ao iniciar:", err);
-  process.exit(1);
-});
+start().catch(err => { console.error("Erro:", err); process.exit(1); });
