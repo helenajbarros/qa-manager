@@ -103,4 +103,9 @@ const db = {
   },
 };
 
-module.exports = { db, initDatabase };
+function exportDb() {
+  if (!_db) throw new Error('Banco não inicializado');
+  return Buffer.from(_db.export());
+}
+
+module.exports = { db, initDatabase, exportDb };

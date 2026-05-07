@@ -1,16 +1,15 @@
 const { Router } = require("express");
 const { authenticate, requireAdmin } = require("../middlewares/auth");
-const { db } = require("../database/connection");
+const { db, exportDb } = require("../database/connection");
 const path = require("path");
 const fs   = require("fs");
 
 const router = Router();
 
-// GET /api/backup/download — baixa o arquivo .db direto
+// GET /api/backup/download
 router.get("/download", authenticate, requireAdmin, (req, res, next) => {
   try {
-    const data     = db.export();
-    const buffer   = Buffer.from(data);
+    const buffer   = exportDb();
     const filename = `qa_backup_${new Date().toISOString().slice(0,19).replace(/[:.]/g,"-")}.db`;
 
     res.setHeader("Content-Type", "application/octet-stream");
@@ -20,7 +19,7 @@ router.get("/download", authenticate, requireAdmin, (req, res, next) => {
   } catch(e) { next(e); }
 });
 
-// GET /api/backup/info — info do banco
+// GET /api/backup/info
 router.get("/info", authenticate, requireAdmin, (req, res, next) => {
   try {
     const counts = {
@@ -34,23 +33,16 @@ router.get("/info", authenticate, requireAdmin, (req, res, next) => {
       evidence_files:  db.prepare("SELECT COUNT(*) AS c FROM evidence_files").get().c,
     };
 
-    const dbPath = process.env.QA_DATA_DIR
-      ? path.join(process.env.QA_DATA_DIR, "qa_system.db")
-      : path.resolve(__dirname, "../../data/qa_system.db");
-
     let sizeKB = 0;
     try {
-      const stat = fs.statSync(dbPath);
-      sizeKB = Math.round(stat.size / 1024);
-    } catch(_) {
-      // Em memória (sql.js) — estima pelo export
-      sizeKB = Math.round(db.export().length / 1024);
-    }
+      const buf = exportDb();
+      sizeKB = Math.round(buf.length / 1024);
+    } catch(_) {}
 
     res.json({
       success: true,
       data: {
-        size_kb:    sizeKB,
+        size_kb:      sizeKB,
         counts,
         generated_at: new Date().toISOString(),
       }
