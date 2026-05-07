@@ -12,14 +12,21 @@ const { authenticate }  = require("./middlewares/auth");
 
 // Railway fornece /data como volume persistente
 // Localmente usa ./data e ./uploads
-const IS_PROD    = process.env.NODE_ENV === "production";
-const DATA_DIR   = IS_PROD ? "/data"         : path.resolve(__dirname, "../data");
-const UPLOAD_DIR = IS_PROD ? "/data/uploads" : path.resolve(__dirname, "../uploads");
+// Define diretorios de dados — com fallback se nao tiver permissao
+function safeDir(preferred, fallback) {
+  try { fs.mkdirSync(preferred, { recursive: true }); return preferred; }
+  catch(e) { fs.mkdirSync(fallback, { recursive: true }); return fallback; }
+}
 
-fs.mkdirSync(DATA_DIR,   { recursive: true });
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const DATA_DIR   = safeDir(
+  process.env.QA_DATA_DIR   || path.resolve(__dirname, "../data"),
+  path.resolve(__dirname, "../data")
+);
+const UPLOAD_DIR = safeDir(
+  process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads"),
+  path.resolve(__dirname, "../uploads")
+);
 
-// Injeta os caminhos para os módulos que precisam
 process.env.QA_DATA_DIR   = DATA_DIR;
 process.env.QA_UPLOAD_DIR = UPLOAD_DIR;
 

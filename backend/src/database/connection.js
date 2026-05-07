@@ -3,8 +3,16 @@ const fs   = require("fs");
 
 // Usa o diretório injetado pelo server.js ou fallback local
 function getDbPath() {
+  // Render gratuito nao tem /data — usa diretorio local do app
   const dir = process.env.QA_DATA_DIR || path.resolve(__dirname, "../../data");
-  fs.mkdirSync(dir, { recursive: true });
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch(e) {
+    // fallback para diretorio temporario se nao tiver permissao
+    const tmp = path.resolve(__dirname, "../data");
+    fs.mkdirSync(tmp, { recursive: true });
+    return path.join(tmp, "qa_system.db");
+  }
   return path.join(dir, "qa_system.db");
 }
 
