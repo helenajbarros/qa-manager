@@ -1,7 +1,7 @@
-const { pool } = require("../database/connection");
-const crypto   = require("crypto");
+const { query, execute } = require("../database/connection");
+const crypto = require("crypto");
 
-function hash(p) { return crypto.createHash("sha256").update(p + "qa_salt_2024").digest("hex"); }
+function hash(p) { return crypto.createHash("sha256").update(p+"qa_salt_2024").digest("hex"); }
 
 function generateToken(user) {
   return Buffer.from(JSON.stringify({ id: user.id, role: user.role, ts: Date.now() })).toString("base64");
@@ -10,24 +10,23 @@ function generateToken(user) {
 function verifyToken(token) {
   try {
     const p = JSON.parse(Buffer.from(token, "base64").toString("utf8"));
-    if (Date.now() - p.ts > 8 * 60 * 60 * 1000) return null;
+    if (Date.now() - p.ts > 8*60*60*1000) return null;
     return p;
   } catch { return null; }
 }
 
 async function findAll() {
-  const res = await pool.query("SELECT id,name,email,role,active,created_at FROM users ORDER BY name");
-  return res.rows;
+  return query("SELECT id,name,email,role,active,created_at FROM users ORDER BY name");
 }
 
 async function findById(id) {
-  const res = await pool.query("SELECT id,name,email,role,active,created_at FROM users WHERE id=$1", [id]);
-  return res.rows[0];
+  const rows = await query("SELECT id,name,email,role,active,created_at FROM users WHERE id=$1", [id]);
+  return rows[0];
 }
 
 async function findByEmail(email) {
-  const res = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
-  return res.rows[0];
+  const rows = await query("SELECT * FROM users WHERE email=$1", [email]);
+  return rows[0];
 }
 
 async function login(email, password) {
@@ -38,27 +37,24 @@ async function login(email, password) {
 }
 
 async function create({ name, email, password, role }) {
-  const res = await pool.query(
+  const rows = await query(
     "INSERT INTO users (name,email,password,role) VALUES ($1,$2,$3,$4) RETURNING id",
-    [name.trim(), email.trim().toLowerCase(), hash(password), role || "viewer"]
+    [name.trim(), email.trim().toLowerCase(), hash(password), role||"viewer"]
   );
-  return findById(res.rows[0].id);
+  return findById(rows[0].id);
 }
 
 async function update(id, { name, email, role, active, password }) {
-  const cur = await pool.query("SELECT * FROM users WHERE id=$1", [id]);
-  if (!cur.rows[0]) return null;
-  const c = cur.rows[0];
-  await pool.query(`UPDATE users SET name=$1,email=$2,role=$3,active=$4,password=$5 WHERE id=$6`,
+  const rows = await query("SELECT * FROM users WHERE id=$1", [id]);
+  const c = rows[0]; if (!c) return null;
+  await execute("UPDATE users SET name=$1,email=$2,role=$3,active=$4,password=$5 WHERE id=$6",
     [name?.trim()??c.name, email?.trim().toLowerCase()??c.email, role??c.role,
-     active !== undefined ? (active ? 1 : 0) : c.active,
-     password ? hash(password) : c.password, id]);
+     active!==undefined?(active?1:0):c.active, password?hash(password):c.password, id]);
   return findById(id);
 }
 
 async function remove(id) {
-  const res = await pool.query("DELETE FROM users WHERE id=$1", [id]);
-  return { changes: res.rowCount };
+  return execute("DELETE FROM users WHERE id=$1", [id]);
 }
 
 module.exports = { findAll, findById, findByEmail, login, create, update, remove, verifyToken };
