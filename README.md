@@ -3,7 +3,7 @@
 Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste, execução por ciclos, gestão de bugs, upload de evidências, controle de usuários e dashboard com métricas.
 
 ---
-Sistema online - https://qa-manager.netlify.app/
+Sistema online - https://helenajbarros.github.io/qa-manager
 ## 🌐 Demo
 
 | | URL |
