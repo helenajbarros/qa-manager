@@ -41,19 +41,19 @@ async function findById(id) {
 }
 
 async function create({ title, description, comment, tracker_url, severity, status, module_id, test_case_id, created_by_id, project_id }) {
-  const mod = module_id ?? await extractModuleId(title);
+  const mod = module_id || await extractModuleId(title);
   const rows = await query(
     "INSERT INTO bugs (title,description,comment,tracker_url,severity,status,module_id,test_case_id,created_by_id,project_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id",
-    [title.trim(), description??null, comment??null, tracker_url??null, severity??"medium", status??"open", mod, test_case_id??null, created_by_id??null, project_id??1]
+    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1]
   );
   return findById(rows[0].id);
 }
 
 async function update(id, { title, description, comment, tracker_url, severity, status, module_id, test_case_id }) {
-  const mod = module_id !== undefined ? module_id : await extractModuleId(title);
+  const mod = module_id || await extractModuleId(title);
   await execute(
     "UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,status=$6,module_id=$7,test_case_id=$8 WHERE id=$9",
-    [title.trim(), description??null, comment??null, tracker_url??null, severity??"medium", status??"open", mod, test_case_id??null, id]
+    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", status||"open", mod||null, test_case_id||null, id]
   );
   return findById(id);
 }

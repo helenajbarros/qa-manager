@@ -24,19 +24,19 @@ async function findCycleById(id) {
 }
 
 async function createCycle({ name, description, version, test_types, start_date, end_date, project_id }) {
-  const types = Array.isArray(test_types) ? test_types.join(",") : (test_types??null);
+  const types = Array.isArray(test_types) ? test_types.join(",") : (test_types||null);
   const rows = await query(
     "INSERT INTO test_cycles (name,description,version,test_types,start_date,end_date,project_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
-    [name.trim(), description??null, version??null, types, start_date??null, end_date??null, project_id??1]
+    [name.trim(), description||null, version||null, types, start_date||null, end_date||null, project_id||1]
   );
   return findCycleById(rows[0].id);
 }
 
 async function updateCycle(id, { name, description, version, test_types, start_date, end_date, status }) {
-  const types = Array.isArray(test_types) ? test_types.join(",") : (test_types??null);
+  const types = Array.isArray(test_types) ? test_types.join(",") : (test_types||null);
   await execute(
     "UPDATE test_cycles SET name=$1,description=$2,version=$3,test_types=$4,start_date=$5,end_date=$6,status=$7 WHERE id=$8",
-    [name.trim(), description??null, version??null, types, start_date??null, end_date??null, status??"active", id]
+    [name.trim(), description||null, version||null, types, start_date||null, end_date||null, status||"active", id]
   );
   return findCycleById(id);
 }
@@ -89,7 +89,7 @@ async function addExecutions(cycle_id, test_case_ids) {
 async function updateExecution(id, { status, evidence_url, comment, bug_id, notes, executed_by_id, assigned_to_id }) {
   await execute(
     "UPDATE test_executions SET status=$1,evidence_url=$2,comment=$3,bug_id=$4,notes=$5,executed_by_id=$6,assigned_to_id=$7 WHERE id=$8",
-    [status??"not_executed", evidence_url??null, comment??null, bug_id??null, notes??null, executed_by_id??null, assigned_to_id??null, id]
+    [status||"not_executed", evidence_url||null, comment||null, bug_id||null, notes||null, executed_by_id||null, assigned_to_id||null, id]
   );
   return findExecutionById(id);
 }

@@ -18,12 +18,12 @@ async function findById(id) {
 
 async function create({ name, description, project_id }) {
   const rows = await query("INSERT INTO modules (name,description,project_id) VALUES ($1,$2,$3) RETURNING id",
-    [name.trim(), description??null, project_id??1]);
+    [name.trim(), description||null, project_id||1]);
   return findById(rows[0].id);
 }
 
 async function update(id, { name, description }) {
-  await execute("UPDATE modules SET name=$1, description=$2 WHERE id=$3", [name.trim(), description??null, id]);
+  await execute("UPDATE modules SET name=$1, description=$2 WHERE id=$3", [name.trim(), description||null, id]);
   return findById(id);
 }
 

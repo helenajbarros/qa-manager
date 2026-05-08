@@ -48,7 +48,7 @@ async function update(id, { name, email, role, active, password }) {
   const rows = await query("SELECT * FROM users WHERE id=$1", [id]);
   const c = rows[0]; if (!c) return null;
   await execute("UPDATE users SET name=$1,email=$2,role=$3,active=$4,password=$5 WHERE id=$6",
-    [name?.trim()??c.name, email?.trim().toLowerCase()??c.email, role??c.role,
+    [name?.trim()||c.name, email?.trim().toLowerCase()||c.email, role||c.role,
      active!==undefined?(active?1:0):c.active, password?hash(password):c.password, id]);
   return findById(id);
 }

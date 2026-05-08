@@ -16,7 +16,7 @@ async function findById(id) {
 }
 
 async function create({ name, description }) {
-  const rows = await query("INSERT INTO projects (name,description) VALUES ($1,$2) RETURNING id", [name.trim(), description??null]);
+  const rows = await query("INSERT INTO projects (name,description) VALUES ($1,$2) RETURNING id", [name.trim(), description||null]);
   return findById(rows[0].id);
 }
 
@@ -24,7 +24,7 @@ async function update(id, { name, description, active, logo_url }) {
   const cur = await findById(id);
   if (!cur) return null;
   await execute("UPDATE projects SET name=$1,description=$2,active=$3,logo_url=$4 WHERE id=$5",
-    [name?.trim()??cur.name, description??cur.description, active!==undefined?(active?1:0):cur.active, logo_url!==undefined?logo_url:cur.logo_url, id]);
+    [name?.trim()||cur.name, description||cur.description, active!==undefined?(active?1:0):cur.active, logo_url!==undefined?logo_url:cur.logo_url, id]);
   return findById(id);
 }
 
