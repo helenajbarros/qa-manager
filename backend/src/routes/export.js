@@ -5,9 +5,9 @@ const r = require("../utils/response");
 
 const router = Router();
 
-router.get("/", authenticate, (req, res, next) => {
+router.get("/", authenticate, async (req, res, next) => {
   try {
-    r.ok(res, getExportData(req.query));
+    r.ok(res, await getExportData(req.query));
   } catch(e) { next(e); }
 });
 
