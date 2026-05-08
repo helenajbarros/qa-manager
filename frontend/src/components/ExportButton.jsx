@@ -15,14 +15,13 @@ async function fetchData(projectId) {
   return data;
 }
 
-async function fetchData(projectId) {
-  const res = await fetch(`${getBase()}/export${projectId?`?project_id=${projectId}`:""}`, { headers:{Authorization:`Bearer ${getToken()}`} });
-  if (!res.ok) throw new Error(`Servidor indisponível (${res.status}) — aguarde 30s e tente novamente`);
+async function fetchDashboard(projectId) {
+  const res  = await fetch(`${getBase()}/dashboard${projectId?`?project_id=${projectId}`:""}`, { headers:{Authorization:`Bearer ${getToken()}`} });
+  if (!res.ok) return {};
   const json = await res.json();
-  const data = json.data ?? json;
-  if (!data || !data.testCases) throw new Error("Dados não encontrados — tente novamente");
-  return data;
+  return json.data ?? json ?? {};
 }
+
 // ── XLSX ──────────────────────────────────────────────────────
 async function loadXLSX() {
   if (window.XLSX) return window.XLSX;
