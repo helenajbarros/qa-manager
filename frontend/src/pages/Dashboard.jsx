@@ -265,7 +265,7 @@ export default function Dashboard() {
       <div className="page-header">
         <h1 id="dashboard-title">Dashboard {currentProject ? `— ${currentProject.name}` : ""}</h1>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <ExportButton />
+          <ExportButton filters={filters} />
           <span style={{ fontSize:12, color:"var(--text-muted)" }}>
             {new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"})}
           </span>
