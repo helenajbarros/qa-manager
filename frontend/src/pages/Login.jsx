@@ -66,6 +66,7 @@ export default function Login() {
 
         <p style={{ fontSize: 11, color: "var(--text-light)", textAlign: "center", marginTop: 20 }}>
           No momento não é possível criar novas contas.
+          
         </p>
       </div>
     </div>
