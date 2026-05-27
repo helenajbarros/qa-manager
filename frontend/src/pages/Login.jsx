@@ -65,7 +65,7 @@ export default function Login() {
         </form>
 
         <p style={{ fontSize: 11, color: "var(--text-light)", textAlign: "center", marginTop: 20 }}>
-          Admin padrão: admin@qa.com / admin123
+          No momento não é possível criar novas contas.
         </p>
       </div>
     </div>
