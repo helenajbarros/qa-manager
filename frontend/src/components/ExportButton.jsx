@@ -26,15 +26,16 @@ async function fetchDashboard(projectId) {
 function applyExportFilters(data, dash, filters) {
   if (!filters || !Object.values(filters).some(Boolean)) return { data, dash };
 
-  const { year, month, day, module_id, status } = filters;
+  const { date_from, date_to, module_id, status } = filters;
 
-  // Filtra ciclos por período (usando start_date)
+  // Filtra ciclos por período (sobreposição de datas)
+  const from = date_from ? new Date(date_from) : null;
+  const to   = date_to   ? new Date(date_to+"T23:59:59") : null;
   const filteredCycles = (data.cycles || []).filter(c => {
-    if (!c.start_date) return true;
-    const d = new Date(c.start_date);
-    if (year  && d.getFullYear() !== parseInt(year))  return false;
-    if (month && d.getMonth()+1  !== parseInt(month)) return false;
-    if (day   && d.getDate()     !== parseInt(day))   return false;
+    const cStart = c.start_date ? new Date(c.start_date) : null;
+    const cEnd   = c.end_date   ? new Date(c.end_date)   : null;
+    if (from && cEnd   && cEnd   < from) return false;
+    if (to   && cStart && cStart > to)   return false;
     return true;
   });
 
@@ -116,12 +117,14 @@ function applyStyles(ws,headers,rows,bg) {
   rows.forEach((row,ri)=>row.forEach((_,ci)=>{ const a=XLSX.utils.encode_cell({r:ri+1,c:ci}); if(ws[a]) ws[a].s=cStyle(ri%2===0?"FFFFFF":"F9FAFB"); }));
 }
 
+const fmtBR = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "";
+
 function filterLabel(filters) {
   if (!filters || !Object.values(filters).some(Boolean)) return "";
   const parts = [];
-  if (filters.year)  parts.push(`Ano: ${filters.year}`);
-  if (filters.month) parts.push(`Mês: ${["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][filters.month]}`);
-  if (filters.day)   parts.push(`Dia: ${filters.day}`);
+  if (filters.date_from || filters.date_to) {
+    parts.push(`Período: ${filters.date_from ? fmtBR(filters.date_from) : "início"} → ${filters.date_to ? fmtBR(filters.date_to) : "hoje"}`);
+  }
   if (filters.status) parts.push(`Status: ${SL[filters.status]||filters.status}`);
   return parts.length ? `Filtros: ${parts.join(" | ")}` : "";
 }

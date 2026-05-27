@@ -87,117 +87,113 @@ function CycleCard({ cycle }) {
 
 // ── Filtros ───────────────────────────────────────────────────
 function FiltersBar({ filters, onChange, modules }) {
-  const currentYear  = new Date().getFullYear();
-  const years        = Array.from({length:5}, (_,i) => currentYear - i);
-  const months       = [
-    {v:"1",l:"Janeiro"},{v:"2",l:"Fevereiro"},{v:"3",l:"Março"},
-    {v:"4",l:"Abril"},{v:"5",l:"Maio"},{v:"6",l:"Junho"},
-    {v:"7",l:"Julho"},{v:"8",l:"Agosto"},{v:"9",l:"Setembro"},
-    {v:"10",l:"Outubro"},{v:"11",l:"Novembro"},{v:"12",l:"Dezembro"},
-  ];
-
   function set(key, val) { onChange({ ...filters, [key]: val }); }
-
-  const hasFilters = filters.year || filters.month || filters.day || filters.module_id || filters.status;
+  const hasFilters = filters.date_from || filters.date_to || filters.module_id || filters.status;
 
   return (
     <div id="dashboard-filters" style={{
       background:"var(--surface)", border:"1px solid var(--border)",
       borderRadius:10, padding:"14px 16px", marginBottom:20,
-      display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end"
     }}>
-      <div style={{ flex:"0 0 auto" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>ANO</div>
-        <select id="filter-year" value={filters.year||""} onChange={e=>set("year",e.target.value)}
-          style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)", fontSize:13, background:"var(--bg)" }}>
-          <option value="">Todos</option>
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end" }}>
+
+        {/* Período */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end",
+          background:"var(--bg)", border:"1px solid var(--border)", borderRadius:8,
+          padding:"10px 14px", flex:"1 1 340px" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"var(--accent)", width:"100%", marginBottom:2 }}>
+            📅 PERÍODO DO CICLO
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DATA INÍCIO (de)</div>
+            <input id="filter-date-from" type="date" value={filters.date_from||""}
+              onChange={e=>set("date_from",e.target.value)}
+              style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+                fontSize:13, background:"var(--surface)" }} />
+          </div>
+          <div style={{ alignSelf:"flex-end", color:"var(--text-muted)", fontSize:13, paddingBottom:8 }}>até</div>
+          <div>
+            <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DATA FIM (até)</div>
+            <input id="filter-date-to" type="date" value={filters.date_to||""}
+              onChange={e=>set("date_to",e.target.value)}
+              style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+                fontSize:13, background:"var(--surface)" }} />
+          </div>
+        </div>
+
+        {/* Módulo */}
+        <div style={{ flex:"1 1 160px" }}>
+          <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>MÓDULO</div>
+          <select id="filter-module" value={filters.module_id||""} onChange={e=>set("module_id",e.target.value)}
+            style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+              fontSize:13, background:"var(--bg)", width:"100%" }}>
+            <option value="">Todos os módulos</option>
+            {(modules||[]).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+
+        {/* Status */}
+        <div style={{ flex:"1 1 140px" }}>
+          <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>STATUS EXECUÇÃO</div>
+          <select id="filter-status" value={filters.status||""} onChange={e=>set("status",e.target.value)}
+            style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+              fontSize:13, background:"var(--bg)", width:"100%" }}>
+            <option value="">Todos</option>
+            <option value="passed">Passou</option>
+            <option value="failed">Falhou</option>
+            <option value="blocked">Bloqueado</option>
+            <option value="not_executed">Não executado</option>
+          </select>
+        </div>
+
+        {hasFilters && (
+          <button id="btn-clear-filters" onClick={() => onChange({})}
+            style={{ padding:"6px 14px", borderRadius:6, border:"1px solid var(--danger)",
+              color:"var(--danger)", background:"none", fontSize:13, cursor:"pointer",
+              alignSelf:"flex-end" }}>
+            ✕ Limpar filtros
+          </button>
+        )}
       </div>
-      <div style={{ flex:"0 0 auto" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>MÊS</div>
-        <select id="filter-month" value={filters.month||""} onChange={e=>set("month",e.target.value)}
-          style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)", fontSize:13, background:"var(--bg)" }}>
-          <option value="">Todos</option>
-          {months.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
-        </select>
-      </div>
-      <div style={{ flex:"0 0 auto" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>DIA</div>
-        <input id="filter-day" type="number" min="1" max="31" value={filters.day||""} placeholder="Dia"
-          onChange={e=>set("day",e.target.value)}
-          style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)", fontSize:13,
-            background:"var(--bg)", width:72 }} />
-      </div>
-      <div style={{ flex:"1 1 160px" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>MÓDULO</div>
-        <select id="filter-module" value={filters.module_id||""} onChange={e=>set("module_id",e.target.value)}
-          style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)", fontSize:13,
-            background:"var(--bg)", width:"100%" }}>
-          <option value="">Todos os módulos</option>
-          {(modules||[]).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-      </div>
-      <div style={{ flex:"1 1 140px" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>STATUS EXECUÇÃO</div>
-        <select id="filter-status" value={filters.status||""} onChange={e=>set("status",e.target.value)}
-          style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)", fontSize:13,
-            background:"var(--bg)", width:"100%" }}>
-          <option value="">Todos</option>
-          <option value="passed">Passou</option>
-          <option value="failed">Falhou</option>
-          <option value="blocked">Bloqueado</option>
-          <option value="not_executed">Não executado</option>
-        </select>
-      </div>
-      {hasFilters && (
-        <button id="btn-clear-filters" onClick={() => onChange({})}
-          style={{ padding:"6px 14px", borderRadius:6, border:"1px solid var(--danger)",
-            color:"var(--danger)", background:"none", fontSize:13, cursor:"pointer",
-            alignSelf:"flex-end" }}>
-          ✕ Limpar filtros
-        </button>
-      )}
     </div>
   );
 }
 
-// ── Aplica filtros localmente nos dados ───────────────────────
+// ── Aplica filtros ────────────────────────────────────────────
 function applyFilters(data, filters) {
   if (!data) return data;
-  const { year, month, day, module_id, status } = filters;
-  if (!year && !month && !day && !module_id && !status) return data;
+  const { date_from, date_to, module_id, status } = filters;
+  if (!date_from && !date_to && !module_id && !status) return data;
 
   const { summary, bugs, modules, bugs_per_module, cycles } = data;
 
-  // Filtra ciclos por período
+  const from = date_from ? new Date(date_from) : null;
+  const to   = date_to   ? new Date(date_to)   : null;
+  if (to) to.setHours(23,59,59,999);
+
+  // Filtra ciclos — ciclo entra no filtro se há sobreposição de período
   const filteredCycles = cycles?.filter(c => {
-    if (!c.start_date) return true;
-    const d = new Date(c.start_date);
-    if (year  && d.getFullYear()  !== parseInt(year))  return false;
-    if (month && d.getMonth()+1   !== parseInt(month)) return false;
-    if (day   && d.getDate()      !== parseInt(day))   return false;
+    const cStart = c.start_date ? new Date(c.start_date) : null;
+    const cEnd   = c.end_date   ? new Date(c.end_date)   : null;
+    if (from && cEnd   && cEnd   < from) return false;
+    if (to   && cStart && cStart > to)   return false;
     return true;
   }) || [];
 
-  // Filtra módulos
   const filteredModules = module_id
     ? modules?.filter(m => String(m.id) === String(module_id))
     : modules;
-
   const filteredBpm = module_id
     ? bugs_per_module?.filter(m => String(m.id) === String(module_id))
     : bugs_per_module;
 
-  // Recalcula summary a partir dos ciclos filtrados
-  const passed      = filteredCycles.reduce((a,c) => a+(c.passed||0), 0);
-  const failed      = filteredCycles.reduce((a,c) => a+(c.failed||0), 0);
-  const blocked     = filteredCycles.reduce((a,c) => a+(c.blocked||0), 0);
-  const not_executed= filteredCycles.reduce((a,c) => a+(c.not_executed||0), 0);
-  const total       = passed+failed+blocked+not_executed;
-  const executed    = total - not_executed;
+  const passed       = filteredCycles.reduce((a,c) => a+(c.passed||0), 0);
+  const failed       = filteredCycles.reduce((a,c) => a+(c.failed||0), 0);
+  const blocked      = filteredCycles.reduce((a,c) => a+(c.blocked||0), 0);
+  const not_executed = filteredCycles.reduce((a,c) => a+(c.not_executed||0), 0);
+  const total        = passed+failed+blocked+not_executed;
+  const executed     = total - not_executed;
 
-  // Filtra por status se selecionado
   const filteredSummary = {
     ...summary,
     total_executions: status ? (
@@ -214,12 +210,14 @@ function applyFilters(data, filters) {
 
   return {
     summary:         filteredSummary,
-    bugs:            bugs,
+    bugs,
     modules:         filteredModules,
     bugs_per_module: filteredBpm,
     cycles:          filteredCycles,
   };
 }
+
+const fmtBR = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "";
 
 export default function Dashboard() {
   const { currentProject } = useProject();
@@ -238,7 +236,6 @@ export default function Dashboard() {
   if (!data)   return null;
 
   const { summary, bugs, modules, bugs_per_module, cycles } = filtered;
-
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const execPie = [
@@ -275,26 +272,26 @@ export default function Dashboard() {
       {/* Filtros */}
       <FiltersBar filters={filters} onChange={setFilters} modules={data?.modules} />
 
-      {/* Badge de filtros ativos */}
+      {/* Badge filtros ativos */}
       {hasActiveFilters && (
         <div id="active-filters-badge" style={{
           background:"var(--accent-bg)", border:"1px solid var(--accent)",
           borderRadius:8, padding:"8px 14px", marginBottom:16,
-          fontSize:12, color:"var(--accent)", display:"flex", gap:8, flexWrap:"wrap"
+          fontSize:12, color:"var(--accent)", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center"
         }}>
           <strong>🔍 Filtros ativos:</strong>
-          {filters.year      && <span>Ano: {filters.year}</span>}
-          {filters.month     && <span>Mês: {["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][filters.month]}</span>}
-          {filters.day       && <span>Dia: {filters.day}</span>}
+          {(filters.date_from || filters.date_to) && (
+            <span>
+              Período: {filters.date_from ? fmtBR(filters.date_from) : "início"} → {filters.date_to ? fmtBR(filters.date_to) : "hoje"}
+            </span>
+          )}
           {filters.module_id && <span>Módulo: {data?.modules?.find(m=>String(m.id)===String(filters.module_id))?.name}</span>}
           {filters.status    && <span>Status: {filters.status}</span>}
-          <span style={{ color:"var(--text-muted)" }}>
-            — {cycles?.length || 0} ciclo(s) encontrado(s)
-          </span>
+          <span style={{ color:"var(--text-muted)" }}>— {cycles?.length || 0} ciclo(s)</span>
         </div>
       )}
 
-      {/* Métricas globais */}
+      {/* Métricas */}
       <div className="metrics-grid" id="metrics-grid">
         <MetricCard id="metric-cases"        label="Casos cadastrados"  value={summary.total_cases} />
         <MetricCard id="metric-executions"   label="Total executado"    value={summary.total_executions} />
@@ -338,7 +335,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Bar por módulo */}
       {modBarData.length > 0 && (
         <div className="card mb-20" id="chart-modules">
           <div className="card-title">Resultados por módulo</div>
@@ -355,7 +351,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Ciclos detalhados */}
       {cycles?.length > 0 ? (
         <div className="mb-20" id="cycles-section">
           <h2 style={{ fontSize:15, fontWeight:600, marginBottom:12 }}>
@@ -371,11 +366,10 @@ export default function Dashboard() {
           borderRadius:10, padding:24, textAlign:"center",
           color:"var(--text-muted)", marginBottom:20
         }}>
-          Nenhum ciclo encontrado para os filtros selecionados.
+          Nenhum ciclo encontrado para o período selecionado.
         </div>
       ) : null}
 
-      {/* Tabelas */}
       <div className="grid-2" id="tables-section">
         <div className="card" id="table-modules">
           <div className="card-title">Métricas por módulo</div>
