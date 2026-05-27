@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAsync }    from "../hooks/useAsync.js";
 import { testCasesApi, modulesApi, usersApi } from "../services/resources.js";
 import { useProject }  from "../context/ProjectContext.jsx";
+import { useAuth }     from "../context/AuthContext.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, Priority } from "../components/UI.jsx";
 
 const PRI_OPTS = [
@@ -21,7 +22,6 @@ function TestCaseForm({ initial={}, modules, users, onSave, onCancel, saving }) 
     assigned_to_id:  initial.assigned_to_id  || "",
   });
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
-
   return (
     <>
       <div className="form-row">
@@ -66,7 +66,10 @@ function TestCaseForm({ initial={}, modules, users, onSave, onCancel, saving }) 
 
 export default function TestCases() {
   const { currentProject } = useProject();
-  const pid = currentProject?.id;
+  const { user }           = useAuth();
+  const pid      = currentProject?.id;
+  const isViewer = user?.role === "viewer";
+
   const { data: cases,   loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: modules, loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: users }                                   = useAsync(() => usersApi.list());
@@ -100,6 +103,7 @@ export default function TestCases() {
     } catch(e) { setErr(e.message); }
     finally { setSaving(false); }
   }
+
   async function handleDelete(id) {
     try { await testCasesApi.delete(id); setConfirm(null); refetch(); }
     catch(e) { setErr(e.message); }
@@ -109,11 +113,12 @@ export default function TestCases() {
     <div className="page">
       <div className="page-header">
         <h1>Casos de Teste</h1>
-        <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
+        {!isViewer && (
+          <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
+        )}
       </div>
       {err && <ErrorMsg msg={err} />}
 
-      {/* Filtros */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="🔍 Buscar por título ou ID..."
@@ -160,10 +165,12 @@ export default function TestCases() {
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.assigned_to_name||"—"}</td>
                     <td style={{color:"var(--text-muted)"}}>{new Date(c.created_at).toLocaleDateString("pt-BR")}</td>
                     <td>
-                      <div className="actions">
-                        <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:c})}>✏</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
-                      </div>
+                      {!isViewer && (
+                        <div className="actions">
+                          <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:c})}>✏</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -173,7 +180,6 @@ export default function TestCases() {
         )}
       </div>
 
-      {/* Modal detalhe do caso */}
       {detail && (
         <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setDetail(null)}>
           <div className="modal" style={{maxWidth:600}}>
@@ -193,10 +199,10 @@ export default function TestCases() {
               </div>
             )}
             {[
-              {label:"Descrição",       value:detail.description},
-              {label:"Pré-condições",   value:detail.preconditions},
-              {label:"Passos",          value:detail.steps},
-              {label:"Resultado esperado", value:detail.expected_result},
+              {label:"Descrição",value:detail.description},
+              {label:"Pré-condições",value:detail.preconditions},
+              {label:"Passos",value:detail.steps},
+              {label:"Resultado esperado",value:detail.expected_result},
             ].map(({label,value}) => value ? (
               <div key={label} style={{marginBottom:14}}>
                 <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",
@@ -207,7 +213,9 @@ export default function TestCases() {
             ) : null)}
             <div className="modal-footer">
               <button className="btn" onClick={() => setDetail(null)}>Fechar</button>
-              <button className="btn btn-primary" onClick={() => { setModal({mode:"edit",item:detail}); setDetail(null); }}>✏ Editar</button>
+              {!isViewer && (
+                <button className="btn btn-primary" onClick={() => { setModal({mode:"edit",item:detail}); setDetail(null); }}>✏ Editar</button>
+              )}
             </div>
           </div>
         </div>

@@ -60,15 +60,9 @@ function BugForm({ initial={}, modules, testCases, onSave, onCancel, saving, bug
       <Field label="Descrição">
         <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />
       </Field>
-
-      {/* Upload de arquivos — só disponível ao editar (após criar) */}
       {bugId ? (
         <Field label="Arquivos / Evidências">
-          <FileUpload
-            files={initial.evidence_files || []}
-            onUpload={onFileUpload}
-            onDelete={onFileDelete}
-          />
+          <FileUpload files={initial.evidence_files || []} onUpload={onFileUpload} onDelete={onFileDelete} />
         </Field>
       ) : (
         <div style={{fontSize:12,color:"var(--text-muted)",padding:"8px 12px",
@@ -76,7 +70,6 @@ function BugForm({ initial={}, modules, testCases, onSave, onCancel, saving, bug
           💡 Você poderá anexar arquivos e evidências após salvar o bug.
         </div>
       )}
-
       <div className="modal-footer">
         <button className="btn" onClick={onCancel}>Cancelar</button>
         <button className="btn btn-primary" onClick={() => onSave(form)}
@@ -92,6 +85,7 @@ export default function Bugs() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
   const pid = currentProject?.id;
+  const isViewer = user?.role === "viewer";
 
   const { data: bugs,      loading:l1, error:e1, refetch } = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
@@ -169,11 +163,12 @@ export default function Bugs() {
     <div className="page">
       <div className="page-header">
         <h1>Bugs</h1>
-        <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo bug</button>
+        {!isViewer && (
+          <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo bug</button>
+        )}
       </div>
       {err && <ErrorMsg msg={err} />}
 
-      {/* Status cards */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"open",label:"Abertos",color:"var(--danger)"},
           {key:"in_progress",label:"Em andamento",color:"var(--warning)"},
@@ -190,7 +185,6 @@ export default function Bugs() {
         ))}
       </div>
 
-      {/* Filtros */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="🔍 Buscar por título, ID ou criador..."
@@ -221,30 +215,26 @@ export default function Bugs() {
                     <td style={{color:"var(--text-muted)",fontSize:12,fontWeight:600}}>{b.id}</td>
                     <td style={{fontWeight:500,maxWidth:220}}>{b.title}</td>
                     <td style={{fontSize:12}}>
-                      {b.test_case_id
-                        ? <span style={{color:"var(--accent)",fontWeight:600}}>#{b.test_case_id}</span>
-                        : "—"}
+                      {b.test_case_id ? <span style={{color:"var(--accent)",fontWeight:600}}>#{b.test_case_id}</span> : "—"}
                     </td>
                     <td>{b.module_name ? <span className="badge badge-active">{b.module_name}</span> : "—"}</td>
                     <td><Severity v={b.severity} /></td>
                     <td><BugStatus v={b.status} /></td>
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>{b.created_by_name||"—"}</td>
                     <td style={{fontSize:12}}>
-                      {b.evidence_files?.length > 0
-                        ? <span style={{color:"var(--accent)"}}>📎 {b.evidence_files.length}</span>
-                        : "—"}
+                      {b.evidence_files?.length > 0 ? <span style={{color:"var(--accent)"}}>📎 {b.evidence_files.length}</span> : "—"}
                     </td>
                     <td>
-                      {b.tracker_url
-                        ? <a href={b.tracker_url} target="_blank" rel="noreferrer"
-                            style={{color:"var(--accent)",fontSize:12,whiteSpace:"nowrap"}}>🔗 Abrir</a>
-                        : "—"}
+                      {b.tracker_url ? <a href={b.tracker_url} target="_blank" rel="noreferrer"
+                          style={{color:"var(--accent)",fontSize:12,whiteSpace:"nowrap"}}>🔗 Abrir</a> : "—"}
                     </td>
                     <td>
-                      <div className="actions">
-                        <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:b})}>✏</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
-                      </div>
+                      {!isViewer && (
+                        <div className="actions">
+                          <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:b})}>✏</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -255,20 +245,11 @@ export default function Bugs() {
       </div>
 
       {modal && (
-        <Modal
-          title={modal.mode==="create" ? "Novo bug" : `Bug #${modal.item.id} — ${modal.item.title}`}
+        <Modal title={modal.mode==="create" ? "Novo bug" : `Bug #${modal.item.id} — ${modal.item.title}`}
           onClose={() => { setModal(null); refetch(); }}>
-          <BugForm
-            initial={modal.item||{}}
-            modules={modules||[]}
-            testCases={testCases||[]}
-            bugId={modal.item?.id}
-            onSave={handleSave}
-            onCancel={() => { setModal(null); refetch(); }}
-            saving={saving}
-            onFileUpload={handleFileUpload}
-            onFileDelete={handleFileDelete}
-          />
+          <BugForm initial={modal.item||{}} modules={modules||[]} testCases={testCases||[]}
+            bugId={modal.item?.id} onSave={handleSave} onCancel={() => { setModal(null); refetch(); }}
+            saving={saving} onFileUpload={handleFileUpload} onFileDelete={handleFileDelete} />
         </Modal>
       )}
       {confirm && (

@@ -28,9 +28,7 @@ function CycleForm({ initial={}, onSave, onCancel, saving }) {
       <Field label="Nome *"><input value={form.name} onChange={set("name")} placeholder="Ex: Sprint 1" autoFocus /></Field>
       <div className="form-row">
         <Field label="Versão"><input value={form.version} onChange={set("version")} placeholder="Ex: 1.2.0" /></Field>
-        <Field label="Status">
-          <Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={CYCLE_STATUS} />
-        </Field>
+        <Field label="Status"><Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={CYCLE_STATUS} /></Field>
       </div>
       <div className="form-row">
         <Field label="Data início"><input type="date" value={form.start_date} onChange={set("start_date")} /></Field>
@@ -73,7 +71,6 @@ function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
     if (filterMod && String(c.module_id) !== filterMod) return false;
     return true;
   });
-
   const modules = [...new Map((allCases||[]).map(c=>[c.module_id,{id:c.module_id,name:c.module_name}])).values()];
   const allSelected = available.length > 0 && selected.length === available.length;
 
@@ -140,12 +137,12 @@ function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
   const { data: bugs  } = useAsync(() => bugsApi.list());
   const { data: users } = useAsync(() => usersApi.list());
   const [form, setForm] = useState({
-    status:        execution.status        || "not_executed",
-    evidence_url:  execution.evidence_url  || "",
-    comment:       execution.comment       || "",
-    notes:         execution.notes         || "",
-    bug_id:        execution.bug_id        || "",
-    assigned_to_id:execution.assigned_to_id|| "",
+    status:         execution.status         || "not_executed",
+    evidence_url:   execution.evidence_url   || "",
+    comment:        execution.comment        || "",
+    notes:          execution.notes          || "",
+    bug_id:         execution.bug_id         || "",
+    assigned_to_id: execution.assigned_to_id || "",
   });
   const [files,     setFiles]     = useState(execution.evidence_files || []);
   const [uploading, setUploading] = useState(false);
@@ -200,8 +197,7 @@ function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
         </Field>
       </div>
       <Field label="Comentário">
-        <textarea value={form.comment} onChange={set("comment")} rows={3}
-          placeholder="O que foi observado durante a execução..." />
+        <textarea value={form.comment} onChange={set("comment")} rows={3} placeholder="O que foi observado durante a execução..." />
       </Field>
       <Field label="URL de evidência">
         <input value={form.evidence_url} onChange={set("evidence_url")} placeholder="https://..." />
@@ -211,8 +207,7 @@ function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
       </Field>
       <Field label="Vincular bug">
         <Select value={form.bug_id} onChange={v=>setForm(f=>({...f,bug_id:v}))}
-          options={(bugs||[]).map(b=>({value:b.id,label:`#${b.id} ${b.title}`}))}
-          placeholder="Nenhum bug vinculado" />
+          options={(bugs||[]).map(b=>({value:b.id,label:`#${b.id} ${b.title}`}))} placeholder="Nenhum bug vinculado" />
       </Field>
       <Field label="Observações"><textarea value={form.notes} onChange={set("notes")} placeholder="Notas adicionais..." /></Field>
       <div className="modal-footer">
@@ -259,6 +254,8 @@ function TCDetailModal({ execution, onClose }) {
 }
 
 function CycleDetail({ cycle, onBack, onRefresh }) {
+  const { user }    = useAuth();
+  const isViewer    = user?.role === "viewer";
   const { data: execs, loading, error, refetch } = useAsync(()=>cyclesApi.listExecutions(cycle.id), [cycle.id]);
   const [addModal,  setAddModal]  = useState(false);
   const [execModal, setExecModal] = useState(null);
@@ -298,10 +295,11 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
           </div>
           <CycleBadge v={cycle.status} />
         </div>
-        <button className="btn btn-primary" onClick={()=>setAddModal(true)}>+ Adicionar testes</button>
+        {!isViewer && (
+          <button className="btn btn-primary" onClick={()=>setAddModal(true)}>+ Adicionar testes</button>
+        )}
       </div>
 
-      {/* Status mini cards */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"passed",label:"Passou",color:"var(--success)"},
           {key:"failed",label:"Falhou",color:"var(--danger)"},
@@ -318,7 +316,6 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
         ))}
       </div>
 
-      {/* Search */}
       <div style={{marginBottom:16}}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="🔍 Buscar por título, módulo ou ID..."
@@ -362,7 +359,9 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
                     <td>
                       <div className="actions">
                         <button className="btn btn-sm" onClick={()=>setExecModal(e)}>▶</button>
-                        <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(e)}>🗑</button>
+                        {!isViewer && (
+                          <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(e)}>🗑</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -382,8 +381,11 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
 }
 
 export default function Cycles() {
+  const { user }           = useAuth();
   const { currentProject } = useProject();
-  const pid = currentProject?.id;
+  const pid      = currentProject?.id;
+  const isViewer = user?.role === "viewer";
+
   const { data: cycles, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
   const [modal,   setModal]   = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -413,7 +415,9 @@ export default function Cycles() {
     <div className="page">
       <div className="page-header">
         <h1>Ciclos de Teste</h1>
-        <button className="btn btn-primary" onClick={()=>setModal({mode:"create"})}>+ Novo ciclo</button>
+        {!isViewer && (
+          <button className="btn btn-primary" onClick={()=>setModal({mode:"create"})}>+ Novo ciclo</button>
+        )}
       </div>
       {err && <ErrorMsg msg={err} />}
       <div style={{marginBottom:16}}>
@@ -464,8 +468,12 @@ export default function Cycles() {
                       <td>
                         <div className="actions">
                           <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
-                          <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
-                          <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(c)}>🗑</button>
+                          {!isViewer && (
+                            <>
+                              <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
+                              <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(c)}>🗑</button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

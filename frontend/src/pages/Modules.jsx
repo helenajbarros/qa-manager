@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAsync }   from "../hooks/useAsync.js";
 import { modulesApi } from "../services/resources.js";
 import { useProject } from "../context/ProjectContext.jsx";
+import { useAuth }    from "../context/AuthContext.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field } from "../components/UI.jsx";
 
 function ModuleForm({ initial={}, onSave, onCancel, saving }) {
@@ -23,7 +24,10 @@ function ModuleForm({ initial={}, onSave, onCancel, saving }) {
 
 export default function Modules() {
   const { currentProject } = useProject();
-  const pid = currentProject?.id;
+  const { user }           = useAuth();
+  const pid      = currentProject?.id;
+  const isViewer = user?.role === "viewer";
+
   const { data: modules, loading, error, refetch } = useAsync(
     () => modulesApi.list(pid ? { project_id: pid } : {}), [pid]
   );
@@ -59,7 +63,9 @@ export default function Modules() {
     <div className="page">
       <div className="page-header">
         <h1>Módulos</h1>
-        <button className="btn btn-primary" onClick={()=>setModal({mode:"create"})}>+ Novo módulo</button>
+        {!isViewer && (
+          <button className="btn btn-primary" onClick={()=>setModal({mode:"create"})}>+ Novo módulo</button>
+        )}
       </div>
       {err && <ErrorMsg msg={err} />}
       <div style={{marginBottom:16}}>
@@ -80,10 +86,12 @@ export default function Modules() {
                     <td><span className="badge badge-active">{m.test_count}</span></td>
                     <td style={{color:"var(--text-muted)"}}>{new Date(m.created_at).toLocaleDateString("pt-BR")}</td>
                     <td>
-                      <div className="actions">
-                        <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:m})}>✏ Editar</button>
-                        <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(m)}>🗑</button>
-                      </div>
+                      {!isViewer && (
+                        <div className="actions">
+                          <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:m})}>✏ Editar</button>
+                          <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(m)}>🗑</button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
