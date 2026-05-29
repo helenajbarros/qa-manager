@@ -1,13 +1,29 @@
 const { query, execute } = require("../database/connection");
+const { getUserProjectIds } = require("./userProjectsService");
 
-async function findAll() {
-  return query(`
+async function findAll(userId, role) {
+  // Admin vê todos; outros só veem os atribuídos
+  const allowedIds = await getUserProjectIds(userId, role);
+
+  let sql = `
     SELECT p.*,
       (SELECT COUNT(*) FROM modules     m WHERE m.project_id = p.id) AS module_count,
       (SELECT COUNT(*) FROM test_cycles c WHERE c.project_id = p.id) AS cycle_count,
       (SELECT COUNT(*) FROM bugs        b WHERE b.project_id = p.id) AS bug_count
-    FROM projects p ORDER BY p.name
-  `);
+    FROM projects p
+  `;
+
+  if (allowedIds !== null && allowedIds.length > 0) {
+    const placeholders = allowedIds.map((_, i) => `$${i + 1}`).join(",");
+    sql += ` WHERE p.id IN (${placeholders}) ORDER BY p.name`;
+    return query(sql, allowedIds);
+  } else if (allowedIds !== null && allowedIds.length === 0) {
+    // Usuário sem nenhum projeto atribuído
+    return [];
+  }
+
+  sql += " ORDER BY p.name";
+  return query(sql);
 }
 
 async function findById(id) {

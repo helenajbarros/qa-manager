@@ -5,6 +5,7 @@ const fs      = require("fs");
 
 const { initDatabase }  = require("./database/connection");
 const { runMigrations } = require("./database/migrations");
+const { addUserProjectsTable } = require("./database/migrations_user_projects");
 const { runSeed }       = require("./database/seed");
 const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
@@ -23,6 +24,7 @@ app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
 
 app.use("/api/users",      require("./routes/users"));
+app.use("/api/users",      require("./routes/userProjects"));
 app.use("/api/projects",   require("./routes/projects"));
 app.use("/api/modules",    require("./routes/modules"));
 app.use("/api/test-cases", require("./routes/testCases"));
@@ -40,10 +42,11 @@ app.use(errorHandler);
 async function start() {
   await initDatabase();
   await runMigrations();
+  await addUserProjectsTable();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);
-    console.log(`   DB: PostgreSQL (Supabase)\n`);
+    console.log(`   DB: ${process.env.DATABASE_URL ? "PostgreSQL" : "SQLite"}\n`);
   });
 }
 
