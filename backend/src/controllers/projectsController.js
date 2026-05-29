@@ -1,5 +1,6 @@
 const svc    = require("../services/projectsService");
-const upload = require("../middlewares/upload");
+const { createUpload } = require("../middlewares/upload");
+const upload = createUpload("logo");
 const r      = require("../utils/response");
 
 exports.index = async (req, res, next) => {

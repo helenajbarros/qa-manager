@@ -1,5 +1,5 @@
 const { query, execute } = require("../database/connection");
-const { getUserProjectIds } = require("./userprojectsservice");
+const { getUserProjectIds } = require("./userProjectsService");
 
 async function findAll(userId, role) {
   // Admin vê todos; outros só veem os atribuídos
