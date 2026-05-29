@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useAsync }    from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, cyclesApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.jsx";
@@ -106,10 +106,9 @@ export default function Bugs() {
   if (e1||e2) return <ErrorMsg msg={e1||e2} />;
 
   // Ciclo selecionado para filtro
-  const cycleTestCaseIds = useMemo(
-    () => (!filterCycle || !cycles) ? null : (cycles.find(c => String(c.id) === filterCycle) || null),
-    [filterCycle, cycles]
-  );
+  const selectedCycle = filterCycle && cycles
+    ? (cycles.find(c => String(c.id) === filterCycle) || null)
+    : null;
 
   const filtered = (bugs||[]).filter(b => {
     if (filterSev && b.severity !== filterSev)           return false;
@@ -119,11 +118,11 @@ export default function Bugs() {
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
     // Filtro por ciclo: mostra bugs que têm TC vinculado ao ciclo
-    if (filterCycle && cycleTestCaseIds) {
+    if (filterCycle && selectedCycle) {
       // Se o bug tem test_case_id, verifica se esse TC está no ciclo selecionado
       // Como não carregamos execuções aqui, filtramos por módulo do ciclo
       // A melhor abordagem: filtrar por bugs criados no período do ciclo
-      const cycle = cycleTestCaseIds;
+      const cycle = selectedCycle;
       if (b.test_case_id) {
         // Tem TC vinculado — inclui
         return true;
@@ -248,12 +247,12 @@ export default function Bugs() {
       </div>
 
       {/* Badge ciclo ativo */}
-      {filterCycle && cycleTestCaseIds && (
+      {filterCycle && selectedCycle && (
         <div style={{background:"var(--accent-bg)",border:"1px solid var(--accent)",
           borderRadius:8,padding:"6px 14px",marginBottom:12,fontSize:12,color:"var(--accent)"}}>
-          🔁 Filtrando por ciclo: <strong>{cycleTestCaseIds.name}</strong>
-          {cycleTestCaseIds.version && <span> — v{cycleTestCaseIds.version}</span>}
-          {cycleTestCaseIds.start_date && <span> | {new Date(cycleTestCaseIds.start_date).toLocaleDateString("pt-BR")} → {cycleTestCaseIds.end_date ? new Date(cycleTestCaseIds.end_date).toLocaleDateString("pt-BR") : "hoje"}</span>}
+          🔁 Filtrando por ciclo: <strong>{selectedCycle.name}</strong>
+          {selectedCycle.version && <span> — v{selectedCycle.version}</span>}
+          {selectedCycle.start_date && <span> | {new Date(selectedCycle.start_date).toLocaleDateString("pt-BR")} → {selectedCycle.end_date ? new Date(selectedCycle.end_date).toLocaleDateString("pt-BR") : "hoje"}</span>}
         </div>
       )}
 
