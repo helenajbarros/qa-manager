@@ -46,3 +46,9 @@ exports.uploadLogo = [
       const files = req.files;
       const file  = files && files.logo && files.logo[0];
       if (!file) return r.badRequest(res, "Arquivo não enviado");
+
+  const data = await svc.saveLogo(req.params.id, file.buffer, file.mimetype);
+      r.ok(res, data);
+    } catch(e) { next(e); }
+  }
+];
