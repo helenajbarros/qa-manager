@@ -1,5 +1,6 @@
 const svc    = require("../services/projectsService");
-const upload = require("../middlewares/upload");
+const { createUpload } = require("../middlewares/upload");
+const upload = createUpload("logo");
 const r      = require("../utils/response");
 
 exports.index = async (req, res, next) => {
@@ -40,14 +41,11 @@ exports.destroy = async (req, res, next) => {
 };
 
 exports.uploadLogo = [
-  upload.fields([{ name: "logo", maxCount: 1 }]),
+  upload.single("logo"),
   async (req, res, next) => {
     try {
-      const files = req.files;
-      const file  = files && files.logo && files.logo[0];
-      if (!file) return r.badRequest(res, "Arquivo não enviado");
-
-  const data = await svc.saveLogo(req.params.id, file.buffer, file.mimetype);
+      if (!req.file) return r.badRequest(res, "Arquivo não enviado");
+      const data = await svc.saveLogo(req.params.id, req.file.buffer, req.file.mimetype);
       r.ok(res, data);
     } catch(e) { next(e); }
   }
