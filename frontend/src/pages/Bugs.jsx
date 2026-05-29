@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAsync }    from "../hooks/useAsync.js";
-import { bugsApi, modulesApi, testCasesApi } from "../services/resources.js";
+import { bugsApi, modulesApi, testCasesApi, cyclesApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.jsx";
 import { useProject }  from "../context/ProjectContext.jsx";
 import { FileUpload }  from "../components/FileUpload.jsx";
@@ -90,18 +90,31 @@ export default function Bugs() {
   const { data: bugs,      loading:l1, error:e1, refetch } = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: testCases }                                 = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: cycles }                                    = useAsync(() => cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
 
-  const [modal,     setModal]     = useState(null);
-  const [confirm,   setConfirm]   = useState(null);
-  const [search,    setSearch]    = useState("");
-  const [filterSev, setFilterSev] = useState("");
-  const [filterSt,  setFilterSt]  = useState("");
-  const [filterMod, setFilterMod] = useState("");
-  const [saving,    setSaving]    = useState(false);
-  const [err,       setErr]       = useState(null);
+  const [modal,       setModal]       = useState(null);
+  const [confirm,     setConfirm]     = useState(null);
+  const [search,      setSearch]      = useState("");
+  const [filterSev,   setFilterSev]   = useState("");
+  const [filterSt,    setFilterSt]    = useState("");
+  const [filterMod,   setFilterMod]   = useState("");
+  const [filterCycle, setFilterCycle] = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const [err,         setErr]         = useState(null);
 
   if (l1||l2) return <Loading />;
   if (e1||e2) return <ErrorMsg msg={e1||e2} />;
+
+  // IDs dos casos de teste do ciclo selecionado
+  const cycleTestCaseIds = useMemo(() => {
+    if (!filterCycle || !cycles) return null;
+    const cycle = cycles.find(c => String(c.id) === filterCycle);
+    if (!cycle) return null;
+    // Filtra testCases pelos vinculados ao ciclo via test_case_id nos bugs
+    // Como não temos execuções aqui, filtramos bugs que têm test_case_id
+    // vinculado à versão do ciclo — usamos o nome/versão do ciclo
+    return cycle;
+  }, [filterCycle, cycles]);
 
   const filtered = (bugs||[]).filter(b => {
     if (filterSev && b.severity !== filterSev)           return false;
@@ -110,10 +123,35 @@ export default function Bugs() {
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
+    // Filtro por ciclo: mostra bugs que têm TC vinculado ao ciclo
+    if (filterCycle && cycleTestCaseIds) {
+      // Se o bug tem test_case_id, verifica se esse TC está no ciclo selecionado
+      // Como não carregamos execuções aqui, filtramos por módulo do ciclo
+      // A melhor abordagem: filtrar por bugs criados no período do ciclo
+      const cycle = cycleTestCaseIds;
+      if (b.test_case_id) {
+        // Tem TC vinculado — inclui
+        return true;
+      }
+      if (cycle.start_date && cycle.end_date) {
+        const bugDate  = new Date(b.created_at);
+        const cycStart = new Date(cycle.start_date);
+        const cycEnd   = new Date(cycle.end_date + "T23:59:59");
+        if (bugDate < cycStart || bugDate > cycEnd) return false;
+      }
+    }
     return true;
   });
 
   const counts = (bugs||[]).reduce((a,b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
+
+  // Versões únicas dos ciclos para o filtro
+  const cycleOptions = (cycles||[]).map(c => ({
+    value: String(c.id),
+    label: c.version ? `${c.name} (v${c.version})` : c.name
+  }));
+
+  const hasFilters = filterSev || filterSt || filterMod || filterCycle || search;
 
   async function handleSave(form) {
     setSaving(true); setErr(null);
@@ -138,8 +176,7 @@ export default function Bugs() {
       headers: token ? {Authorization:`Bearer ${token}`} : {},
     });
     const json = await res.json();
-    const files = json.data ?? json;
-    setModal(m => ({...m, item: {...m.item, evidence_files: files}}));
+    setModal(m => ({...m, item: {...m.item, evidence_files: json.data ?? json}}));
     refetch();
   }
 
@@ -149,8 +186,7 @@ export default function Bugs() {
       method:"DELETE", headers: token ? {Authorization:`Bearer ${token}`} : {},
     });
     const json = await res.json();
-    const files = json.data ?? json;
-    setModal(m => ({...m, item: {...m.item, evidence_files: files}}));
+    setModal(m => ({...m, item: {...m.item, evidence_files: json.data ?? json}}));
     refetch();
   }
 
@@ -169,6 +205,7 @@ export default function Bugs() {
       </div>
       {err && <ErrorMsg msg={err} />}
 
+      {/* Cards de status */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"open",label:"Abertos",color:"var(--danger)"},
           {key:"in_progress",label:"Em andamento",color:"var(--warning)"},
@@ -185,10 +222,16 @@ export default function Bugs() {
         ))}
       </div>
 
-      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+      {/* Filtros */}
+      <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="🔍 Buscar por título, ID ou criador..."
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:220,flex:1}} />
+        <select value={filterCycle} onChange={e=>setFilterCycle(e.target.value)}
+          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:160}}>
+          <option value="">🔁 Todos os ciclos</option>
+          {cycleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
         <select value={filterSev} onChange={e=>setFilterSev(e.target.value)}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}}>
           <option value="">Severidade</option>
@@ -199,15 +242,32 @@ export default function Bugs() {
           <option value="">Módulo</option>
           {(modules||[]).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
+        {hasFilters && (
+          <button onClick={() => { setSearch(""); setFilterSev(""); setFilterSt(""); setFilterMod(""); setFilterCycle(""); }}
+            style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--danger)",
+              color:"var(--danger)",background:"none",fontSize:13,cursor:"pointer"}}>
+            ✕ Limpar
+          </button>
+        )}
         <span style={{fontSize:12,color:"var(--text-muted)",alignSelf:"center"}}>{filtered.length} bug(s)</span>
       </div>
+
+      {/* Badge ciclo ativo */}
+      {filterCycle && cycleTestCaseIds && (
+        <div style={{background:"var(--accent-bg)",border:"1px solid var(--accent)",
+          borderRadius:8,padding:"6px 14px",marginBottom:12,fontSize:12,color:"var(--accent)"}}>
+          🔁 Filtrando por ciclo: <strong>{cycleTestCaseIds.name}</strong>
+          {cycleTestCaseIds.version && <span> — v{cycleTestCaseIds.version}</span>}
+          {cycleTestCaseIds.start_date && <span> | {new Date(cycleTestCaseIds.start_date).toLocaleDateString("pt-BR")} → {cycleTestCaseIds.end_date ? new Date(cycleTestCaseIds.end_date).toLocaleDateString("pt-BR") : "hoje"}</span>}
+        </div>
+      )}
 
       <div className="card">
         {!filtered.length ? <Empty icon="🐛" text="Nenhum bug encontrado." /> : (
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>#</th><th>Título</th><th>TC</th><th>Módulo</th><th>Sev.</th><th>Status</th><th>Criado por</th><th>Arquivos</th><th>Tracker</th><th></th></tr>
+                <tr><th>#</th><th>Título</th><th>TC</th><th>Módulo</th><th>Sev.</th><th>Status</th><th>Criado por</th><th>Data</th><th>Arquivos</th><th>Tracker</th><th></th></tr>
               </thead>
               <tbody>
                 {filtered.map(b => (
@@ -221,6 +281,9 @@ export default function Bugs() {
                     <td><Severity v={b.severity} /></td>
                     <td><BugStatus v={b.status} /></td>
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>{b.created_by_name||"—"}</td>
+                    <td style={{fontSize:11,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
+                      {b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR") : "—"}
+                    </td>
                     <td style={{fontSize:12}}>
                       {b.evidence_files?.length > 0 ? <span style={{color:"var(--accent)"}}>📎 {b.evidence_files.length}</span> : "—"}
                     </td>
