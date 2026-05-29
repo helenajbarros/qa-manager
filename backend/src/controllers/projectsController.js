@@ -24,13 +24,8 @@ exports.store = async (req, res, next) => {
   } catch(e) { next(e); }
 };
 
-exports.update = async (req, res, next) => {
-  try {
-    const data = await svc.update(req.params.id, req.body);
-    if (!data) return r.notFound(res);
-    r.ok(res, data);
-  } catch(e) { next(e); }
-};
+exports.uploadLogo = [
+  upload.fields([{ name: "logo", maxCount: 1 }]),
 
 exports.destroy = async (req, res, next) => {
   try {
