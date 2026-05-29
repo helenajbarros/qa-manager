@@ -24,8 +24,13 @@ exports.store = async (req, res, next) => {
   } catch(e) { next(e); }
 };
 
-exports.uploadLogo = [
-  upload.fields([{ name: "logo", maxCount: 1 }]),
+exports.update = async (req, res, next) => {
+  try {
+    const data = await svc.update(req.params.id, req.body);
+    if (!data) return r.notFound(res);
+    r.ok(res, data);
+  } catch(e) { next(e); }
+};
 
 exports.destroy = async (req, res, next) => {
   try {
@@ -35,12 +40,9 @@ exports.destroy = async (req, res, next) => {
 };
 
 exports.uploadLogo = [
-  upload.single("logo"),
+  upload.fields([{ name: "logo", maxCount: 1 }]),
   async (req, res, next) => {
     try {
-      if (!req.file) return r.badRequest(res, "Arquivo não enviado");
-      const data = await svc.saveLogo(req.params.id, req.file.buffer, req.file.mimetype);
-      r.ok(res, data);
-    } catch(e) { next(e); }
-  }
-];
+      const files = req.files;
+      const file  = files && files.logo && files.logo[0];
+      if (!file) return r.badRequest(res, "Arquivo não enviado");
