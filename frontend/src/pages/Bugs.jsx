@@ -105,16 +105,11 @@ export default function Bugs() {
   if (l1||l2) return <Loading />;
   if (e1||e2) return <ErrorMsg msg={e1||e2} />;
 
-  // IDs dos casos de teste do ciclo selecionado
-  const cycleTestCaseIds = useMemo(() => {
-    if (!filterCycle || !cycles) return null;
-    const cycle = cycles.find(c => String(c.id) === filterCycle);
-    if (!cycle) return null;
-    // Filtra testCases pelos vinculados ao ciclo via test_case_id nos bugs
-    // Como não temos execuções aqui, filtramos bugs que têm test_case_id
-    // vinculado à versão do ciclo — usamos o nome/versão do ciclo
-    return cycle;
-  }, [filterCycle, cycles]);
+  // Ciclo selecionado para filtro
+  const cycleTestCaseIds = useMemo(
+    () => (!filterCycle || !cycles) ? null : (cycles.find(c => String(c.id) === filterCycle) || null),
+    [filterCycle, cycles]
+  );
 
   const filtered = (bugs||[]).filter(b => {
     if (filterSev && b.severity !== filterSev)           return false;
