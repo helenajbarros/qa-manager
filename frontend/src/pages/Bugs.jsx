@@ -94,9 +94,10 @@ export default function Bugs() {
   useEffect(() => {
     if (!bugIdParam || !bugs || bugs.length === 0) return;
     const bug = bugs.find(b => String(b.id) === String(bugIdParam));
-    if (bug && (!modal || modal.item?.id !== bug.id)) {
-      setModal({ mode:"edit", item: bug });
-    }
+    if (bug) setModal(prev => {
+      if (prev?.item?.id === bug.id) return prev;
+      return { mode:"edit", item: bug };
+    });
   }, [bugIdParam, bugs?.length]);
 
   function getBugLink(bugId) {
