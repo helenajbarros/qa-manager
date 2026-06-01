@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAsync }    from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, cyclesApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.jsx";
@@ -85,7 +86,30 @@ export default function Bugs() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
   const pid = currentProject?.id;
-  const isViewer = user?.role === "viewer";
+  const isViewer   = user?.role === "viewer";
+  const { id: bugIdParam } = useParams();
+  const navigate = useNavigate();
+
+  // Deep link — abre bug direto pela URL /bugs/:id
+  useEffect(() => {
+    if (bugIdParam && bugs) {
+      const bug = bugs.find(b => String(b.id) === String(bugIdParam));
+      if (bug) setModal({ mode:"edit", item: bug });
+    }
+  }, [bugIdParam, bugs]);
+
+  function getBugLink(bugId) {
+    const base = window.location.origin + window.location.pathname.replace(/\/bugs.*/, "");
+    return `${base}/bugs/${bugId}`;
+  }
+
+  function copyLink(bugId) {
+    const link = getBugLink(bugId);
+    navigator.clipboard.writeText(link).then(() => {
+      alert(`Link copiado!
+${link}`);
+    });
+  }
 
   const { data: bugs,      loading:l1, error:e1, refetch } = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
@@ -286,12 +310,17 @@ export default function Bugs() {
                           style={{color:"var(--accent)",fontSize:12,whiteSpace:"nowrap"}}>🔗 Abrir</a> : "—"}
                     </td>
                     <td>
-                      {!isViewer && (
-                        <div className="actions">
-                          <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:b})}>✏</button>
-                          <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
-                        </div>
-                      )}
+                      <div className="actions">
+                        <button className="btn btn-sm" title="Copiar link"
+                          onClick={() => copyLink(b.id)}
+                          style={{fontSize:11}}>🔗 Link</button>
+                        {!isViewer && (
+                          <>
+                            <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:b})}>✏</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -303,7 +332,7 @@ export default function Bugs() {
 
       {modal && (
         <Modal title={modal.mode==="create" ? "Novo bug" : `Bug #${modal.item.id} — ${modal.item.title}`}
-          onClose={() => { setModal(null); refetch(); }}>
+          onClose={() => { setModal(null); refetch(); navigate('/bugs'); }}>
           <BugForm initial={modal.item||{}} modules={modules||[]} testCases={testCases||[]}
             bugId={modal.item?.id} onSave={handleSave} onCancel={() => { setModal(null); refetch(); }}
             saving={saving} onFileUpload={handleFileUpload} onFileDelete={handleFileDelete} />
