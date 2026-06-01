@@ -85,38 +85,15 @@ function BugForm({ initial={}, modules, testCases, onSave, onCancel, saving, bug
 export default function Bugs() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
-  const pid = currentProject?.id;
-  const isViewer   = user?.role === "viewer";
   const { id: bugIdParam } = useParams();
-  const navigate = useNavigate();
+  const navigate           = useNavigate();
+  const pid      = currentProject?.id;
+  const isViewer = user?.role === "viewer";
 
-  // Deep link — abre bug direto pela URL /bugs/:id
-  useEffect(() => {
-    if (!bugIdParam || !bugs || bugs.length === 0) return;
-    const bug = bugs.find(b => String(b.id) === String(bugIdParam));
-    if (bug) setModal(prev => {
-      if (prev?.item?.id === bug.id) return prev;
-      return { mode:"edit", item: bug };
-    });
-  }, [bugIdParam, bugs?.length]);
-
-  function getBugLink(bugId) {
-    const base = window.location.origin + window.location.pathname.replace(/\/bugs.*/, "");
-    return `${base}/bugs/${bugId}`;
-  }
-
-  function copyLink(bugId) {
-    const link = getBugLink(bugId);
-    navigator.clipboard.writeText(link).then(() => {
-      alert(`Link copiado!
-${link}`);
-    });
-  }
-
-  const { data: bugs,      loading:l1, error:e1, refetch } = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: testCases }                                 = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: cycles }                                    = useAsync(() => cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
 
   const [modal,       setModal]       = useState(null);
   const [confirm,     setConfirm]     = useState(null);
@@ -128,55 +105,57 @@ ${link}`);
   const [saving,      setSaving]      = useState(false);
   const [err,         setErr]         = useState(null);
 
-  if (l1||l2) return <Loading />;
-  if (e1||e2) return <ErrorMsg msg={e1||e2} />;
+  // Deep link — abre bug direto pela URL /bugs/:id
+  useEffect(() => {
+    if (!bugIdParam || !bugs || bugs.length === 0) return;
+    const found = bugs.find(b => String(b.id) === String(bugIdParam));
+    if (found) setModal({ mode:"edit", item: found });
+  }, [bugIdParam, bugs]);
 
-  // Ciclo selecionado para filtro
+  if (l1 || l2) return <Loading />;
+  if (e1 || e2) return <ErrorMsg msg={e1 || e2} />;
+
+  // Gera link direto para um bug
+  function copyLink(bugId) {
+    const base = window.location.href.split("/bugs")[0];
+    const link = `${base}/bugs/${bugId}`;
+    navigator.clipboard.writeText(link).then(() => alert(`Link copiado!\n${link}`));
+  }
+
+  // Ciclo selecionado
   const selectedCycle = filterCycle && cycles
     ? (cycles.find(c => String(c.id) === filterCycle) || null)
     : null;
 
-  const filtered = (bugs||[]).filter(b => {
-    if (filterSev && b.severity !== filterSev)           return false;
-    if (filterSt  && b.status   !== filterSt)            return false;
-    if (filterMod && String(b.module_id) !== filterMod)  return false;
+  const filtered = (bugs || []).filter(b => {
+    if (filterSev && b.severity !== filterSev)          return false;
+    if (filterSt  && b.status   !== filterSt)           return false;
+    if (filterMod && String(b.module_id) !== filterMod) return false;
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
-    // Filtro por ciclo: mostra bugs que têm TC vinculado ao ciclo
-    if (filterCycle && selectedCycle) {
-      // Se o bug tem test_case_id, verifica se esse TC está no ciclo selecionado
-      // Como não carregamos execuções aqui, filtramos por módulo do ciclo
-      // A melhor abordagem: filtrar por bugs criados no período do ciclo
-      const cycle = selectedCycle;
-      if (b.test_case_id) {
-        // Tem TC vinculado — inclui
-        return true;
-      }
-      if (cycle.start_date && cycle.end_date) {
+    if (selectedCycle) {
+      if (selectedCycle.start_date && selectedCycle.end_date) {
         const bugDate  = new Date(b.created_at);
-        const cycStart = new Date(cycle.start_date);
-        const cycEnd   = new Date(cycle.end_date + "T23:59:59");
+        const cycStart = new Date(selectedCycle.start_date);
+        const cycEnd   = new Date(selectedCycle.end_date + "T23:59:59");
         if (bugDate < cycStart || bugDate > cycEnd) return false;
       }
     }
     return true;
   });
 
-  const counts = (bugs||[]).reduce((a,b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
-
-  // Versões únicas dos ciclos para o filtro
-  const cycleOptions = (cycles||[]).map(c => ({
+  const counts = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
+  const cycleOptions = (cycles || []).map(c => ({
     value: String(c.id),
-    label: c.version ? `${c.name} (v${c.version})` : c.name
+    label: c.version ? `${c.name} (v${c.version})` : c.name,
   }));
-
   const hasFilters = filterSev || filterSt || filterMod || filterCycle || search;
 
   async function handleSave(form) {
     setSaving(true); setErr(null);
     try {
-      if (modal.mode==="create") {
+      if (modal.mode === "create") {
         const created = await bugsApi.create({...form, project_id:pid, created_by_id:user?.id});
         setModal({ mode:"edit", item: created });
       } else {
@@ -192,8 +171,7 @@ ${link}`);
     const fd = new FormData(); fd.append("file", file);
     const token = localStorage.getItem("qa_token");
     const res = await fetch(`/api/bugs/${modal.item.id}/files`, {
-      method:"POST", body:fd,
-      headers: token ? {Authorization:`Bearer ${token}`} : {},
+      method:"POST", body:fd, headers: token ? {Authorization:`Bearer ${token}`} : {},
     });
     const json = await res.json();
     setModal(m => ({...m, item: {...m.item, evidence_files: json.data ?? json}}));
@@ -215,6 +193,12 @@ ${link}`);
     catch(e) { setErr(e.message); }
   }
 
+  function closeModal() {
+    setModal(null);
+    refetch();
+    if (bugIdParam) navigate("/bugs");
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -232,10 +216,10 @@ ${link}`);
           {key:"fixed",label:"Corrigidos",color:"var(--success)"},
           {key:"closed",label:"Fechados",color:"var(--text-muted)"}
         ].map(({key,label,color}) => (
-          <div key={key} onClick={() => setFilterSt(f=>f===key?"":key)}
+          <div key={key} onClick={() => setFilterSt(f => f===key ? "" : key)}
             style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:8,padding:"10px 18px",cursor:"pointer",
-              outline:filterSt===key?`2px solid ${color}`:undefined}}>
+              outline:filterSt===key ? `2px solid ${color}` : undefined}}>
             <div style={{fontSize:11,color:"var(--text-muted)"}}>{label}</div>
             <div style={{fontSize:22,fontWeight:600,color}}>{counts[key]||0}</div>
           </div>
@@ -273,10 +257,10 @@ ${link}`);
       </div>
 
       {/* Badge ciclo ativo */}
-      {filterCycle && selectedCycle && (
+      {selectedCycle && (
         <div style={{background:"var(--accent-bg)",border:"1px solid var(--accent)",
           borderRadius:8,padding:"6px 14px",marginBottom:12,fontSize:12,color:"var(--accent)"}}>
-          🔁 Filtrando por ciclo: <strong>{selectedCycle.name}</strong>
+          🔁 Ciclo: <strong>{selectedCycle.name}</strong>
           {selectedCycle.version && <span> — v{selectedCycle.version}</span>}
           {selectedCycle.start_date && <span> | {new Date(selectedCycle.start_date).toLocaleDateString("pt-BR")} → {selectedCycle.end_date ? new Date(selectedCycle.end_date).toLocaleDateString("pt-BR") : "hoje"}</span>}
         </div>
@@ -313,7 +297,7 @@ ${link}`);
                     </td>
                     <td>
                       <div className="actions">
-                        <button className="btn btn-sm" title="Copiar link"
+                        <button className="btn btn-sm" title="Copiar link direto"
                           onClick={() => copyLink(b.id)}
                           style={{fontSize:11}}>🔗 Link</button>
                         {!isViewer && (
@@ -334,9 +318,9 @@ ${link}`);
 
       {modal && (
         <Modal title={modal.mode==="create" ? "Novo bug" : `Bug #${modal.item.id} — ${modal.item.title}`}
-          onClose={() => { setModal(null); refetch(); navigate('/bugs'); }}>
+          onClose={closeModal}>
           <BugForm initial={modal.item||{}} modules={modules||[]} testCases={testCases||[]}
-            bugId={modal.item?.id} onSave={handleSave} onCancel={() => { setModal(null); refetch(); }}
+            bugId={modal.item?.id} onSave={handleSave} onCancel={closeModal}
             saving={saving} onFileUpload={handleFileUpload} onFileDelete={handleFileDelete} />
         </Modal>
       )}
