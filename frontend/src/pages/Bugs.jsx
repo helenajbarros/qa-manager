@@ -92,11 +92,12 @@ export default function Bugs() {
 
   // Deep link — abre bug direto pela URL /bugs/:id
   useEffect(() => {
-    if (bugIdParam && bugs) {
-      const bug = bugs.find(b => String(b.id) === String(bugIdParam));
-      if (bug) setModal({ mode:"edit", item: bug });
+    if (!bugIdParam || !bugs || bugs.length === 0) return;
+    const bug = bugs.find(b => String(b.id) === String(bugIdParam));
+    if (bug && (!modal || modal.item?.id !== bug.id)) {
+      setModal({ mode:"edit", item: bug });
     }
-  }, [bugIdParam, bugs]);
+  }, [bugIdParam, bugs?.length]);
 
   function getBugLink(bugId) {
     const base = window.location.origin + window.location.pathname.replace(/\/bugs.*/, "");
