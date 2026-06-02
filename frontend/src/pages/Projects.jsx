@@ -5,16 +5,62 @@ import { useProject }   from "../context/ProjectContext.jsx";
 import { useAuth }      from "../context/AuthContext.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field } from "../components/UI.jsx";
 
-function ProjectForm({ initial={}, onSave, onCancel, saving }) {
-  const [form, setForm] = useState({ name: initial.name||"", description: initial.description||"" });
+function ProjectForm({ initial={}, onSave, onCancel, saving, onLogoUpload }) {
+  const [form,       setForm]       = useState({ name: initial.name||"", description: initial.description||"" });
+  const [previewUrl, setPreviewUrl] = useState(initial.logo_url || null);
+  const [logoFile,   setLogoFile]   = useState(null);
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
+
+  function handleLogoChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLogoFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  }
+
+  async function handleSave() {
+    await onSave(form, logoFile);
+  }
+
   return (
     <>
-      <Field label="Nome *"><input value={form.name} onChange={set("name")} autoFocus placeholder="Ex: Portal do Cliente" /></Field>
-      <Field label="Descrição"><textarea value={form.description} onChange={set("description")} placeholder="Descrição do projeto..." /></Field>
+      <Field label="Nome *">
+        <input value={form.name} onChange={set("name")} autoFocus placeholder="Ex: Portal do Cliente" />
+      </Field>
+      <Field label="Descrição">
+        <textarea value={form.description} onChange={set("description")} placeholder="Descrição do projeto..." />
+      </Field>
+
+      {/* Upload de logo */}
+      <Field label="Logo do projeto">
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {previewUrl ? (
+            <img src={previewUrl} alt="logo"
+              style={{width:60,height:60,objectFit:"cover",borderRadius:8,
+                border:"1px solid var(--border)"}} />
+          ) : (
+            <div style={{width:60,height:60,borderRadius:8,background:"var(--accent-bg)",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>🗃</div>
+          )}
+          <div>
+            <label style={{cursor:"pointer"}}>
+              <span className="btn btn-sm">🖼 {previewUrl ? "Trocar logo" : "Escolher logo"}</span>
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={handleLogoChange} />
+            </label>
+            {previewUrl && (
+              <button className="btn btn-sm" style={{marginLeft:6}}
+                onClick={()=>{setPreviewUrl(null);setLogoFile(null);}}>✕ Remover</button>
+            )}
+            <div style={{fontSize:11,color:"var(--text-muted)",marginTop:4}}>
+              PNG, JPG ou GIF. Recomendado: 200×200px
+            </div>
+          </div>
+        </div>
+      </Field>
+
       <div className="modal-footer">
         <button className="btn" onClick={onCancel}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => onSave(form)} disabled={saving||!form.name.trim()}>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving||!form.name.trim()}>
           {saving?"Salvando…":"Salvar"}
         </button>
       </div>
@@ -25,21 +71,30 @@ function ProjectForm({ initial={}, onSave, onCancel, saving }) {
 export default function Projects() {
   const { data: projects, loading, error, refetch } = useAsync(() => projectsApi.list());
   const { refreshProjects, selectProject } = useProject();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager }             = useAuth();
+  const canManage = isAdmin || isManager;
+
   const [modal,   setModal]   = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState(null);
-  const logoInputRef = useRef({});
 
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg msg={error} />;
 
-  async function handleSave(form) {
+  async function handleSave(form, logoFile) {
     setSaving(true); setErr(null);
     try {
-      if (modal.mode === "create") await projectsApi.create(form);
-      else                         await projectsApi.update(modal.item.id, form);
+      let project;
+      if (modal.mode === "create") {
+        project = await projectsApi.create(form);
+      } else {
+        project = await projectsApi.update(modal.item.id, form);
+      }
+      // Se tem logo, faz upload
+      if (logoFile && project?.id) {
+        await projectsApi.uploadLogo(project.id, logoFile);
+      }
       setModal(null); refetch(); refreshProjects();
     } catch(e) { setErr(e.message); }
     finally { setSaving(false); }
@@ -59,7 +114,7 @@ export default function Projects() {
     <div className="page">
       <div className="page-header">
         <h1>Projetos</h1>
-        {isAdmin && (
+        {canManage && (
           <button className="btn btn-primary" onClick={() => setModal({ mode:"create" })}>
             + Novo projeto
           </button>
@@ -75,7 +130,7 @@ export default function Projects() {
               onClick={() => selectProject(p.id)}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
                 {p.logo_url
-                  ? <img src={`/uploads/${p.logo_url}`} alt="logo"
+                  ? <img src={p.logo_url} alt="logo"
                       style={{ width:48, height:48, objectFit:"cover", borderRadius:8,
                         border:"1px solid var(--border)" }} />
                   : <div style={{ width:48, height:48, borderRadius:8, background:"var(--accent-bg)",
@@ -97,7 +152,7 @@ export default function Projects() {
                 {p.active ? "Ativo":"Inativo"}
               </span>
 
-              {isAdmin && (
+              {canManage && (
                 <div className="actions" style={{ marginTop:12 }} onClick={e => e.stopPropagation()}>
                   <label style={{ cursor:"pointer" }} title="Trocar logo">
                     <span className="btn btn-sm">🖼 Logo</span>
@@ -105,7 +160,9 @@ export default function Projects() {
                       onChange={e => { if(e.target.files[0]) handleLogoUpload(p.id, e.target.files[0]); e.target.value=""; }} />
                   </label>
                   <button className="btn btn-sm" onClick={() => setModal({ mode:"edit", item:p })}>✏ Editar</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => setConfirm(p)}>🗑</button>
+                  {isAdmin && (
+                    <button className="btn btn-sm btn-danger" onClick={() => setConfirm(p)}>🗑</button>
+                  )}
                 </div>
               )}
             </div>
@@ -115,7 +172,12 @@ export default function Projects() {
 
       {modal && (
         <Modal title={modal.mode==="create"?"Novo projeto":"Editar projeto"} onClose={() => setModal(null)}>
-          <ProjectForm initial={modal.item||{}} onSave={handleSave} onCancel={() => setModal(null)} saving={saving} />
+          <ProjectForm
+            initial={modal.item||{}}
+            onSave={handleSave}
+            onCancel={() => setModal(null)}
+            saving={saving}
+          />
         </Modal>
       )}
       {confirm && (
