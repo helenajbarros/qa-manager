@@ -44,6 +44,14 @@ async function runMigrations() {
           mimetype TEXT NOT NULL, size INTEGER NOT NULL,
           created_at TIMESTAMP NOT NULL DEFAULT NOW());
       `);
+
+      // Corrige constraint de role para incluir 'manager'
+      await client.query(`
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+        ALTER TABLE users ADD CONSTRAINT users_role_check
+          CHECK (role IN ('admin','manager','editor','viewer'));
+      `);
+
     } finally { client.release(); }
   } else {
     // SQLite
