@@ -1,7 +1,12 @@
 const svc    = require("../services/projectsService");
-const { createUpload } = require("../middlewares/upload");
-const upload = createUpload("logo");
+const multer = require("multer");
 const r      = require("../utils/response");
+
+// Usa memoryStorage para ter req.file.buffer disponível (necessário para salvar como base64)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 exports.index = async (req, res, next) => {
   try {
