@@ -59,6 +59,7 @@ export const cyclesApi = {
 };
 export const bugsApi = {
   list:   (p)        => api.get(`/bugs${qs(p)}`),
+  get:    (id)       => api.get(`/bugs/${id}`),
   create: (d)        => api.post("/bugs", d),
   update: (id, d)    => api.put(`/bugs/${id}`, d),
   delete: (id)       => api.delete(`/bugs/${id}`),
@@ -66,3 +67,5 @@ export const bugsApi = {
 export const dashboardApi = {
   get: (p) => api.get(`/dashboard${qs(p)}`),
 };
+
+
