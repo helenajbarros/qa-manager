@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth }    from "./context/AuthContext.jsx";
 import Sidebar    from "./components/Sidebar.jsx";
 import Login      from "./pages/Login.jsx";
@@ -21,6 +22,19 @@ function Guard({ children, adminOnly, managerOk }) {
   return children;
 }
 
+// Lida com redirect do 404.html do GitHub Pages
+function RedirectHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const redirect = sessionStorage.getItem("qa_redirect");
+    if (redirect && redirect !== "/") {
+      sessionStorage.removeItem("qa_redirect");
+      navigate(redirect, { replace: true });
+    }
+  }, []);
+  return null;
+}
+
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
@@ -28,6 +42,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <RedirectHandler />
       <Sidebar />
       <main className="main">
         <Routes>
