@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QA Manager</title>
+  <script>
+    var path = window.location.pathname.replace('/qa-manager', '');
+    var search = window.location.search;
+    var hash = window.location.hash;
+    var redirect = path + search + hash;
+    sessionStorage.setItem('qa_redirect', redirect);
+    window.location.replace('/qa-manager/');
+  </script>
+</head>
+<body></body>
+</html>
