@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAsync }    from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, cyclesApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.jsx";
@@ -82,11 +81,15 @@ function BugForm({ initial={}, modules, testCases, onSave, onCancel, saving, bug
   );
 }
 
+// Lê ?open=ID da URL para deep link
+function getOpenIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("open");
+}
+
 export default function Bugs() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
-  const { id: bugIdParam } = useParams();
-  const navigate           = useNavigate();
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
 
@@ -94,6 +97,10 @@ export default function Bugs() {
   const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
+
+  // Deep link via ?open=ID — abre o modal do bug sem useEffect
+  const openId = getOpenIdFromUrl();
+  const bugToOpen = openId && bugs ? bugs.find(b => String(b.id) === String(openId)) : null;
 
   const [modal,       setModal]       = useState(null);
   const [confirm,     setConfirm]     = useState(null);
@@ -104,22 +111,24 @@ export default function Bugs() {
   const [filterCycle, setFilterCycle] = useState("");
   const [saving,      setSaving]      = useState(false);
   const [err,         setErr]         = useState(null);
-
-  // Deep link — abre bug direto pela URL /bugs/:id
-  useEffect(() => {
-    if (!bugIdParam || !bugs || bugs.length === 0) return;
-    const found = bugs.find(b => String(b.id) === String(bugIdParam));
-    if (found) setModal({ mode:"edit", item: found });
-  }, [bugIdParam, bugs]);
+  const [deepLinkOpened, setDeepLinkOpened] = useState(false);
 
   if (l1 || l2) return <Loading />;
   if (e1 || e2) return <ErrorMsg msg={e1 || e2} />;
 
-  // Gera link direto para um bug
+  // Abre o bug do deep link uma única vez após carregar
+  if (bugToOpen && !deepLinkOpened && !modal) {
+    setDeepLinkOpened(true);
+    setModal({ mode:"edit", item: bugToOpen });
+  }
+
+  // Gera link direto para um bug usando ?open=ID
   function copyLink(bugId) {
-    const base = window.location.href.split("/bugs")[0];
-    const link = `${base}/bugs/${bugId}`;
-    navigator.clipboard.writeText(link).then(() => alert(`Link copiado!\n${link}`));
+    const base = window.location.origin + window.location.pathname;
+    const link = `${base}?open=${bugId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      alert("Link copiado!\n" + link);
+    });
   }
 
   // Ciclo selecionado
@@ -134,13 +143,11 @@ export default function Bugs() {
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
-    if (selectedCycle) {
-      if (selectedCycle.start_date && selectedCycle.end_date) {
-        const bugDate  = new Date(b.created_at);
-        const cycStart = new Date(selectedCycle.start_date);
-        const cycEnd   = new Date(selectedCycle.end_date + "T23:59:59");
-        if (bugDate < cycStart || bugDate > cycEnd) return false;
-      }
+    if (selectedCycle && selectedCycle.start_date && selectedCycle.end_date) {
+      const bugDate  = new Date(b.created_at);
+      const cycStart = new Date(selectedCycle.start_date);
+      const cycEnd   = new Date(selectedCycle.end_date + "T23:59:59");
+      if (bugDate < cycStart || bugDate > cycEnd) return false;
     }
     return true;
   });
@@ -193,12 +200,6 @@ export default function Bugs() {
     catch(e) { setErr(e.message); }
   }
 
-  function closeModal() {
-    setModal(null);
-    refetch();
-    if (bugIdParam) navigate("/bugs");
-  }
-
   return (
     <div className="page">
       <div className="page-header">
@@ -209,7 +210,6 @@ export default function Bugs() {
       </div>
       {err && <ErrorMsg msg={err} />}
 
-      {/* Cards de status */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"open",label:"Abertos",color:"var(--danger)"},
           {key:"in_progress",label:"Em andamento",color:"var(--warning)"},
@@ -226,7 +226,6 @@ export default function Bugs() {
         ))}
       </div>
 
-      {/* Filtros */}
       <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="🔍 Buscar por título, ID ou criador..."
@@ -256,7 +255,6 @@ export default function Bugs() {
         <span style={{fontSize:12,color:"var(--text-muted)",alignSelf:"center"}}>{filtered.length} bug(s)</span>
       </div>
 
-      {/* Badge ciclo ativo */}
       {selectedCycle && (
         <div style={{background:"var(--accent-bg)",border:"1px solid var(--accent)",
           borderRadius:8,padding:"6px 14px",marginBottom:12,fontSize:12,color:"var(--accent)"}}>
@@ -318,9 +316,9 @@ export default function Bugs() {
 
       {modal && (
         <Modal title={modal.mode==="create" ? "Novo bug" : `Bug #${modal.item.id} — ${modal.item.title}`}
-          onClose={closeModal}>
+          onClose={() => { setModal(null); refetch(); }}>
           <BugForm initial={modal.item||{}} modules={modules||[]} testCases={testCases||[]}
-            bugId={modal.item?.id} onSave={handleSave} onCancel={closeModal}
+            bugId={modal.item?.id} onSave={handleSave} onCancel={() => { setModal(null); refetch(); }}
             saving={saving} onFileUpload={handleFileUpload} onFileDelete={handleFileDelete} />
         </Modal>
       )}

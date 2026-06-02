@@ -34,7 +34,6 @@ export default function App() {
           <Route path="/test-cases" element={<Guard><TestCases /></Guard>} />
           <Route path="/cycles"     element={<Guard><Cycles /></Guard>} />
           <Route path="/bugs"       element={<Guard><Bugs /></Guard>} />
-          <Route path="/bugs/:id"   element={<Guard><Bugs /></Guard>} />
           <Route path="/projects"   element={<Guard adminOnly><Projects /></Guard>} />
           <Route path="/users"      element={<Guard adminOnly><Users /></Guard>} />
           <Route path="/backup"     element={<Guard adminOnly><Backup /></Guard>} />
