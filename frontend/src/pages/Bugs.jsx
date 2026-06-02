@@ -8,6 +8,8 @@ import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, Severity,
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
+const SEV_LABEL   = {low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
+const ST_LABEL    = {open:"Aberto",in_progress:"Em andamento",fixed:"Corrigido",closed:"Fechado"};
 
 function BugForm({ initial={}, modules, testCases, onSave, onCancel, saving, bugId, onFileUpload, onFileDelete }) {
   const [form, setForm] = useState({
@@ -81,7 +83,80 @@ function BugForm({ initial={}, modules, testCases, onSave, onCancel, saving, bug
   );
 }
 
-// Lê ?open=ID da URL para deep link
+// Modal de visualização do bug
+function BugViewModal({ bug, onClose, onEdit, isViewer }) {
+  const fmtDate = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+  return (
+    <Modal title={`Bug #${bug.id}`} onClose={onClose}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <h3 style={{margin:0,fontSize:16,flex:1}}>{bug.title}</h3>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Severity v={bug.severity} />
+          <BugStatus v={bug.status} />
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        {[
+          {label:"Módulo",     value: bug.module_name || "—"},
+          {label:"Caso de TC", value: bug.test_case_id ? `#${bug.test_case_id}` : "—"},
+          {label:"Criado por", value: bug.created_by_name || "—"},
+          {label:"Data",       value: fmtDate(bug.created_at)},
+        ].map(({label,value}) => (
+          <div key={label} style={{background:"var(--bg)",borderRadius:6,padding:"8px 12px"}}>
+            <div style={{fontSize:10,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",marginBottom:4}}>{label}</div>
+            <div style={{fontSize:13}}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {bug.tracker_url && (
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",marginBottom:4}}>Tracker</div>
+          <a href={bug.tracker_url} target="_blank" rel="noreferrer"
+            style={{color:"var(--accent)",fontSize:13}}>🔗 {bug.tracker_url}</a>
+        </div>
+      )}
+
+      {bug.comment && (
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",marginBottom:4}}>Comentário</div>
+          <div style={{fontSize:13,whiteSpace:"pre-line",background:"var(--bg)",padding:"8px 12px",borderRadius:6}}>{bug.comment}</div>
+        </div>
+      )}
+
+      {bug.description && (
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",marginBottom:4}}>Descrição</div>
+          <div style={{fontSize:13,whiteSpace:"pre-line",background:"var(--bg)",padding:"8px 12px",borderRadius:6}}>{bug.description}</div>
+        </div>
+      )}
+
+      {bug.evidence_files?.length > 0 && (
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",marginBottom:8}}>Arquivos / Evidências</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {bug.evidence_files.map(f => (
+              <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
+                style={{fontSize:12,color:"var(--accent)",background:"var(--accent-bg)",
+                  padding:"4px 10px",borderRadius:6,textDecoration:"none"}}>
+                📎 {f.name || f.filename || "arquivo"}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="modal-footer">
+        <button className="btn" onClick={onClose}>Fechar</button>
+        {!isViewer && (
+          <button className="btn btn-primary" onClick={onEdit}>✏ Editar</button>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function getOpenIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get("open");
@@ -98,11 +173,11 @@ export default function Bugs() {
   const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
 
-  // Deep link via ?open=ID — abre o modal do bug sem useEffect
   const openId = getOpenIdFromUrl();
   const bugToOpen = openId && bugs ? bugs.find(b => String(b.id) === String(openId)) : null;
 
-  const [modal,       setModal]       = useState(null);
+  const [viewBug,     setViewBug]     = useState(null);  // bug em visualização
+  const [editBug,     setEditBug]     = useState(null);  // bug em edição
   const [confirm,     setConfirm]     = useState(null);
   const [search,      setSearch]      = useState("");
   const [filterSev,   setFilterSev]   = useState("");
@@ -116,22 +191,19 @@ export default function Bugs() {
   if (l1 || l2) return <Loading />;
   if (e1 || e2) return <ErrorMsg msg={e1 || e2} />;
 
-  // Abre o bug do deep link uma única vez após carregar
-  if (bugToOpen && !deepLinkOpened && !modal) {
+  // Deep link — abre visualização do bug via ?open=ID
+  if (bugToOpen && !deepLinkOpened && !viewBug && !editBug) {
     setDeepLinkOpened(true);
-    setModal({ mode:"edit", item: bugToOpen });
+    setViewBug(bugToOpen);
   }
 
-  // Gera link direto para um bug usando ?open=ID
   function copyLink(bugId) {
-    const base = window.location.origin + window.location.pathname;
-    const link = `${base}?open=${bugId}`;
-    navigator.clipboard.writeText(link).then(() => {
-      alert("Link copiado!\n" + link);
-    });
+    const origin = window.location.origin;
+    const path   = window.location.pathname.replace(/\/bugs.*$/, "") + "/bugs";
+    const link   = origin + path + "?open=" + bugId;
+    navigator.clipboard.writeText(link).then(() => alert("Link copiado!\n" + link));
   }
 
-  // Ciclo selecionado
   const selectedCycle = filterCycle && cycles
     ? (cycles.find(c => String(c.id) === filterCycle) || null)
     : null;
@@ -162,14 +234,16 @@ export default function Bugs() {
   async function handleSave(form) {
     setSaving(true); setErr(null);
     try {
-      if (modal.mode === "create") {
-        const created = await bugsApi.create({...form, project_id:pid, created_by_id:user?.id});
-        setModal({ mode:"edit", item: created });
+      let saved;
+      if (!editBug.id) {
+        saved = await bugsApi.create({...form, project_id:pid, created_by_id:user?.id});
       } else {
-        const updated = await bugsApi.update(modal.item.id, form);
-        setModal(m => ({...m, item: updated}));
+        saved = await bugsApi.update(editBug.id, form);
       }
       refetch();
+      setEditBug(null);
+      // Após salvar volta para a visualização do bug atualizado
+      setViewBug({...editBug, ...form, ...saved});
     } catch(e) { setErr(e.message); }
     finally { setSaving(false); }
   }
@@ -177,21 +251,25 @@ export default function Bugs() {
   async function handleFileUpload(file) {
     const fd = new FormData(); fd.append("file", file);
     const token = localStorage.getItem("qa_token");
-    const res = await fetch(`/api/bugs/${modal.item.id}/files`, {
+    const res = await fetch(`/api/bugs/${editBug.id}/files`, {
       method:"POST", body:fd, headers: token ? {Authorization:`Bearer ${token}`} : {},
     });
     const json = await res.json();
-    setModal(m => ({...m, item: {...m.item, evidence_files: json.data ?? json}}));
+    const files = json.data ?? json;
+    setEditBug(b => ({...b, evidence_files: files}));
+    setViewBug(b => b ? {...b, evidence_files: files} : b);
     refetch();
   }
 
   async function handleFileDelete(fileId) {
     const token = localStorage.getItem("qa_token");
-    const res = await fetch(`/api/bugs/${modal.item.id}/files/${fileId}`, {
+    const res = await fetch(`/api/bugs/${editBug.id}/files/${fileId}`, {
       method:"DELETE", headers: token ? {Authorization:`Bearer ${token}`} : {},
     });
     const json = await res.json();
-    setModal(m => ({...m, item: {...m.item, evidence_files: json.data ?? json}}));
+    const files = json.data ?? json;
+    setEditBug(b => ({...b, evidence_files: files}));
+    setViewBug(b => b ? {...b, evidence_files: files} : b);
     refetch();
   }
 
@@ -205,11 +283,12 @@ export default function Bugs() {
       <div className="page-header">
         <h1>Bugs</h1>
         {!isViewer && (
-          <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo bug</button>
+          <button className="btn btn-primary" onClick={() => setEditBug({})}>+ Novo bug</button>
         )}
       </div>
       {err && <ErrorMsg msg={err} />}
 
+      {/* Cards de status */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"open",label:"Abertos",color:"var(--danger)"},
           {key:"in_progress",label:"Em andamento",color:"var(--warning)"},
@@ -226,6 +305,7 @@ export default function Bugs() {
         ))}
       </div>
 
+      {/* Filtros */}
       <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)}
           placeholder="🔍 Buscar por título, ID ou criador..."
@@ -269,13 +349,19 @@ export default function Bugs() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>#</th><th>Título</th><th>TC</th><th>Módulo</th><th>Sev.</th><th>Status</th><th>Criado por</th><th>Data</th><th>Arquivos</th><th>Tracker</th><th></th></tr>
+                <tr><th>#</th><th>Título</th><th>TC</th><th>Módulo</th><th>Sev.</th><th>Status</th><th>Criado por</th><th>Data</th><th>Tracker</th><th></th></tr>
               </thead>
               <tbody>
                 {filtered.map(b => (
                   <tr key={b.id}>
                     <td style={{color:"var(--text-muted)",fontSize:12,fontWeight:600}}>{b.id}</td>
-                    <td style={{fontWeight:500,maxWidth:220}}>{b.title}</td>
+                    <td style={{fontWeight:500,maxWidth:220}}>
+                      <button onClick={() => setViewBug(b)}
+                        style={{background:"none",border:"none",cursor:"pointer",
+                          color:"var(--accent)",textAlign:"left",fontSize:13,padding:0,fontWeight:500}}>
+                        {b.title}
+                      </button>
+                    </td>
                     <td style={{fontSize:12}}>
                       {b.test_case_id ? <span style={{color:"var(--accent)",fontWeight:600}}>#{b.test_case_id}</span> : "—"}
                     </td>
@@ -285,9 +371,6 @@ export default function Bugs() {
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>{b.created_by_name||"—"}</td>
                     <td style={{fontSize:11,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
                       {b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR") : "—"}
-                    </td>
-                    <td style={{fontSize:12}}>
-                      {b.evidence_files?.length > 0 ? <span style={{color:"var(--accent)"}}>📎 {b.evidence_files.length}</span> : "—"}
                     </td>
                     <td>
                       {b.tracker_url ? <a href={b.tracker_url} target="_blank" rel="noreferrer"
@@ -300,7 +383,7 @@ export default function Bugs() {
                           style={{fontSize:11}}>🔗 Link</button>
                         {!isViewer && (
                           <>
-                            <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:b})}>✏</button>
+                            <button className="btn btn-sm" onClick={() => setEditBug(b)}>✏</button>
                             <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
                           </>
                         )}
@@ -314,14 +397,35 @@ export default function Bugs() {
         )}
       </div>
 
-      {modal && (
-        <Modal title={modal.mode==="create" ? "Novo bug" : `Bug #${modal.item.id} — ${modal.item.title}`}
-          onClose={() => { setModal(null); refetch(); }}>
-          <BugForm initial={modal.item||{}} modules={modules||[]} testCases={testCases||[]}
-            bugId={modal.item?.id} onSave={handleSave} onCancel={() => { setModal(null); refetch(); }}
-            saving={saving} onFileUpload={handleFileUpload} onFileDelete={handleFileDelete} />
+      {/* Modal de visualização */}
+      {viewBug && !editBug && (
+        <BugViewModal
+          bug={viewBug}
+          isViewer={isViewer}
+          onClose={() => setViewBug(null)}
+          onEdit={() => setEditBug(viewBug)}
+        />
+      )}
+
+      {/* Modal de edição/criação */}
+      {editBug && (
+        <Modal
+          title={editBug.id ? `Editar Bug #${editBug.id}` : "Novo bug"}
+          onClose={() => { setEditBug(null); if (editBug.id) setViewBug(editBug); }}>
+          <BugForm
+            initial={editBug}
+            modules={modules||[]}
+            testCases={testCases||[]}
+            bugId={editBug.id}
+            onSave={handleSave}
+            onCancel={() => { setEditBug(null); if (editBug.id) setViewBug(editBug); }}
+            saving={saving}
+            onFileUpload={handleFileUpload}
+            onFileDelete={handleFileDelete}
+          />
         </Modal>
       )}
+
       {confirm && (
         <ConfirmModal message={`Excluir o bug "${confirm.title}"?`}
           onConfirm={() => handleDelete(confirm.id)} onCancel={() => setConfirm(null)} />
@@ -329,4 +433,3 @@ export default function Bugs() {
     </div>
   );
 }
-
