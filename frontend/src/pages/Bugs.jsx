@@ -7,8 +7,38 @@ import { useProject }  from "../context/ProjectContext.jsx";
 import { FileUpload }  from "../components/FileUpload.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.jsx";
 
+const PAGE_SIZE = 10;
+
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
+
+function Pagination({ page, totalPages, total, onChange }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+      padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
+      <span>{total} bug(s) — Página {page} de {totalPages}</span>
+      <div style={{display:"flex",gap:4}}>
+        <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===1?"not-allowed":"pointer",
+            color:page===1?"var(--text-muted)":"var(--text)",fontSize:12}}>← Anterior</button>
+        {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+          <button key={p} onClick={()=>onChange(p)}
+            style={{padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",
+              background:p===page?"var(--accent)":"none",
+              color:p===page?"white":"var(--text)",cursor:"pointer",fontSize:12,minWidth:28}}>
+            {p}
+          </button>
+        ))}
+        <button onClick={()=>onChange(Math.min(totalPages,page+1))} disabled={page===totalPages}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===totalPages?"not-allowed":"pointer",
+            color:page===totalPages?"var(--text-muted)":"var(--text)",fontSize:12}}>Próxima →</button>
+      </div>
+    </div>
+  );
+}
 
 function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, saving, bugId, onFileUpload, onFileDelete }) {
   const [form, setForm] = useState({
@@ -124,6 +154,7 @@ export default function Bugs() {
   const [saving,         setSaving]         = useState(false);
   const [err,            setErr]            = useState(null);
   const [deepLinkOpened, setDeepLinkOpened] = useState(false);
+  const [page, setPage] = useState(1);
 
   if (l1 || l2) return <Loading />;
   if (e1 || e2) return <ErrorMsg msg={e1 || e2} />;
@@ -160,6 +191,8 @@ export default function Bugs() {
   });
 
   const counts      = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
+  const totalPages  = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged       = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const cycleOptions = (cycles || []).map(c => ({
     value: String(c.id),
     label: c.version ? `${c.name} (v${c.version})` : c.name,
@@ -243,20 +276,20 @@ export default function Bugs() {
 
       {/* Filtros */}
       <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)}
+        <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}
           placeholder="🔍 Buscar por título, ID ou criador..."
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:220,flex:1}} />
-        <select value={filterCycle} onChange={e=>setFilterCycle(e.target.value)}
+        <select value={filterCycle} onChange={e=>{ setFilterCycle(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:160}}>
           <option value="">🔁 Todos os ciclos</option>
           {cycleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select value={filterSev} onChange={e=>setFilterSev(e.target.value)}
+        <select value={filterSev} onChange={e=>{ setFilterSev(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}}>
           <option value="">Severidade</option>
           {SEV_OPTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select value={filterMod} onChange={e=>setFilterMod(e.target.value)}
+        <select value={filterMod} onChange={e=>{ setFilterMod(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}}>
           <option value="">Módulo</option>
           {(modules||[]).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
@@ -284,6 +317,7 @@ export default function Bugs() {
 
       <div className="card">
         {!filtered.length ? <Empty icon="🐛" text="Nenhum bug encontrado." /> : (
+          <>
           <div className="table-wrap">
             <table>
               <thead>
@@ -293,7 +327,7 @@ export default function Bugs() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(b => (
+                {paged.map(b => (
                   <tr key={b.id}>
                     <td style={{color:"var(--text-muted)",fontSize:12,fontWeight:600}}>{b.id}</td>
                     <td style={{fontWeight:500,maxWidth:220}}>
@@ -338,6 +372,8 @@ export default function Bugs() {
               </tbody>
             </table>
           </div>
+            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={setPage} />
+          </>
         )}
       </div>
 

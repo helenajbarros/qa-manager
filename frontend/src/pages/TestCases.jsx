@@ -9,6 +9,35 @@ const PRI_OPTS = [
   {value:"low",label:"Baixa"},{value:"medium",label:"Média"},
   {value:"high",label:"Alta"},{value:"critical",label:"Crítica"}
 ];
+const PAGE_SIZE = 10;
+
+function Pagination({ page, totalPages, total, onChange }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+      padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
+      <span>{total} item(s) — Página {page} de {totalPages}</span>
+      <div style={{display:"flex",gap:4}}>
+        <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===1?"not-allowed":"pointer",
+            color:page===1?"var(--text-muted)":"var(--text)",fontSize:12}}>← Anterior</button>
+        {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+          <button key={p} onClick={()=>onChange(p)}
+            style={{padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",
+              background:p===page?"var(--accent)":"none",
+              color:p===page?"white":"var(--text)",cursor:"pointer",fontSize:12,minWidth:28}}>
+            {p}
+          </button>
+        ))}
+        <button onClick={()=>onChange(Math.min(totalPages,page+1))} disabled={page===totalPages}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===totalPages?"not-allowed":"pointer",
+            color:page===totalPages?"var(--text-muted)":"var(--text)",fontSize:12}}>Próxima →</button>
+      </div>
+    </div>
+  );
+}
 
 function TestCaseForm({ initial={}, modules, users, onSave, onCancel, saving }) {
   const [form, setForm] = useState({
@@ -80,6 +109,7 @@ export default function TestCases() {
   const [search,    setSearch]    = useState("");
   const [filterMod, setFilterMod] = useState("");
   const [filterPri, setFilterPri] = useState("");
+  const [page,      setPage]      = useState(1);
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState(null);
 
@@ -93,6 +123,14 @@ export default function TestCases() {
         !String(c.id).includes(search)) return false;
     return true;
   });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  function handleFilterChange(fn) {
+    fn();
+    setPage(1);
+  }
 
   async function handleSave(form) {
     setSaving(true); setErr(null);
@@ -120,15 +158,15 @@ export default function TestCases() {
       {err && <ErrorMsg msg={err} />}
 
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)}
+        <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}
           placeholder="🔍 Buscar por título ou ID..."
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:200,flex:1}} />
-        <select value={filterMod} onChange={e=>setFilterMod(e.target.value)}
+        <select value={filterMod} onChange={e=>{ setFilterMod(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}}>
           <option value="">Todos os módulos</option>
           {(modules||[]).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-        <select value={filterPri} onChange={e=>setFilterPri(e.target.value)}
+        <select value={filterPri} onChange={e=>{ setFilterPri(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}}>
           <option value="">Todas as prioridades</option>
           {PRI_OPTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
@@ -138,45 +176,48 @@ export default function TestCases() {
 
       <div className="card">
         {!filtered.length ? <Empty icon="📋" text="Nenhum caso encontrado." /> : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>ID</th><th>Título</th><th>Módulo</th><th>Prioridade</th><th>Responsável</th><th>Criado em</th><th></th></tr>
-              </thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id}>
-                    <td>
-                      <button onClick={() => setDetail(c)}
-                        style={{background:"none",border:"none",cursor:"pointer",
-                          color:"var(--accent)",fontWeight:700,fontSize:13,padding:0}}>
-                        {c.id}
-                      </button>
-                    </td>
-                    <td style={{fontWeight:500,maxWidth:280}}>
-                      <button onClick={() => setDetail(c)}
-                        style={{background:"none",border:"none",cursor:"pointer",
-                          color:"var(--text)",textAlign:"left",fontSize:13,padding:0}}>
-                        {c.title}
-                      </button>
-                    </td>
-                    <td><span className="badge badge-active">{c.module_name}</span></td>
-                    <td><Priority v={c.priority} /></td>
-                    <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.assigned_to_name||"—"}</td>
-                    <td style={{color:"var(--text-muted)"}}>{new Date(c.created_at).toLocaleDateString("pt-BR")}</td>
-                    <td>
-                      {!isViewer && (
-                        <div className="actions">
-                          <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:c})}>✏</button>
-                          <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>ID</th><th>Título</th><th>Módulo</th><th>Prioridade</th><th>Responsável</th><th>Criado em</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {paged.map(c => (
+                    <tr key={c.id}>
+                      <td>
+                        <button onClick={() => setDetail(c)}
+                          style={{background:"none",border:"none",cursor:"pointer",
+                            color:"var(--accent)",fontWeight:700,fontSize:13,padding:0}}>
+                          {c.id}
+                        </button>
+                      </td>
+                      <td style={{fontWeight:500,maxWidth:280}}>
+                        <button onClick={() => setDetail(c)}
+                          style={{background:"none",border:"none",cursor:"pointer",
+                            color:"var(--text)",textAlign:"left",fontSize:13,padding:0}}>
+                          {c.title}
+                        </button>
+                      </td>
+                      <td><span className="badge badge-active">{c.module_name}</span></td>
+                      <td><Priority v={c.priority} /></td>
+                      <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.assigned_to_name||"—"}</td>
+                      <td style={{color:"var(--text-muted)"}}>{new Date(c.created_at).toLocaleDateString("pt-BR")}</td>
+                      <td>
+                        {!isViewer && (
+                          <div className="actions">
+                            <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:c})}>✏</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={setPage} />
+          </>
         )}
       </div>
 
