@@ -580,7 +580,6 @@ export default function BugDetail() {
     setForm({
       title:          bug.title          || "",
       description:    bug.description    || "",
-      comment:        bug.comment        || "",
       tracker_url:    bug.tracker_url    || "",
       pr_url:         bug.pr_url         || "",
       severity:       bug.severity       || "medium",
@@ -745,20 +744,7 @@ export default function BugDetail() {
             </div>
           </Accordion>
 
-          {/* Comentário geral */}
-          {(isEditing || bug.comment) && (
-            <Accordion title="Comentário geral" defaultOpen={true}>
-              <div style={{padding:"12px 16px"}}>
-                {isEditing ? (
-                  <textarea value={form.comment} onChange={set("comment")} rows={3}
-                    style={{width:"100%",padding:10,borderRadius:8,border:"1px solid var(--border)",
-                      fontSize:13,resize:"vertical",background:"var(--bg)"}} />
-                ) : (
-                  <div style={{fontSize:13,whiteSpace:"pre-line",lineHeight:1.7}}>{bug.comment}</div>
-                )}
-              </div>
-            </Accordion>
-          )}
+
 
           {/* Comentários */}
           <Accordion title="Comentários" defaultOpen={true} badge={(bug.activity||[]).filter(a=>a.action==="adicionou comentário").length||undefined}>
