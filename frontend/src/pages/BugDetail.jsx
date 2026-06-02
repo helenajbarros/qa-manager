@@ -882,7 +882,8 @@ export default function BugDetail() {
               </p>
             )}
             {(bug.evidence_files||[]).map(f => {
-              const url     = f.url || `${getBase().replace("/api","")}/uploads/${f.filename}`;
+              const apiBase = import.meta.env.VITE_API_URL || "";
+              const url     = f.url || `${apiBase}/uploads/${f.filename}`;
               const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(f.filename||"");
               const isVideo = /\.(mp4|webm|mov)$/i.test(f.filename||"");
               const name    = f.originalname || f.filename || "arquivo";
