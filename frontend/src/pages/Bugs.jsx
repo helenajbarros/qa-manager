@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAsync }    from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, cyclesApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.jsx";
@@ -167,6 +168,7 @@ export default function Bugs() {
   const { currentProject } = useProject();
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
+  const navigate  = useNavigate();
 
   const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
@@ -356,7 +358,7 @@ export default function Bugs() {
                   <tr key={b.id}>
                     <td style={{color:"var(--text-muted)",fontSize:12,fontWeight:600}}>{b.id}</td>
                     <td style={{fontWeight:500,maxWidth:220}}>
-                      <button onClick={() => setViewBug(b)}
+                      <button onClick={() => navigate("/bugs/" + b.id)}
                         style={{background:"none",border:"none",cursor:"pointer",
                           color:"var(--accent)",textAlign:"left",fontSize:13,padding:0,fontWeight:500}}>
                         {b.title}
