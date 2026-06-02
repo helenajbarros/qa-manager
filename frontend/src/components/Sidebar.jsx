@@ -14,21 +14,22 @@ const links = [
   { to: "/bugs",       icon: "🐛", label: "Bugs" },
 ];
 
-const ROLE_LABEL = { admin:"Admin", editor:"Editor", viewer:"Visualizador" };
-const ROLE_COLOR = { admin:"#DC2626", editor:"#2563EB", viewer:"#6B7280" };
+const ROLE_LABEL = { admin:"Admin", manager:"Gerente", editor:"Editor", viewer:"Visualizador" };
+const ROLE_COLOR = { admin:"#DC2626", manager:"#7C3AED", editor:"#2563EB", viewer:"#6B7280" };
 
 export default function Sidebar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isManager } = useAuth();
   const { projects, currentProject, selectProject } = useProject();
+  const canManage = isAdmin || isManager;
 
   return (
     <aside className="sidebar">
-      {/* Logo + seletor de projeto */}
       <div className="sidebar-logo">
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
           {currentProject?.logo_url
-            ? <img src={`/uploads/${currentProject.logo_url}`} alt="logo"
-                style={{ width:36, height:36, objectFit:"cover", borderRadius:6, border:"1px solid var(--border)" }} />
+            ? <img src={currentProject.logo_url} alt="logo"
+                style={{ width:36, height:36, objectFit:"cover", borderRadius:6,
+                  border:"1px solid var(--border)" }} />
             : <div style={{ width:36, height:36, borderRadius:6, background:"var(--accent)",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:18, color:"#fff", flexShrink:0 }}>⚙</div>
@@ -62,7 +63,8 @@ export default function Sidebar() {
             </NavLink>
           )
         )}
-        {isAdmin && (
+
+        {canManage && (
           <>
             <div className="nav-section">Administração</div>
             <NavLink to="/projects"
@@ -73,10 +75,13 @@ export default function Sidebar() {
               className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
               <span className="nav-icon">👥</span>Usuários
             </NavLink>
-            <NavLink to="/backup"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-              <span className="nav-icon">💾</span>Backup
-            </NavLink>
+            {/* Backup só para Admin */}
+            {isAdmin && (
+              <NavLink to="/backup"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+                <span className="nav-icon">💾</span>Backup
+              </NavLink>
+            )}
           </>
         )}
       </nav>
@@ -84,8 +89,8 @@ export default function Sidebar() {
       {user && (
         <div style={{ padding:"12px 14px", borderTop:"1px solid var(--border)" }}>
           <div style={{ fontSize:13, fontWeight:500, marginBottom:2 }}>{user.name}</div>
-          <div style={{ fontSize:11, color:ROLE_COLOR[user.role], marginBottom:8 }}>
-            {ROLE_LABEL[user.role]}
+          <div style={{ fontSize:11, color:ROLE_COLOR[user.role]||"#6B7280", marginBottom:8 }}>
+            {ROLE_LABEL[user.role]||user.role}
           </div>
           <button onClick={logout} style={{ width:"100%", padding:"5px", fontSize:12,
             border:"1px solid var(--border)", borderRadius:6,

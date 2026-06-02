@@ -12,11 +12,12 @@ import Users      from "./pages/Users.jsx";
 import Projects   from "./pages/Projects.jsx";
 import Backup     from "./pages/Backup.jsx";
 
-function Guard({ children, adminOnly }) {
-  const { user, loading, isAdmin } = useAuth();
+function Guard({ children, adminOnly, managerOk }) {
+  const { user, loading, isAdmin, isManager } = useAuth();
   if (loading) return <div className="loading">Carregando…</div>;
   if (!user)   return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  if (managerOk && !isAdmin && !isManager) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -30,16 +31,16 @@ export default function App() {
       <Sidebar />
       <main className="main">
         <Routes>
-          <Route path="/"             element={<Guard><Dashboard /></Guard>} />
-          <Route path="/modules"      element={<Guard><Modules /></Guard>} />
-          <Route path="/test-cases"   element={<Guard><TestCases /></Guard>} />
-          <Route path="/cycles"       element={<Guard><Cycles /></Guard>} />
-          <Route path="/bugs"         element={<Guard><Bugs /></Guard>} />
-          <Route path="/bugs/:id"     element={<Guard><BugDetail /></Guard>} />
-          <Route path="/projects"     element={<Guard adminOnly><Projects /></Guard>} />
-          <Route path="/users"        element={<Guard adminOnly><Users /></Guard>} />
-          <Route path="/backup"       element={<Guard adminOnly><Backup /></Guard>} />
-          <Route path="*"             element={<Navigate to="/" replace />} />
+          <Route path="/"           element={<Guard><Dashboard /></Guard>} />
+          <Route path="/modules"    element={<Guard><Modules /></Guard>} />
+          <Route path="/test-cases" element={<Guard><TestCases /></Guard>} />
+          <Route path="/cycles"     element={<Guard><Cycles /></Guard>} />
+          <Route path="/bugs"       element={<Guard><Bugs /></Guard>} />
+          <Route path="/bugs/:id"   element={<Guard><BugDetail /></Guard>} />
+          <Route path="/projects"   element={<Guard managerOk><Projects /></Guard>} />
+          <Route path="/users"      element={<Guard managerOk><Users /></Guard>} />
+          <Route path="/backup"     element={<Guard adminOnly><Backup /></Guard>} />
+          <Route path="*"           element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

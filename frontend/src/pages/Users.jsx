@@ -25,15 +25,28 @@ async function saveUserProjects(userId, projectIds) {
   });
 }
 
-const ROLE_OPTS = [
-  { value: "admin",  label: "Admin — acesso total" },
-  { value: "editor", label: "Editor — pode criar e editar" },
-  { value: "viewer", label: "Visualizador — somente leitura" },
-];
-const ROLE_LABELS = { admin: "Admin", editor: "Editor", viewer: "Visualizador" };
-const ROLE_COLORS = { admin: "var(--danger)", editor: "var(--accent)", viewer: "var(--text-muted)" };
+const ROLE_LABELS = { admin:"Admin", manager:"Gerente", editor:"Editor", viewer:"Visualizador" };
+const ROLE_COLORS = { admin:"var(--danger)", manager:"#7C3AED", editor:"var(--accent)", viewer:"var(--text-muted)" };
 
-function UserForm({ initial={}, onSave, onCancel, saving, isEdit }) {
+// Perfis que Admin pode criar
+const ROLE_OPTS_ADMIN = [
+  { value:"admin",   label:"Admin — acesso total" },
+  { value:"manager", label:"Gerente — tudo exceto backup" },
+  { value:"editor",  label:"Editor — pode criar e editar" },
+  { value:"viewer",  label:"Visualizador — somente leitura" },
+];
+// Perfis que Gerente pode criar (não pode criar Admin)
+const ROLE_OPTS_MANAGER = [
+  { value:"manager", label:"Gerente — tudo exceto backup" },
+  { value:"editor",  label:"Editor — pode criar e editar" },
+  { value:"viewer",  label:"Visualizador — somente leitura" },
+];
+
+// Perfis que NÃO precisam de vinculação de projeto (veem tudo)
+const NO_PROJECT_ROLES = ["admin"];
+
+function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsAdmin }) {
+  const roleOpts = currentUserIsAdmin ? ROLE_OPTS_ADMIN : ROLE_OPTS_MANAGER;
   const [form, setForm] = useState({
     name:     initial.name  || "",
     email:    initial.email || "",
@@ -57,7 +70,7 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit }) {
       </Field>
       <div className="form-row">
         <Field label="Perfil de acesso">
-          <Select value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} options={ROLE_OPTS} />
+          <Select value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} options={roleOpts} />
         </Field>
         {isEdit && (
           <Field label="Status">
@@ -70,7 +83,8 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit }) {
       <div style={{ background:"var(--bg)", borderRadius:6, padding:"10px 12px",
         fontSize:12, color:"var(--text-muted)", marginBottom:4 }}>
         <strong>Permissões:</strong><br />
-        🔴 <strong>Admin</strong> — acesso a todos os projetos, gerencia usuários<br />
+        🔴 <strong>Admin</strong> — acesso total incluindo backup e banco<br />
+        🟣 <strong>Gerente</strong> — tudo exceto backup, vinculável a projetos<br />
         🔵 <strong>Editor</strong> — cria e edita nos projetos atribuídos<br />
         ⚫ <strong>Visualizador</strong> — somente leitura nos projetos atribuídos
       </div>
@@ -104,10 +118,8 @@ function ProjectAccessModal({ user, projects, onClose }) {
 
   async function handleSave() {
     setSaving(true);
-    try {
-      await saveUserProjects(user.id, selected);
-      onClose();
-    } finally { setSaving(false); }
+    try { await saveUserProjects(user.id, selected); onClose(); }
+    finally { setSaving(false); }
   }
 
   return (
@@ -116,8 +128,7 @@ function ProjectAccessModal({ user, projects, onClose }) {
         <>
           <div style={{ fontSize:13, color:"var(--text-muted)", marginBottom:16, padding:"8px 12px",
             background:"var(--accent-bg)", borderRadius:6 }}>
-            🔵 Selecione quais projetos <strong>{user.name}</strong> pode acessar.
-            Admins têm acesso a todos os projetos automaticamente.
+            Selecione quais projetos <strong>{user.name}</strong> pode acessar.
           </div>
 
           <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
@@ -164,15 +175,15 @@ function ProjectAccessModal({ user, projects, onClose }) {
 }
 
 export default function Users() {
-  const { user: me } = useAuth();
+  const { user: me, isAdmin } = useAuth();
   const { data: users,    loading:l1, error:e1, refetch } = useAsync(() => usersApi.list());
   const { data: projects, loading:l2 }                    = useAsync(() => projectsApi.list());
 
-  const [modal,         setModal]         = useState(null);
-  const [confirm,       setConfirm]       = useState(null);
-  const [projectModal,  setProjectModal]  = useState(null);
-  const [saving,        setSaving]        = useState(false);
-  const [err,           setErr]           = useState(null);
+  const [modal,        setModal]        = useState(null);
+  const [confirm,      setConfirm]      = useState(null);
+  const [projectModal, setProjectModal] = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  const [err,          setErr]          = useState(null);
 
   if (l1||l2) return <Loading />;
   if (e1)     return <ErrorMsg msg={e1} />;
@@ -182,6 +193,11 @@ export default function Users() {
     try {
       const data = { ...form };
       if (modal.mode === "edit" && !data.password) delete data.password;
+      // Gerente não pode criar/promover para Admin
+      if (!isAdmin && data.role === "admin") {
+        setErr("Gerentes não podem criar usuários Admin.");
+        setSaving(false); return;
+      }
       if (modal.mode === "create") await usersApi.create(data);
       else                         await usersApi.update(modal.item.id, data);
       setModal(null); refetch();
@@ -193,6 +209,9 @@ export default function Users() {
     try { await usersApi.delete(id); setConfirm(null); refetch(); }
     catch(e) { setErr(e.message); }
   }
+
+  // Perfis que precisam de vinculação de projeto
+  const needsProjectLink = u => !NO_PROJECT_ROLES.includes(u.role);
 
   return (
     <div className="page">
@@ -226,8 +245,8 @@ export default function Users() {
                     </td>
                     <td style={{ color:"var(--text-muted)" }}>{u.email}</td>
                     <td>
-                      <span style={{ fontSize:12, fontWeight:500, color:ROLE_COLORS[u.role] }}>
-                        {ROLE_LABELS[u.role]}
+                      <span style={{ fontSize:12, fontWeight:500, color:ROLE_COLORS[u.role]||"var(--text-muted)" }}>
+                        {ROLE_LABELS[u.role]||u.role}
                       </span>
                     </td>
                     <td>
@@ -236,7 +255,7 @@ export default function Users() {
                       </span>
                     </td>
                     <td>
-                      {u.role === "admin" ? (
+                      {!needsProjectLink(u) ? (
                         <span style={{ fontSize:11, color:"var(--text-muted)" }}>Todos</span>
                       ) : (
                         <button className="btn btn-sm"
@@ -271,7 +290,9 @@ export default function Users() {
         <Modal title={modal.mode === "create" ? "Novo usuário" : "Editar usuário"}
           onClose={() => setModal(null)}>
           <UserForm initial={modal.item||{}} onSave={handleSave}
-            onCancel={() => setModal(null)} saving={saving} isEdit={modal.mode === "edit"} />
+            onCancel={() => setModal(null)} saving={saving}
+            isEdit={modal.mode === "edit"}
+            currentUserIsAdmin={isAdmin} />
         </Modal>
       )}
 

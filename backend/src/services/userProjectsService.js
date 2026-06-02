@@ -1,11 +1,13 @@
 const { query, execute } = require("../database/connection");
 
 async function getUserProjectIds(userId, role) {
+  // Admin e manager sem restrição de projeto podem ver tudo
   if (role === "admin") return null;
   const rows = await query(
     "SELECT project_id FROM user_projects WHERE user_id = $1",
     [userId]
   );
+  // Manager com projetos vinculados respeita a lista
   return rows.map(r => parseInt(r.project_id));
 }
 

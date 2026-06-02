@@ -28,11 +28,13 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const isAdmin  = user?.role === "admin";
-  const isEditor = ["admin","editor"].includes(user?.role);
+  const isAdmin   = user?.role === "admin";
+  const isManager = user?.role === "manager";
+  const isEditor  = ["admin","manager","editor"].includes(user?.role);
+  const isViewer  = user?.role === "viewer";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isEditor }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isManager, isEditor, isViewer }}>
       {children}
     </AuthContext.Provider>
   );
