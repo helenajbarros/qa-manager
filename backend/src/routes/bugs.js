@@ -1,11 +1,16 @@
 const { Router } = require("express");
 const c = require("../controllers/bugsController");
+const { authenticate } = require("../middlewares/auth");
 const router = Router();
-router.get("/",                    c.index);
-router.get("/:id",                 c.show);
-router.post("/",                   c.store);
-router.put("/:id",                 c.update);
-router.delete("/:id",              c.destroy);
-router.post("/:id/files",          ...c.uploadFile);
-router.delete("/:id/files/:fileId",c.deleteFile);
+
+router.get("/",                            authenticate, c.index);
+router.get("/:id",                         authenticate, c.show);
+router.post("/",                           authenticate, c.store);
+router.put("/:id",                         authenticate, c.update);
+router.delete("/:id",                      authenticate, c.destroy);
+router.post("/:id/files",                  authenticate, ...c.uploadFile);
+router.delete("/:id/files/:fileId",        authenticate, c.deleteFile);
+router.post("/:id/relations",              authenticate, c.addRelation);
+router.delete("/:id/relations/:relatedId", authenticate, c.removeRelation);
+
 module.exports = router;

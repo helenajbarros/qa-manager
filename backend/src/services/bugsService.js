@@ -8,10 +8,15 @@ async function extractModuleId(title) {
 }
 
 const BASE = `
-  SELECT b.*, m.name AS module_name, u.name AS created_by_name, tc.title AS test_case_title
+  SELECT b.*,
+    m.name  AS module_name,
+    u.name  AS created_by_name,
+    a.name  AS assigned_to_name,
+    tc.title AS test_case_title
   FROM bugs b
   LEFT JOIN modules    m  ON m.id  = b.module_id
   LEFT JOIN users      u  ON u.id  = b.created_by_id
+  LEFT JOIN users      a  ON a.id  = b.assigned_to_id
   LEFT JOIN test_cases tc ON tc.id = b.test_case_id
 `;
 
@@ -19,9 +24,25 @@ async function getFiles(bug_id) {
   return query("SELECT * FROM evidence_files WHERE ref_type='bug' AND ref_id=$1 ORDER BY created_at", [bug_id]);
 }
 
-async function attachFiles(bug) {
+async function getRelations(bug_id) {
+  const rows = await query(`
+    SELECT br.id, br.related_bug_id,
+      b.title, b.status, b.severity, m.name AS module_name
+    FROM bug_relations br
+    JOIN bugs b ON b.id = br.related_bug_id
+    LEFT JOIN modules m ON m.id = b.module_id
+    WHERE br.bug_id = $1
+  `, [bug_id]);
+  return rows;
+}
+
+async function attachAll(bug) {
   if (!bug) return undefined;
-  return { ...bug, evidence_files: await getFiles(bug.id) };
+  const [files, relations] = await Promise.all([
+    getFiles(bug.id),
+    getRelations(bug.id),
+  ]);
+  return { ...bug, evidence_files: files, related_bugs: relations };
 }
 
 async function findAll({ status, severity, module_id, project_id, search } = {}) {
@@ -32,30 +53,85 @@ async function findAll({ status, severity, module_id, project_id, search } = {})
   if (module_id)  { params.push(module_id);   conds.push(`b.module_id = $${params.length}`); }
   if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(b.title) LIKE $${params.length}`); }
   const rows = await query(`${BASE} WHERE ${conds.join(" AND ")} ORDER BY b.created_at DESC`, params);
-  return Promise.all(rows.map(attachFiles));
+  return Promise.all(rows.map(attachAll));
 }
 
 async function findById(id) {
   const rows = await query(`${BASE} WHERE b.id=$1`, [id]);
-  return attachFiles(rows[0]);
+  return attachAll(rows[0]);
 }
 
-async function create({ title, description, comment, tracker_url, severity, status, module_id, test_case_id, created_by_id, project_id }) {
+async function logActivity(bug_id, user_id, action, detail) {
+  try {
+    await query(
+      "INSERT INTO bug_activity (bug_id, user_id, action, detail) VALUES ($1,$2,$3,$4)",
+      [bug_id, user_id||null, action, detail||null]
+    );
+  } catch(_) {}
+}
+
+async function getActivity(bug_id) {
+  return query(`
+    SELECT ba.*, u.name AS user_name
+    FROM bug_activity ba
+    LEFT JOIN users u ON u.id = ba.user_id
+    WHERE ba.bug_id = $1
+    ORDER BY ba.created_at ASC
+  `, [bug_id]);
+}
+
+async function create({ title, description, comment, tracker_url, severity, status, module_id,
+  test_case_id, created_by_id, project_id, assigned_to_id, pr_url, steps }) {
   const mod = module_id || await extractModuleId(title);
   const rows = await query(
-    "INSERT INTO bugs (title,description,comment,tracker_url,severity,status,module_id,test_case_id,created_by_id,project_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id",
-    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1]
+    `INSERT INTO bugs (title,description,comment,tracker_url,severity,status,module_id,
+      test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+    [title.trim(), description||null, comment||null, tracker_url||null,
+     severity||"medium", status||"open", mod||null, test_case_id||null,
+     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null]
   );
-  return findById(rows[0].id);
+  const bug = await findById(rows[0].id);
+  await logActivity(rows[0].id, created_by_id, "criou o bug", null);
+  return bug;
 }
 
-async function update(id, { title, description, comment, tracker_url, severity, status, module_id, test_case_id }) {
-  const mod = module_id || await extractModuleId(title);
+async function update(id, { title, description, comment, tracker_url, severity, status,
+  module_id, test_case_id, assigned_to_id, pr_url, steps }, userId) {
+  const prev = await findById(id);
+  const mod  = module_id || await extractModuleId(title);
   await execute(
-    "UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,status=$6,module_id=$7,test_case_id=$8 WHERE id=$9",
-    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", status||"open", mod||null, test_case_id||null, id]
+    `UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,
+      status=$6,module_id=$7,test_case_id=$8,assigned_to_id=$9,pr_url=$10,steps=$11 WHERE id=$12`,
+    [title.trim(), description||null, comment||null, tracker_url||null,
+     severity||"medium", status||"open", mod||null, test_case_id||null,
+     assigned_to_id||null, pr_url||null, steps||null, id]
   );
+  // Log de atividades
+  if (prev && prev.status !== status) {
+    await logActivity(id, userId, "alterou o status", `${prev.status} → ${status}`);
+  }
+  if (prev && prev.assigned_to_id !== (assigned_to_id||null)) {
+    await logActivity(id, userId, "alterou o responsável", null);
+  }
+  if (prev && prev.title !== title) {
+    await logActivity(id, userId, "editou o bug", null);
+  }
   return findById(id);
+}
+
+async function addRelation(bugId, relatedBugId) {
+  try {
+    await query("INSERT INTO bug_relations (bug_id, related_bug_id) VALUES ($1,$2)", [bugId, relatedBugId]);
+    await query("INSERT INTO bug_relations (bug_id, related_bug_id) VALUES ($1,$2)", [relatedBugId, bugId]);
+  } catch(_) {}
+  return getRelations(bugId);
+}
+
+async function removeRelation(bugId, relatedBugId) {
+  await execute("DELETE FROM bug_relations WHERE bug_id=$1 AND related_bug_id=$2", [bugId, relatedBugId]);
+  await execute("DELETE FROM bug_relations WHERE bug_id=$1 AND related_bug_id=$2", [relatedBugId, bugId]);
+  return getRelations(bugId);
 }
 
 async function addFile(bug_id, { filename, originalname, mimetype, size }) {
@@ -79,4 +155,5 @@ async function remove(id) {
   return execute("DELETE FROM bugs WHERE id=$1", [id]);
 }
 
-module.exports = { findAll, findById, create, update, remove, addFile, removeFile };
+module.exports = { findAll, findById, create, update, remove, addFile, removeFile,
+  addRelation, removeRelation, getActivity, logActivity };

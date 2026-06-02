@@ -1,17 +1,18 @@
 import { api } from "./api.js";
-
 const qs = (p) => p && Object.keys(p).length ? `?${new URLSearchParams(p)}` : "";
 
 export const authApi = {
   login: (email, password) => api.post("/users/login", { email, password }),
   me:    ()                 => api.get("/users/me"),
 };
+
 export const usersApi = {
   list:   ()         => api.get("/users"),
   create: (d)        => api.post("/users", d),
   update: (id, d)    => api.put(`/users/${id}`, d),
   delete: (id)       => api.delete(`/users/${id}`),
 };
+
 function getApiBase() {
   return import.meta.env.VITE_API_URL
     ? `${import.meta.env.VITE_API_URL}/api`
@@ -33,12 +34,14 @@ export const projectsApi = {
     }).then(r => r.json()).then(j => j.data ?? j);
   },
 };
+
 export const modulesApi = {
   list:   (p)        => api.get(`/modules${qs(p)}`),
   create: (d)        => api.post("/modules", d),
   update: (id, d)    => api.put(`/modules/${id}`, d),
   delete: (id)       => api.delete(`/modules/${id}`),
 };
+
 export const testCasesApi = {
   list:   (p)        => api.get(`/test-cases${qs(p)}`),
   get:    (id)       => api.get(`/test-cases/${id}`),
@@ -46,26 +49,29 @@ export const testCasesApi = {
   update: (id, d)    => api.put(`/test-cases/${id}`, d),
   delete: (id)       => api.delete(`/test-cases/${id}`),
 };
+
 export const cyclesApi = {
-  list:            (p)         => api.get(`/cycles${qs(p)}`),
-  get:             (id)        => api.get(`/cycles/${id}`),
-  create:          (d)         => api.post("/cycles", d),
-  update:          (id, d)     => api.put(`/cycles/${id}`, d),
-  delete:          (id)        => api.delete(`/cycles/${id}`),
-  listExecutions:  (id)        => api.get(`/cycles/${id}/executions`),
-  addExecutions:   (id, ids)   => api.post(`/cycles/${id}/executions`, { test_case_ids: ids }),
-  updateExecution: (id, eid, d)=> api.put(`/cycles/${id}/executions/${eid}`, d),
-  deleteExecution: (id, eid)   => api.delete(`/cycles/${id}/executions/${eid}`),
+  list:            (p)          => api.get(`/cycles${qs(p)}`),
+  get:             (id)         => api.get(`/cycles/${id}`),
+  create:          (d)          => api.post("/cycles", d),
+  update:          (id, d)      => api.put(`/cycles/${id}`, d),
+  delete:          (id)         => api.delete(`/cycles/${id}`),
+  listExecutions:  (id)         => api.get(`/cycles/${id}/executions`),
+  addExecutions:   (id, ids)    => api.post(`/cycles/${id}/executions`, { test_case_ids: ids }),
+  updateExecution: (id, eid, d) => api.put(`/cycles/${id}/executions/${eid}`, d),
+  deleteExecution: (id, eid)    => api.delete(`/cycles/${id}/executions/${eid}`),
 };
+
 export const bugsApi = {
-  list:   (p)        => api.get(`/bugs${qs(p)}`),
-  get:    (id)       => api.get(`/bugs/${id}`),
-  create: (d)        => api.post("/bugs", d),
-  update: (id, d)    => api.put(`/bugs/${id}`, d),
-  delete: (id)       => api.delete(`/bugs/${id}`),
+  list:           (p)           => api.get(`/bugs${qs(p)}`),
+  get:            (id)          => api.get(`/bugs/${id}`),
+  create:         (d)           => api.post("/bugs", d),
+  update:         (id, d)       => api.put(`/bugs/${id}`, d),
+  delete:         (id)          => api.delete(`/bugs/${id}`),
+  addRelation:    (id, relId)   => api.post(`/bugs/${id}/relations`, { related_bug_id: relId }),
+  removeRelation: (id, relId)   => api.delete(`/bugs/${id}/relations/${relId}`),
 };
+
 export const dashboardApi = {
   get: (p) => api.get(`/dashboard${qs(p)}`),
 };
-
-

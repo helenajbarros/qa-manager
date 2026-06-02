@@ -6,6 +6,8 @@ const fs      = require("fs");
 const { initDatabase }  = require("./database/connection");
 const { runMigrations } = require("./database/migrations");
 const { addUserProjectsTable } = require("./database/migrations_user_projects");
+const { addBugCommentsTable }  = require("./database/migrations_bug_comments");
+const { upgradeBugsTable }     = require("./database/migrations_bugs_v2");
 const { runSeed }       = require("./database/seed");
 const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
@@ -23,16 +25,17 @@ app.use(express.json());
 app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-app.use("/api/users",      require("./routes/users"));
-app.use("/api/users",      require("./routes/userProjects"));
-app.use("/api/projects",   require("./routes/projects"));
-app.use("/api/modules",    require("./routes/modules"));
-app.use("/api/test-cases", require("./routes/testCases"));
-app.use("/api/cycles",     require("./routes/cycles"));
-app.use("/api/bugs",       require("./routes/bugs"));
-app.use("/api/dashboard",  authenticate, require("./routes/dashboard"));
-app.use("/api/export",     authenticate, require("./routes/export"));
-app.use("/api/backup",     require("./routes/backup"));
+app.use("/api/users",                 require("./routes/users"));
+app.use("/api/users",                 require("./routes/userProjects"));
+app.use("/api/projects",              require("./routes/projects"));
+app.use("/api/modules",               require("./routes/modules"));
+app.use("/api/test-cases",            require("./routes/testCases"));
+app.use("/api/cycles",                require("./routes/cycles"));
+app.use("/api/bugs/:bugId/comments",  require("./routes/bugComments"));
+app.use("/api/bugs",                  require("./routes/bugs"));
+app.use("/api/dashboard",             authenticate, require("./routes/dashboard"));
+app.use("/api/export",                authenticate, require("./routes/export"));
+app.use("/api/backup",                require("./routes/backup"));
 
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })
@@ -43,6 +46,8 @@ async function start() {
   await initDatabase();
   await runMigrations();
   await addUserProjectsTable();
+  await addBugCommentsTable();
+  await upgradeBugsTable();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);
