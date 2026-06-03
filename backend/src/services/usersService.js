@@ -16,11 +16,11 @@ function verifyToken(token) {
 }
 
 async function findAll() {
-  return query("SELECT id,name,email,role,active,created_at FROM users ORDER BY name");
+  return query("SELECT id,name,email,role,active,default_project_id,created_at FROM users ORDER BY name");
 }
 
 async function findById(id) {
-  const rows = await query("SELECT id,name,email,role,active,created_at FROM users WHERE id=$1", [id]);
+  const rows = await query("SELECT id,name,email,role,active,default_project_id,created_at FROM users WHERE id=$1", [id]);
   return rows[0];
 }
 
@@ -36,20 +36,21 @@ async function login(email, password) {
   return { token: generateToken(user), user: await findById(user.id) };
 }
 
-async function create({ name, email, password, role }) {
+async function create({ name, email, password, role, default_project_id }) {
   const rows = await query(
-    "INSERT INTO users (name,email,password,role) VALUES ($1,$2,$3,$4) RETURNING id",
-    [name.trim(), email.trim().toLowerCase(), hash(password), role||"viewer"]
+    "INSERT INTO users (name,email,password,role,default_project_id) VALUES ($1,$2,$3,$4,$5) RETURNING id",
+    [name.trim(), email.trim().toLowerCase(), hash(password), role||"viewer", default_project_id||null]
   );
   return findById(rows[0].id);
 }
 
-async function update(id, { name, email, role, active, password }) {
+async function update(id, { name, email, role, active, password, default_project_id }) {
   const rows = await query("SELECT * FROM users WHERE id=$1", [id]);
   const c = rows[0]; if (!c) return null;
-  await execute("UPDATE users SET name=$1,email=$2,role=$3,active=$4,password=$5 WHERE id=$6",
+  await execute("UPDATE users SET name=$1,email=$2,role=$3,active=$4,password=$5,default_project_id=$6 WHERE id=$7",
     [name?.trim()||c.name, email?.trim().toLowerCase()||c.email, role||c.role,
-     active!==undefined?(active?1:0):c.active, password?hash(password):c.password, id]);
+     active!==undefined?(active?1:0):c.active, password?hash(password):c.password,
+     default_project_id!==undefined ? (default_project_id||null) : c.default_project_id, id]);
   return findById(id);
 }
 

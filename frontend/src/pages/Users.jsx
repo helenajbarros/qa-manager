@@ -75,14 +75,15 @@ const ROLE_OPTS_MANAGER = [
 // Perfis que NÃO precisam de vinculação de projeto (veem tudo)
 const NO_PROJECT_ROLES = ["admin"];
 
-function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsAdmin }) {
+function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsAdmin, projects=[] }) {
   const roleOpts = currentUserIsAdmin ? ROLE_OPTS_ADMIN : ROLE_OPTS_MANAGER;
   const [form, setForm] = useState({
-    name:     initial.name  || "",
-    email:    initial.email || "",
-    password: "",
-    role:     initial.role  || "viewer",
-    active:   initial.active !== undefined ? initial.active : 1,
+    name:               initial.name               || "",
+    email:              initial.email              || "",
+    password:           "",
+    role:               initial.role               || "viewer",
+    active:             initial.active !== undefined ? initial.active : 1,
+    default_project_id: initial.default_project_id || "",
   });
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -110,6 +111,13 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsA
           </Field>
         )}
       </div>
+      <Field label="Projeto padrão ao logar">
+        <Select value={String(form.default_project_id||"")}
+          onChange={v => setForm(f => ({ ...f, default_project_id: v||null }))}
+          options={projects.map(p => ({ value: String(p.id), label: p.name }))}
+          placeholder="Primeiro projeto da lista" />
+      </Field>
+
       <div style={{ background:"var(--bg)", borderRadius:6, padding:"10px 12px",
         fontSize:12, color:"var(--text-muted)", marginBottom:4 }}>
         <strong>Permissões:</strong><br />
@@ -345,7 +353,8 @@ export default function Users() {
           <UserForm initial={modal.item||{}} onSave={handleSave}
             onCancel={() => setModal(null)} saving={saving}
             isEdit={modal.mode === "edit"}
-            currentUserIsAdmin={isAdmin} />
+            currentUserIsAdmin={isAdmin}
+            projects={projects||[]} />
         </Modal>
       )}
 

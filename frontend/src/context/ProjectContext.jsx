@@ -10,7 +10,6 @@ export function ProjectProvider({ children }) {
   const [currentProject, setCurrentProject] = useState(null);
   const [loading,        setLoading]        = useState(false);
 
-  // Só carrega projetos quando o usuário estiver autenticado
   useEffect(() => {
     if (!user) {
       setProjects([]);
@@ -22,9 +21,18 @@ export function ProjectProvider({ children }) {
     projectsApi.list()
       .then(list => {
         setProjects(list);
-        const saved = localStorage.getItem("qa_project_id");
-        const found = saved ? list.find(p => String(p.id) === saved) : null;
-        setCurrentProject(found || list[0] || null);
+
+        // Prioridade de seleção:
+        // 1. Projeto salvo no localStorage (última seleção manual)
+        // 2. Projeto padrão do usuário (default_project_id)
+        // 3. Primeiro projeto da lista
+        const saved          = localStorage.getItem("qa_project_id");
+        const savedProject   = saved ? list.find(p => String(p.id) === saved) : null;
+        const defaultProject = user.default_project_id
+          ? list.find(p => String(p.id) === String(user.default_project_id))
+          : null;
+
+        setCurrentProject(savedProject || defaultProject || list[0] || null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
