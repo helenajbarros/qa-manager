@@ -127,9 +127,8 @@ export default function ShareBug() {
 
           {/* Header */}
           <div className="share-card" style={{padding:"20px 24px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",
-              alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
-              <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div>
                 <div style={{fontSize:11,color:"#6B7280",textTransform:"uppercase",
                   fontWeight:600,letterSpacing:".05em",marginBottom:6}}>
                   Bug #{bug.id}
