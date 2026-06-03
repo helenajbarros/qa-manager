@@ -9,6 +9,35 @@ import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, ExecBadge
 const CYCLE_STATUS = [{value:"active",label:"Ativo"},{value:"completed",label:"Concluído"},{value:"archived",label:"Arquivado"}];
 const EXEC_STATUS  = [{value:"not_executed",label:"Não executado"},{value:"passed",label:"Passou"},{value:"failed",label:"Falhou"},{value:"blocked",label:"Bloqueado"}];
 const TEST_TYPES   = ["Funcional","Regressão","Integração","Performance","Segurança","Usabilidade","Smoke","Sanidade","Exploratório","Aceitação"];
+const PAGE_SIZE    = 10;
+
+function Pagination({ page, totalPages, total, onChange, label="item(s)" }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+      padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
+      <span>{total} {label} — Página {page} de {totalPages}</span>
+      <div style={{display:"flex",gap:4}}>
+        <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===1?"not-allowed":"pointer",
+            color:page===1?"var(--text-muted)":"var(--text)",fontSize:12}}>← Anterior</button>
+        {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+          <button key={p} onClick={()=>onChange(p)}
+            style={{padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",
+              background:p===page?"var(--accent)":"none",
+              color:p===page?"white":"var(--text)",cursor:"pointer",fontSize:12,minWidth:28}}>
+            {p}
+          </button>
+        ))}
+        <button onClick={()=>onChange(Math.min(totalPages,page+1))} disabled={page===totalPages}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===totalPages?"not-allowed":"pointer",
+            color:page===totalPages?"var(--text-muted)":"var(--text)",fontSize:12}}>Próxima →</button>
+      </div>
+    </div>
+  );
+}
 
 function CycleForm({ initial={}, onSave, onCancel, saving }) {
   const initTypes = initial.test_types ? initial.test_types.split(",").filter(Boolean) : [];
@@ -263,6 +292,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
   const [confirm,   setConfirm]   = useState(null);
   const [filter,    setFilter]    = useState("");
   const [search,    setSearch]    = useState("");
+  const [page,      setPage]      = useState(1);
   const { currentProject } = useProject();
 
   const existingIds = (execs||[]).map(e=>e.test_case_id);
@@ -273,6 +303,8 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
         !String(e.test_case_id).includes(search)) return false;
     return true;
   });
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const stats = (execs||[]).reduce((a,e)=>({...a,[e.status]:(a[e.status]||0)+1}),{});
   const types = cycle.test_types ? cycle.test_types.split(",").filter(Boolean) : [];
 
@@ -306,7 +338,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
           {key:"blocked",label:"Bloqueado",color:"var(--purple)"},
           {key:"not_executed",label:"Não executado",color:"var(--text-muted)"}
         ].map(({key,label,color})=>(
-          <div key={key} onClick={()=>setFilter(f=>f===key?"":key)}
+          <div key={key} onClick={()=>{ setFilter(f=>f===key?"":key); setPage(1); }}
             style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:8,padding:"10px 16px",cursor:"pointer",
               outline:filter===key?`2px solid ${color}`:undefined}}>
@@ -317,58 +349,61 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
       </div>
 
       <div style={{marginBottom:16}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)}
+        <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}
           placeholder="🔍 Buscar por título, módulo ou ID..."
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,width:"100%",maxWidth:380}} />
       </div>
 
       <div className="card">
         {!filtered.length ? <Empty icon="🔁" text="Nenhuma execução encontrada." /> : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>ID</th><th>Caso de teste</th><th>Módulo</th><th>Status</th><th>Executado por</th><th>Responsável</th><th>Comentário</th><th>Evidências</th><th></th></tr>
-              </thead>
-              <tbody>
-                {filtered.map(e=>(
-                  <tr key={e.id}>
-                    <td>
-                      <button onClick={()=>setTcModal(e)}
-                        style={{background:"none",border:"none",cursor:"pointer",color:"var(--accent)",fontWeight:700,fontSize:12,padding:0}}>
-                        #{e.test_case_id}
-                      </button>
-                    </td>
-                    <td style={{fontWeight:500,maxWidth:200}}>
-                      <button onClick={()=>setTcModal(e)}
-                        style={{background:"none",border:"none",cursor:"pointer",color:"var(--text)",textAlign:"left",fontSize:13,padding:0}}>
-                        {e.test_case_title}
-                      </button>
-                    </td>
-                    <td><span className="badge badge-active">{e.module_name}</span></td>
-                    <td><ExecBadge v={e.status} /></td>
-                    <td style={{fontSize:12,color:"var(--text-muted)"}}>{e.executed_by_name||"—"}</td>
-                    <td style={{fontSize:12,color:"var(--text-muted)"}}>{e.assigned_to_name||"—"}</td>
-                    <td style={{fontSize:12,color:"var(--text-muted)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {e.comment||"—"}
-                    </td>
-                    <td style={{fontSize:12}}>
-                      {e.evidence_files?.length>0 && <span style={{color:"var(--accent)"}}>📎{e.evidence_files.length}</span>}
-                      {e.evidence_url && <a href={e.evidence_url} target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:4}}>🔗</a>}
-                      {!e.evidence_files?.length && !e.evidence_url && "—"}
-                    </td>
-                    <td>
-                      <div className="actions">
-                        <button className="btn btn-sm" onClick={()=>setExecModal(e)}>▶</button>
-                        {!isViewer && (
-                          <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(e)}>🗑</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>ID</th><th>Caso de teste</th><th>Módulo</th><th>Status</th><th>Executado por</th><th>Responsável</th><th>Comentário</th><th>Evidências</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {paged.map(e=>(
+                    <tr key={e.id}>
+                      <td>
+                        <button onClick={()=>setTcModal(e)}
+                          style={{background:"none",border:"none",cursor:"pointer",color:"var(--accent)",fontWeight:700,fontSize:12,padding:0}}>
+                          #{e.test_case_id}
+                        </button>
+                      </td>
+                      <td style={{fontWeight:500,maxWidth:200}}>
+                        <button onClick={()=>setTcModal(e)}
+                          style={{background:"none",border:"none",cursor:"pointer",color:"var(--text)",textAlign:"left",fontSize:13,padding:0}}>
+                          {e.test_case_title}
+                        </button>
+                      </td>
+                      <td><span className="badge badge-active">{e.module_name}</span></td>
+                      <td><ExecBadge v={e.status} /></td>
+                      <td style={{fontSize:12,color:"var(--text-muted)"}}>{e.executed_by_name||"—"}</td>
+                      <td style={{fontSize:12,color:"var(--text-muted)"}}>{e.assigned_to_name||"—"}</td>
+                      <td style={{fontSize:12,color:"var(--text-muted)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        {e.comment||"—"}
+                      </td>
+                      <td style={{fontSize:12}}>
+                        {e.evidence_files?.length>0 && <span style={{color:"var(--accent)"}}>📎{e.evidence_files.length}</span>}
+                        {e.evidence_url && <a href={e.evidence_url} target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:4}}>🔗</a>}
+                        {!e.evidence_files?.length && !e.evidence_url && "—"}
+                      </td>
+                      <td>
+                        <div className="actions">
+                          <button className="btn btn-sm" onClick={()=>setExecModal(e)}>▶</button>
+                          {!isViewer && (
+                            <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(e)}>🗑</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={setPage} label="execução(ões)" />
+          </>
         )}
       </div>
 
@@ -391,6 +426,9 @@ export default function Cycles() {
   const [confirm, setConfirm] = useState(null);
   const [detail,  setDetail]  = useState(null);
   const [search,  setSearch]  = useState("");
+  const [filterVersion, setFilterVersion] = useState("");
+  const [activeTab, setActiveTab] = useState("active"); // "active" | "finished"
+  const [page,    setPage]    = useState(1);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState(null);
 
@@ -398,7 +436,20 @@ export default function Cycles() {
   if (error)   return <ErrorMsg msg={error} />;
   if (detail)  return <CycleDetail cycle={detail} onBack={()=>setDetail(null)} onRefresh={refetch} />;
 
-  const filtered = (cycles||[]).filter(c=>!search||c.name.toLowerCase().includes(search.toLowerCase()));
+  // Separar ciclos por aba
+  const activeCycles   = (cycles||[]).filter(c => c.status === "active");
+  const finishedCycles = (cycles||[]).filter(c => c.status === "completed" || c.status === "archived");
+
+  const sourceList = activeTab === "active" ? activeCycles : finishedCycles;
+
+  const filtered = sourceList.filter(c => {
+    if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterVersion && !(c.version||"").toLowerCase().includes(filterVersion.toLowerCase())) return false;
+    return true;
+  });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
   async function handleSave(form) {
     setSaving(true); setErr(null);
@@ -411,6 +462,14 @@ export default function Cycles() {
     finally { setSaving(false); }
   }
 
+  const tabStyle = (tab) => ({
+    padding:"8px 20px",fontSize:13,fontWeight:500,cursor:"pointer",
+    border:"none",background:"none",borderBottom: activeTab===tab
+      ? "2px solid var(--accent)" : "2px solid transparent",
+    color: activeTab===tab ? "var(--accent)" : "var(--text-muted)",
+    transition:"all .15s"
+  });
+
   return (
     <div className="page">
       <div className="page-header">
@@ -420,70 +479,111 @@ export default function Cycles() {
         )}
       </div>
       {err && <ErrorMsg msg={err} />}
-      <div style={{marginBottom:16}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)}
-          placeholder="🔍 Buscar ciclo..."
-          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,width:280}} />
+
+      {/* Abas */}
+      <div style={{display:"flex",borderBottom:"1px solid var(--border)",marginBottom:16}}>
+        <button style={tabStyle("active")} onClick={()=>{ setActiveTab("active"); setPage(1); }}>
+          🔁 Em andamento
+          <span style={{marginLeft:6,fontSize:11,background:"var(--accent-bg)",
+            color:"var(--accent)",borderRadius:10,padding:"1px 7px"}}>
+            {activeCycles.length}
+          </span>
+        </button>
+        <button style={tabStyle("finished")} onClick={()=>{ setActiveTab("finished"); setPage(1); }}>
+          ✅ Finalizados
+          <span style={{marginLeft:6,fontSize:11,background:"var(--bg)",
+            color:"var(--text-muted)",borderRadius:10,padding:"1px 7px",
+            border:"1px solid var(--border)"}}>
+            {finishedCycles.length}
+          </span>
+        </button>
       </div>
+
+      {/* Filtros */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}
+          placeholder="🔍 Buscar por nome..."
+          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:200,flex:1}} />
+        <input value={filterVersion} onChange={e=>{ setFilterVersion(e.target.value); setPage(1); }}
+          placeholder="📦 Filtrar por versão..."
+          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,width:180}} />
+        {(search||filterVersion) && (
+          <button onClick={()=>{ setSearch(""); setFilterVersion(""); setPage(1); }}
+            style={{padding:"6px 12px",borderRadius:6,border:"1px solid var(--danger)",
+              color:"var(--danger)",background:"none",fontSize:13,cursor:"pointer"}}>
+            ✕ Limpar
+          </button>
+        )}
+        <span style={{fontSize:12,color:"var(--text-muted)",alignSelf:"center"}}>{filtered.length} ciclo(s)</span>
+      </div>
+
       <div className="card">
-        {!filtered.length ? <Empty icon="🔁" text="Nenhum ciclo cadastrado." /> : (
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Nome</th><th>Versão</th><th>Período</th><th>Tipos</th><th>Status</th><th>Progresso</th><th></th></tr></thead>
-              <tbody>
-                {filtered.map(c => {
-                  const exec = c.total_executions||0;
-                  const pct  = exec>0?Math.round(((c.passed||0)/exec)*100):0;
-                  const types = c.test_types?c.test_types.split(",").filter(Boolean):[];
-                  return (
-                    <tr key={c.id}>
-                      <td>
-                        <button style={{background:"none",border:"none",cursor:"pointer",fontWeight:600,fontSize:13,color:"var(--accent)",padding:0}}
-                          onClick={()=>setDetail(c)}>{c.name}</button>
-                        {c.description&&<div style={{fontSize:11,color:"var(--text-muted)"}}>{c.description}</div>}
-                      </td>
-                      <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.version||"—"}</td>
-                      <td style={{fontSize:12,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
-                        {c.start_date?new Date(c.start_date).toLocaleDateString("pt-BR"):"—"}
-                        {c.end_date?` → ${new Date(c.end_date).toLocaleDateString("pt-BR")}` :""}
-                      </td>
-                      <td>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                          {types.slice(0,2).map(t=><span key={t} style={{fontSize:10,padding:"1px 6px",background:"var(--accent-bg)",color:"var(--accent)",borderRadius:10}}>{t}</span>)}
-                          {types.length>2&&<span style={{fontSize:10,color:"var(--text-muted)"}}>+{types.length-2}</span>}
-                        </div>
-                      </td>
-                      <td><CycleBadge v={c.status} /></td>
-                      <td style={{minWidth:120}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <div className="progress" style={{flex:1}}>
-                            <div className="progress-fill" style={{width:`${pct}%`,background:"var(--success)"}} />
+        {!filtered.length ? (
+          <Empty icon="🔁" text={activeTab==="active" ? "Nenhum ciclo em andamento." : "Nenhum ciclo finalizado."} />
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Nome</th><th>Versão</th><th>Período</th><th>Tipos</th><th>Status</th><th>Progresso</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {paged.map(c => {
+                    const exec = c.total_executions||0;
+                    const pct  = exec>0?Math.round(((c.passed||0)/exec)*100):0;
+                    const types = c.test_types?c.test_types.split(",").filter(Boolean):[];
+                    return (
+                      <tr key={c.id}>
+                        <td>
+                          <button style={{background:"none",border:"none",cursor:"pointer",fontWeight:600,fontSize:13,color:"var(--accent)",padding:0}}
+                            onClick={()=>setDetail(c)}>{c.name}</button>
+                          {c.description&&<div style={{fontSize:11,color:"var(--text-muted)"}}>{c.description}</div>}
+                        </td>
+                        <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.version||"—"}</td>
+                        <td style={{fontSize:12,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
+                          {c.start_date?new Date(c.start_date).toLocaleDateString("pt-BR"):"—"}
+                          {c.end_date?` → ${new Date(c.end_date).toLocaleDateString("pt-BR")}` :""}
+                        </td>
+                        <td>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                            {types.slice(0,2).map(t=><span key={t} style={{fontSize:10,padding:"1px 6px",background:"var(--accent-bg)",color:"var(--accent)",borderRadius:10}}>{t}</span>)}
+                            {types.length>2&&<span style={{fontSize:10,color:"var(--text-muted)"}}>+{types.length-2}</span>}
                           </div>
-                          <span style={{fontSize:11,color:"var(--text-muted)",minWidth:28}}>{pct}%</span>
-                        </div>
-                        <div style={{fontSize:10,color:"var(--text-muted)",marginTop:2}}>
-                          {c.passed||0}✓ {c.failed||0}✗ {exec} total
-                        </div>
-                      </td>
-                      <td>
-                        <div className="actions">
-                          <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
-                          {!isViewer && (
-                            <>
-                              <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
-                              <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(c)}>🗑</button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td><CycleBadge v={c.status} /></td>
+                        <td style={{minWidth:120}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <div className="progress" style={{flex:1}}>
+                              <div className="progress-fill" style={{width:`${pct}%`,background:"var(--success)"}} />
+                            </div>
+                            <span style={{fontSize:11,color:"var(--text-muted)",minWidth:28}}>{pct}%</span>
+                          </div>
+                          <div style={{fontSize:10,color:"var(--text-muted)",marginTop:2}}>
+                            {c.passed||0}✓ {c.failed||0}✗ {exec} total
+                          </div>
+                        </td>
+                        <td>
+                          <div className="actions">
+                            <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
+                            {!isViewer && (
+                              <>
+                                <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
+                                <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(c)}>🗑</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={setPage} label="ciclo(s)" />
+          </>
         )}
       </div>
+
       {modal&&<Modal title={modal.mode==="create"?"Novo ciclo":"Editar ciclo"} onClose={()=>setModal(null)}>
         <CycleForm initial={modal.item||{}} onSave={handleSave} onCancel={()=>setModal(null)} saving={saving} />
       </Modal>}

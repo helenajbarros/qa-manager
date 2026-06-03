@@ -264,7 +264,8 @@ export default function Dashboard() {
   if (error)   return <ErrorMsg msg={error} />;
   if (!data)   return null;
 
-  const { summary, bugs, modules, bugs_per_module, cycles } = filtered;
+  const { summary, bugs, modules, bugs_per_module } = filtered;
+  const cycles = filtered.cycles?.filter(c => c.status === 'active') || [];
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const execPie = [

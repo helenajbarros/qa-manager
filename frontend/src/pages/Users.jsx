@@ -4,6 +4,36 @@ import { usersApi, projectsApi } from "../services/resources.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select } from "../components/UI.jsx";
 
+const PAGE_SIZE_USERS = 10;
+
+function UsersPagination({ page, totalPages, total, onChange }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+      padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
+      <span>{total} usuário(s) — Página {page} de {totalPages}</span>
+      <div style={{display:"flex",gap:4}}>
+        <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===1?"not-allowed":"pointer",
+            color:page===1?"var(--text-muted)":"var(--text)",fontSize:12}}>← Anterior</button>
+        {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+          <button key={p} onClick={()=>onChange(p)}
+            style={{padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",
+              background:p===page?"var(--accent)":"none",
+              color:p===page?"white":"var(--text)",cursor:"pointer",fontSize:12,minWidth:28}}>
+            {p}
+          </button>
+        ))}
+        <button onClick={()=>onChange(Math.min(totalPages,page+1))} disabled={page===totalPages}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+            background:"none",cursor:page===totalPages?"not-allowed":"pointer",
+            color:page===totalPages?"var(--text-muted)":"var(--text)",fontSize:12}}>Próxima →</button>
+      </div>
+    </div>
+  );
+}
+
 function getBase() {
   return import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 }
@@ -180,6 +210,8 @@ export default function Users() {
   const { data: projects, loading:l2 }                    = useAsync(() => projectsApi.list());
 
   const [modal,        setModal]        = useState(null);
+  const [search,       setSearch]       = useState("");
+  const [page,         setPage]         = useState(1);
   const [confirm,      setConfirm]      = useState(null);
   const [projectModal, setProjectModal] = useState(null);
   const [saving,       setSaving]       = useState(false);
@@ -187,6 +219,14 @@ export default function Users() {
 
   if (l1||l2) return <Loading />;
   if (e1)     return <ErrorMsg msg={e1} />;
+
+  const filteredUsers = (users||[]).filter(u =>
+    !search ||
+    u.name.toLowerCase().includes(search.toLowerCase()) ||
+    u.email.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalUserPages = Math.ceil(filteredUsers.length / PAGE_SIZE_USERS);
+  const pagedUsers     = filteredUsers.slice((page-1)*PAGE_SIZE_USERS, page*PAGE_SIZE_USERS);
 
   async function handleSave(form) {
     setSaving(true); setErr(null);
@@ -224,15 +264,26 @@ export default function Users() {
 
       {err && <ErrorMsg msg={err} />}
 
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}
+          placeholder="🔍 Buscar por nome ou e-mail..."
+          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",
+            fontSize:13,flex:1,maxWidth:360}} />
+        <span style={{fontSize:12,color:"var(--text-muted)",alignSelf:"center"}}>
+          {filteredUsers.length} usuário(s)
+        </span>
+      </div>
+
       <div className="card">
-        {!users?.length ? <Empty icon="👥" text="Nenhum usuário cadastrado." /> : (
+        {!filteredUsers.length ? <Empty icon="👥" text="Nenhum usuário encontrado." /> : (
+          <>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Projetos</th><th>Criado em</th><th></th></tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {pagedUsers.map(u => (
                   <tr key={u.id}>
                     <td style={{ fontWeight:500 }}>
                       {u.name}
@@ -283,6 +334,8 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+            <UsersPagination page={page} totalPages={totalUserPages} total={filteredUsers.length} onChange={setPage} />
+          </>
         )}
       </div>
 
