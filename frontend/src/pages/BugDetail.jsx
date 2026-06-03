@@ -353,15 +353,22 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
             </div>
           )}
 
-          {/* Toolbar */}
-          <FormatToolbar editorRef={editorRef} onMention={()=>{
-            const el = editorRef.current;
-            if (el) {
-              el.focus();
-              document.execCommand("insertText", false, "@");
-              setShowMention(true); setMentionQ("");
-            }
-          }} />
+          {/* Toolbar comentários */}
+          <div style={{display:"flex",gap:4,padding:"4px 0",flexWrap:"wrap"}}>
+            {[["B","bold","fontWeight:700"],["I","italic","fontStyle:italic"],["U","underline","textDecoration:underline"]].map(([label,cmd,style])=>(
+              <button key={cmd}
+                onClick={()=>{editorRef.current?.focus();document.execCommand(cmd,false,null);}}
+                style={{background:"none",border:"1px solid var(--border)",borderRadius:6,
+                  cursor:"pointer",padding:"3px 8px",fontSize:12,color:"var(--text-muted)",fontFamily:"inherit"}}>
+                <span style={{[style.split(":")[0]]:style.split(":")[1]}}>{label}</span>
+              </button>
+            ))}
+            <button onClick={()=>{
+              const el=editorRef.current;
+              if(el){el.focus();document.execCommand("insertText",false,"@");setShowMention(true);setMentionQ("");}
+            }} style={{background:"none",border:"1px solid var(--border)",borderRadius:6,
+              cursor:"pointer",padding:"3px 8px",fontSize:12,color:"var(--text-muted)",fontFamily:"inherit"}}>@</button>
+          </div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
             <span style={{fontSize:11,color:"var(--text-muted)"}}>@ Digite @ para mencionar um membro</span>
             <button className="btn btn-primary" onClick={handleAdd} disabled={saving} style={{fontSize:12}}>
