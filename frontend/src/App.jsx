@@ -39,12 +39,26 @@ function RedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
-  if (!user) return (
-    <Routes>
-      <Route path="/share/:token" element={<ShareBug />} />
-      <Route path="*" element={<Login />} />
-    </Routes>
-  );
+
+  if (!user) {
+    // Se o redirect salvo for uma rota pública (/share/...), renderiza direto
+    const redirect = sessionStorage.getItem("qa_redirect");
+    if (redirect && redirect.startsWith("/share/")) {
+      sessionStorage.removeItem("qa_redirect");
+      return (
+        <Routes>
+          <Route path="/share/:token" element={<ShareBug />} />
+          <Route path="*" element={<Navigate to={redirect} replace />} />
+        </Routes>
+      );
+    }
+    return (
+      <Routes>
+        <Route path="/share/:token" element={<ShareBug />} />
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="app">
