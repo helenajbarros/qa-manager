@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAsync }   from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, usersApi } from "../services/resources.js";
@@ -130,54 +130,35 @@ function FormatToolbar({ editorRef, onMention }) {
   );
 }
 
-// ── Passos editáveis com autosave ─────────────────────────────
-function StepsSection({ bugId, initialSteps, isViewer, onSaved }) {
-  const parseSteps = s => s ? s.split("\n").filter(Boolean) : [];
-  const [steps,   setSteps]  = useState(parseSteps(initialSteps));
-  const [saving,  setSaving] = useState(false);
-  const [saved,   setSaved]  = useState(false);
-  const saveTimer = useRef(null);
-
-  async function save(newSteps) {
-    setSaving(true); setSaved(false);
-    try {
-      await bugsApi.update(bugId, { steps: newSteps.join("\n") });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-      if (onSaved) onSaved();
-    } catch { }
-    finally { setSaving(false); }
-  }
+// ── Passos editáveis ─────────────────────────────────────────
+function StepsSection({ steps, onChange, isViewer }) {
+  const list = steps ? steps.split("\n").filter(Boolean) : [];
 
   function updateStep(i, val) {
-    const next = [...steps]; next[i] = val; setSteps(next);
-    // Não salva aqui — só atualiza o estado local
+    const next = [...list]; next[i] = val;
+    onChange(next.join("\n"));
   }
   function addStep() {
-    const next = [...steps, ""]; setSteps(next);
-    // Não salva aqui — vai salvar quando o usuário sair do campo
+    const next = [...list, ""];
+    onChange(next.join("\n"));
     setTimeout(() => {
       const inputs = document.querySelectorAll(".step-input");
       if (inputs[inputs.length-1]) inputs[inputs.length-1].focus();
     }, 50);
   }
   function removeStep(i) {
-    const next = steps.filter((_, idx) => idx !== i); setSteps(next);
-    save(next);
+    const next = list.filter((_, idx) => idx !== i);
+    onChange(next.join("\n"));
   }
 
   return (
     <div>
-      <div style={{height:18,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
-        {saving && <span style={{fontSize:11,color:"var(--text-muted)"}}>⏳ Salvando...</span>}
-        {saved  && <span style={{fontSize:11,color:"var(--success)"}}>✓ Salvo</span>}
-      </div>
-      {steps.length === 0 && (
+      {list.length === 0 && (
         <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic",marginBottom:12}}>
           Nenhum passo adicionado.
         </p>
       )}
-      {steps.map((step, i) => (
+      {list.map((step, i) => (
         <div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
           <div style={{minWidth:26,height:26,borderRadius:"50%",background:"var(--accent-bg)",
             color:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",
@@ -190,24 +171,8 @@ function StepsSection({ bugId, initialSteps, isViewer, onSaved }) {
           ) : (
             <input className="step-input" value={step}
               onChange={e => updateStep(i, e.target.value)}
-              onBlur={e => {
-                // Salva ao clicar fora do campo
-                const current = steps.map((s, idx) => idx === i ? e.target.value : s);
-                save(current);
-              }}
               onKeyDown={e => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  // Salva o passo atual antes de adicionar novo
-                  const current = steps.map((s, idx) => idx === i ? e.target.value : s);
-                  const next = [...current, ""];
-                  setSteps(next);
-                  save(next);
-                  setTimeout(() => {
-                    const inputs = document.querySelectorAll(".step-input");
-                    if (inputs[i+1]) inputs[i+1].focus();
-                  }, 50);
-                }
+                if (e.key === "Enter") { e.preventDefault(); addStep(); }
                 if (e.key === "Backspace" && step === "") { e.preventDefault(); removeStep(i); }
               }}
               placeholder={`Passo ${i+1}...`}
@@ -233,9 +198,6 @@ function StepsSection({ bugId, initialSteps, isViewer, onSaved }) {
           + Adicionar passo
         </button>
       )}
-      <div style={{fontSize:11,color:"var(--text-muted)",marginTop:8}}>
-        💡 Clique num passo para editar. Enter adiciona novo. Backspace no passo vazio remove.
-      </div>
     </div>
   );
 }
@@ -780,8 +742,19 @@ export default function BugDetail() {
           {/* Passos */}
           <Accordion title="Passos para reproduzir" defaultOpen={true}>
             <div style={{padding:"12px 16px"}}>
-              <StepsSection bugId={bug.id} initialSteps={bug.steps}
-                isViewer={isViewer} onSaved={refetch} />
+              {isEditing ? (
+                <StepsSection
+                  steps={form.steps}
+                  onChange={v => setForm(f=>({...f, steps:v}))}
+                  isViewer={false}
+                />
+              ) : (
+                <StepsSection
+                  steps={bug.steps}
+                  onChange={()=>{}}
+                  isViewer={true}
+                />
+              )}
             </div>
           </Accordion>
 
