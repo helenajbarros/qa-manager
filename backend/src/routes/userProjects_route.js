@@ -46,3 +46,4 @@ router.put("/:id/projects", authenticate, requireAdminOrManager, async (req, res
 });
 
 module.exports = router;
+
