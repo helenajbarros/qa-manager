@@ -642,6 +642,26 @@ export default function BugDetail() {
     catch(e) { setErr(e.message); }
   }
 
+  const [shareUrl,   setShareUrl]   = useState(null);
+  const [shareLoading, setShareLoading] = useState(false);
+
+  async function handleShare() {
+    setShareLoading(true);
+    try {
+      const res = await fetch(`${getBase()}/bugs/${bug.id}/share`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      const j = await res.json();
+      const token = j.data?.token ?? j.token;
+      const base = window.location.origin + "/qa-manager";
+      const url  = `${base}/share/${token}`;
+      setShareUrl(url);
+      navigator.clipboard.writeText(url).catch(()=>{});
+    } catch(e) { setErr("Erro ao gerar link"); }
+    finally { setShareLoading(false); }
+  }
+
   const set = k => e => setForm(f=>({...f,[k]:e.target.value}));
 
   return (
@@ -669,6 +689,11 @@ export default function BugDetail() {
         <div style={{display:"flex",gap:8,flexShrink:0}}>
           {!isViewer && !isEditing && (
             <>
+              <button className="btn" onClick={handleShare} disabled={shareLoading}
+                title="Gerar link público de visualização"
+                style={{fontSize:12}}>
+                {shareLoading ? "Gerando..." : "🔗 Link público"}
+              </button>
               <button className="btn" onClick={startEdit}>✏ Editar</button>
               <button className="btn btn-danger" onClick={()=>setConfirm(true)}>🗑 Excluir</button>
             </>
@@ -933,6 +958,21 @@ export default function BugDetail() {
 
         </div>
       </div>
+
+      {/* Toast do link público */}
+      {shareUrl && (
+        <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",
+          background:"#1E293B",color:"white",borderRadius:10,padding:"12px 20px",
+          fontSize:13,zIndex:999,display:"flex",alignItems:"center",gap:12,
+          boxShadow:"0 4px 20px rgba(0,0,0,.2)",maxWidth:480,width:"90%"}}>
+          <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            ✅ Link copiado! <span style={{color:"#93C5FD"}}>{shareUrl}</span>
+          </span>
+          <button onClick={()=>setShareUrl(null)}
+            style={{background:"none",border:"none",color:"white",cursor:"pointer",fontSize:16,
+              flexShrink:0}}>✕</button>
+        </div>
+      )}
 
       {confirm && (
         <ConfirmModal message={`Excluir o bug "${bug.title}"?`}

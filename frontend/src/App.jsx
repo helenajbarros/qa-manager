@@ -9,6 +9,7 @@ import TestCases  from "./pages/TestCases.jsx";
 import Cycles     from "./pages/Cycles.jsx";
 import Bugs       from "./pages/Bugs.jsx";
 import BugDetail  from "./pages/BugDetail.jsx";
+import ShareBug   from "./pages/ShareBug.jsx";
 import Users      from "./pages/Users.jsx";
 import Projects   from "./pages/Projects.jsx";
 import Backup     from "./pages/Backup.jsx";
@@ -38,7 +39,12 @@ function RedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
-  if (!user)   return <Routes><Route path="*" element={<Login />} /></Routes>;
+  if (!user) return (
+    <Routes>
+      <Route path="/share/:token" element={<ShareBug />} />
+      <Route path="*" element={<Login />} />
+    </Routes>
+  );
 
   return (
     <div className="app">
@@ -55,6 +61,7 @@ export default function App() {
           <Route path="/projects"   element={<Guard managerOk><Projects /></Guard>} />
           <Route path="/users"      element={<Guard managerOk><Users /></Guard>} />
           <Route path="/backup"     element={<Guard adminOnly><Backup /></Guard>} />
+          <Route path="/share/:token" element={<ShareBug />} />
           <Route path="*"           element={<Navigate to="/" replace />} />
         </Routes>
       </main>

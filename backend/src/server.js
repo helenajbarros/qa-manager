@@ -8,6 +8,7 @@ const { runMigrations } = require("./database/migrations");
 const { addUserProjectsTable } = require("./database/migrations_user_projects");
 const { addBugCommentsTable }  = require("./database/migrations_bug_comments");
 const { upgradeBugsTable }     = require("./database/migrations_bugs_v2");
+const { addShareTokensTable }  = require("./database/migrations_share_tokens");
 const { runSeed }       = require("./database/seed");
 const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
@@ -32,6 +33,8 @@ app.use("/api/modules",               require("./routes/modules"));
 app.use("/api/test-cases",            require("./routes/testCases"));
 app.use("/api/cycles",                require("./routes/cycles"));
 app.use("/api/bugs/:bugId/comments",  require("./routes/bugComments"));
+const shareRouter = require("./routes/shareRoutes");
+app.use("/api", shareRouter);
 app.use("/api/bugs",                  require("./routes/bugs"));
 app.use("/api/dashboard",             authenticate, require("./routes/dashboard"));
 app.use("/api/export",                authenticate, require("./routes/export"));
@@ -48,6 +51,7 @@ async function start() {
   await addUserProjectsTable();
   await addBugCommentsTable();
   await upgradeBugsTable();
+  await addShareTokensTable();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);
