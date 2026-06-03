@@ -155,8 +155,7 @@ function StepsSection({ bugId, initialSteps, isViewer, onSaved }) {
   }
   function addStep() {
     const next = [...steps, ""]; setSteps(next);
-    // Salva ao adicionar passo
-    save(next);
+    // Não salva aqui — vai salvar quando o usuário sair do campo
     setTimeout(() => {
       const inputs = document.querySelectorAll(".step-input");
       if (inputs[inputs.length-1]) inputs[inputs.length-1].focus();
