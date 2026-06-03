@@ -14,8 +14,8 @@ Sistema online - https://helenajbarros.github.io/qa-manager
 
 **Login padrão:**
 ```
-Email: admin@qa.com
-Senha: admin123
+Email: userpadrao@qa.com
+Senha: padrao123
 ```
 
 > ⚠️ O backend usa o plano gratuito do Render — pode demorar ~30s para responder após um período de inatividade.
