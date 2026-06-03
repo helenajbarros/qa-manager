@@ -27,8 +27,8 @@ app.use(express.json());
 app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-app.use("/api/users",                 require("./routes/users"));
 app.use("/api/users",                 require("./routes/userProjects"));
+app.use("/api/users",                 require("./routes/users"));
 app.use("/api/projects",              require("./routes/projects"));
 app.use("/api/modules",               require("./routes/modules"));
 app.use("/api/test-cases",            require("./routes/testCases"));
