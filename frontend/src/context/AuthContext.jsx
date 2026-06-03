@@ -23,6 +23,16 @@ export function AuthProvider({ children }) {
     return result.user;
   }
 
+  // Após login, redireciona para a rota salva pelo 404.html
+  function getAndClearRedirect() {
+    const redirect = sessionStorage.getItem("qa_redirect");
+    if (redirect && redirect !== "/") {
+      sessionStorage.removeItem("qa_redirect");
+      return redirect;
+    }
+    return null;
+  }
+
   function logout() {
     localStorage.removeItem("qa_token");
     setUser(null);
@@ -34,7 +44,7 @@ export function AuthProvider({ children }) {
   const isViewer  = user?.role === "viewer";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isManager, isEditor, isViewer }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isManager, isEditor, isViewer, getAndClearRedirect }}>
       {children}
     </AuthContext.Provider>
   );
@@ -43,3 +53,4 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+

@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, getAndClearRedirect } = useAuth();
+  const navigate = useNavigate();
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
@@ -13,6 +15,13 @@ export default function Login() {
     setError(""); setLoading(true);
     try {
       await login(email, password);
+      // Verifica se há redirect salvo pelo 404.html
+      const redirect = getAndClearRedirect();
+      if (redirect) {
+        navigate(redirect, { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     } catch(err) {
       setError(err.message || "Credenciais inválidas");
     } finally { setLoading(false); }
@@ -66,7 +75,6 @@ export default function Login() {
 
         <p style={{ fontSize: 11, color: "var(--text-light)", textAlign: "center", marginTop: 20 }}>
           No momento não é possível criar novas contas.
-          
         </p>
       </div>
     </div>
