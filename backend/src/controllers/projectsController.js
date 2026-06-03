@@ -25,7 +25,7 @@ exports.show = async (req, res, next) => {
 
 exports.store = async (req, res, next) => {
   try {
-    const data = await svc.create(req.body);
+    const data = await svc.create({...req.body, created_by_id: req.user.id});
     r.created(res, data);
   } catch(e) { next(e); }
 };

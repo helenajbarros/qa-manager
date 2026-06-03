@@ -2,10 +2,7 @@ const { query, execute } = require("../database/connection");
 const { getUserProjectIds } = require("./userProjectsService");
 
 async function findAll(userId, role) {
-  // Admin vê tudo; manager/editor/viewer só veem os atribuídos
-  const allowedIds = await getUserProjectIds(userId, role);
-
-  let sql = `
+  const sql = `
     SELECT p.*,
       (SELECT COUNT(*) FROM modules     m WHERE m.project_id = p.id) AS module_count,
       (SELECT COUNT(*) FROM test_cycles c WHERE c.project_id = p.id) AS cycle_count,
@@ -13,16 +10,21 @@ async function findAll(userId, role) {
     FROM projects p
   `;
 
-  if (allowedIds !== null && allowedIds.length > 0) {
-    const placeholders = allowedIds.map((_, i) => `$${i + 1}`).join(",");
-    sql += ` WHERE p.id IN (${placeholders}) ORDER BY p.name`;
-    return query(sql, allowedIds);
-  } else if (allowedIds !== null && allowedIds.length === 0) {
-    return [];
+  // Admin vê todos os projetos
+  if (role === "admin") {
+    return query(sql + " ORDER BY p.name");
   }
 
-  sql += " ORDER BY p.name";
-  return query(sql);
+  // Gerente vê apenas os projetos que criou
+  if (role === "manager") {
+    return query(sql + " WHERE p.created_by_id = $1 ORDER BY p.name", [userId]);
+  }
+
+  // Editor e Visualizador só veem os projetos vinculados
+  const allowedIds = await getUserProjectIds(userId, role);
+  if (!allowedIds || allowedIds.length === 0) return [];
+  const placeholders = allowedIds.map((_, i) => `$${i + 1}`).join(",");
+  return query(sql + ` WHERE p.id IN (${placeholders}) ORDER BY p.name`, allowedIds);
 }
 
 async function findById(id) {
@@ -30,9 +32,9 @@ async function findById(id) {
   return rows[0];
 }
 
-async function create({ name, description }) {
-  const rows = await query("INSERT INTO projects (name,description) VALUES ($1,$2) RETURNING id",
-    [name.trim(), description||null]);
+async function create({ name, description, created_by_id }) {
+  const rows = await query("INSERT INTO projects (name,description,created_by_id) VALUES ($1,$2,$3) RETURNING id",
+    [name.trim(), description||null, created_by_id||null]);
   return findById(rows[0].id);
 }
 
