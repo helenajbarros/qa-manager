@@ -138,31 +138,33 @@ function StepsSection({ bugId, initialSteps, isViewer, onSaved }) {
   const [saved,   setSaved]  = useState(false);
   const saveTimer = useRef(null);
 
-  const autoSave = useCallback(async (newSteps) => {
+  async function save(newSteps) {
     setSaving(true); setSaved(false);
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      try {
-        await bugsApi.update(bugId, { steps: newSteps.join("\n") });
-        setSaving(false); setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-        if (onSaved) onSaved();
-      } catch { setSaving(false); }
-    }, 600);
-  }, [bugId]);
+    try {
+      await bugsApi.update(bugId, { steps: newSteps.join("\n") });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      if (onSaved) onSaved();
+    } catch { }
+    finally { setSaving(false); }
+  }
 
   function updateStep(i, val) {
-    const next = [...steps]; next[i] = val; setSteps(next); autoSave(next);
+    const next = [...steps]; next[i] = val; setSteps(next);
+    // Não salva aqui — só atualiza o estado local
   }
   function addStep() {
-    const next = [...steps, ""]; setSteps(next); autoSave(next);
+    const next = [...steps, ""]; setSteps(next);
+    // Salva ao adicionar passo
+    save(next);
     setTimeout(() => {
       const inputs = document.querySelectorAll(".step-input");
       if (inputs[inputs.length-1]) inputs[inputs.length-1].focus();
     }, 50);
   }
   function removeStep(i) {
-    const next = steps.filter((_, idx) => idx !== i); setSteps(next); autoSave(next);
+    const next = steps.filter((_, idx) => idx !== i); setSteps(next);
+    save(next);
   }
 
   return (
@@ -189,8 +191,24 @@ function StepsSection({ bugId, initialSteps, isViewer, onSaved }) {
           ) : (
             <input className="step-input" value={step}
               onChange={e => updateStep(i, e.target.value)}
+              onBlur={e => {
+                // Salva ao clicar fora do campo
+                const current = steps.map((s, idx) => idx === i ? e.target.value : s);
+                save(current);
+              }}
               onKeyDown={e => {
-                if (e.key === "Enter")     { e.preventDefault(); addStep(); }
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  // Salva o passo atual antes de adicionar novo
+                  const current = steps.map((s, idx) => idx === i ? e.target.value : s);
+                  const next = [...current, ""];
+                  setSteps(next);
+                  save(next);
+                  setTimeout(() => {
+                    const inputs = document.querySelectorAll(".step-input");
+                    if (inputs[i+1]) inputs[i+1].focus();
+                  }, 50);
+                }
                 if (e.key === "Backspace" && step === "") { e.preventDefault(); removeStep(i); }
               }}
               placeholder={`Passo ${i+1}...`}
