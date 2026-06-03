@@ -40,11 +40,14 @@ function getBase() {
 function getToken() { return localStorage.getItem("qa_token"); }
 
 async function fetchUserProjects(userId) {
-  const res = await fetch(`${getBase()}/users/${userId}/projects`, {
-    headers: { Authorization: `Bearer ${getToken()}` }
-  });
-  const json = await res.json();
-  return json.data ?? json ?? [];
+  try {
+    const res = await fetch(`${getBase()}/users/${userId}/projects`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data ?? json ?? [];
+  } catch { return []; }
 }
 
 async function saveUserProjects(userId, projectIds) {
