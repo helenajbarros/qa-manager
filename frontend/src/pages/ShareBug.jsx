@@ -281,7 +281,7 @@ export default function ShareBug() {
                   <div className="share-card-header">Anexos</div>
                   <div className="share-card-body">
                     {bug.evidence_files.map(f => {
-                      const apiBase = import.meta.env.VITE_API_URL || "";
+                      const apiBase = import.meta.env.VITE_API_URL || "https://qa-manager-api.onrender.com";
                       const url     = f.url || `${apiBase}/uploads/${f.filename}`;
                       const isImage = /\.(png|jpg|jpeg|gif|webp)$/i.test(f.filename||"");
                       return (
