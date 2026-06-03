@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAsync }   from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, usersApi } from "../services/resources.js";
@@ -83,49 +83,6 @@ function SidebarAccordion({ title, children, defaultOpen=true, badge }) {
       <div style={{display: open ? "block" : "none", padding:"12px 16px"}}>
         {children}
       </div>
-    </div>
-  );
-}
-
-// ── Toolbar de formatação ─────────────────────────────────────
-function FormatToolbar({ editorRef, onMention }) {
-  function exec(cmd, val) {
-    editorRef.current?.focus();
-    document.execCommand(cmd, false, val||null);
-  }
-  function insertCode() {
-    editorRef.current?.focus();
-    const sel = window.getSelection();
-    if (!sel?.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    const code  = document.createElement("code");
-    code.style.cssText = "background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:12px;color:#B5451B";
-    const txt = range.toString();
-    if (txt) { range.deleteContents(); code.textContent = txt; range.insertNode(code); }
-    else { code.textContent = "código"; range.insertNode(code); }
-  }
-  function insertLink() {
-    const url = prompt("URL do link:");
-    if (!url) return;
-    editorRef.current?.focus();
-    document.execCommand("createLink", false, url);
-  }
-  const btnStyle = {
-    background:"none",border:"1px solid var(--border)",borderRadius:6,
-    cursor:"pointer",padding:"4px 8px",fontSize:12,color:"var(--text-muted)",
-    fontFamily:"inherit",transition:"background .12s"
-  };
-  return (
-    <div style={{display:"flex",gap:4,padding:"6px 0",flexWrap:"wrap"}}>
-      <button style={{...btnStyle,fontWeight:700}} onClick={()=>exec("bold")} title="Negrito">B</button>
-      <button style={{...btnStyle,fontStyle:"italic"}} onClick={()=>exec("italic")} title="Itálico">I</button>
-      <button style={{...btnStyle,textDecoration:"underline"}} onClick={()=>exec("underline")} title="Sublinhado">U</button>
-      <button style={btnStyle} onClick={insertCode} title="Código">&lt;/&gt;</button>
-      <button style={btnStyle} onClick={insertLink} title="Link">🔗</button>
-      <button style={btnStyle} onClick={()=>exec("insertUnorderedList")} title="Lista">• Lista</button>
-      {onMention && (
-        <button style={btnStyle} onClick={onMention} title="Mencionar">@ Mencionar</button>
-      )}
     </div>
   );
 }
@@ -536,7 +493,6 @@ export default function BugDetail() {
   const { currentProject } = useProject();
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
-  const descRef  = useRef(null);
 
   const { data: bug,        loading: l1, error: e1, refetch } = useAsync(() => bugsApi.get(id), [id]);
   const { data: modules }   = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
@@ -570,17 +526,13 @@ export default function BugDetail() {
       assigned_to_id: bug.assigned_to_id || "",
       steps:          bug.steps          || "",
     });
-    // Aguarda render e popula o editor rico de descrição
-    setTimeout(() => {
-      if (descRef.current) descRef.current.innerHTML = bug.description || "";
-    }, 50);
+
   }
 
   async function handleSave() {
     setSaving(true); setErr(null);
     try {
-      const descHtml = descRef.current?.innerHTML || form.description;
-      await bugsApi.update(bug.id, {...form, description: descHtml});
+      await bugsApi.update(bug.id, {...form});
       setForm(null);
       refetch();
     } catch(e) { setErr(e.message); }
@@ -717,25 +669,50 @@ export default function BugDetail() {
         {/* Coluna esquerda */}
         <div>
 
-          {/* Descrição com editor rico */}
+          {/* Descrição */}
           <Accordion title="Descrição" defaultOpen={true}>
-            {isEditing && (
-              <div style={{padding:"8px 16px 0",borderBottom:"1px solid var(--border)"}}>
-                <FormatToolbar editorRef={descRef} />
-              </div>
-            )}
             <div style={{padding:"12px 16px"}}>
               {isEditing ? (
-                <div ref={descRef} contentEditable suppressContentEditableWarning
-                  data-placeholder="Descreva o bug..."
-                  style={{minHeight:80,outline:"none",fontSize:13,lineHeight:1.7}}
-                />
+                <textarea value={form.description||""} onChange={set("description")}
+                  rows={5} placeholder="Descreva o bug..."
+                  style={{width:"100%",padding:"10px",borderRadius:8,
+                    border:"1px solid var(--border)",fontSize:13,lineHeight:1.7,
+                    resize:"vertical",background:"var(--bg)",fontFamily:"inherit",
+                    outline:"none"}} />
               ) : bug.description ? (
-                <div style={{fontSize:13,lineHeight:1.7}}
-                  dangerouslySetInnerHTML={{__html: bug.description}} />
+                <div style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",
+                  paddingLeft:4,wordBreak:"break-word"}}
+                  className="description-content">
+                  {bug.description.includes("<") && bug.description.includes(">")
+                    ? <span dangerouslySetInnerHTML={{__html: bug.description}} />
+                    : bug.description}
+                </div>
               ) : (
                 <p style={{color:"var(--text-muted)",fontStyle:"italic",fontSize:13}}>Nenhuma descrição.</p>
               )}
+              <style>{`
+                .description-content ul,
+                .description-content ol {
+                  padding-left: 20px;
+                  margin: 6px 0;
+                }
+                .description-content li {
+                  margin-bottom: 4px;
+                  line-height: 1.7;
+                }
+                .description-content p {
+                  margin: 0 0 8px;
+                }
+                .description-content code {
+                  background: var(--bg);
+                  border: 1px solid var(--border);
+                  border-radius: 4px;
+                  padding: 1px 5px;
+                  font-family: monospace;
+                  font-size: 12px;
+                  color: #B5451B;
+                }
+              `}</style>
             </div>
           </Accordion>
 

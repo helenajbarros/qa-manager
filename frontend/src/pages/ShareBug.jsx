@@ -130,8 +130,23 @@ export default function ShareBug() {
                 letterSpacing:".05em"}}>DESCRIÇÃO</div>
               <div style={{padding:"14px 16px"}}>
                 {bug.description ? (
-                  <div style={{fontSize:13,lineHeight:1.7}}
-                    dangerouslySetInnerHTML={{__html:bug.description}} />
+                  <>
+                    <div style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",
+                      paddingLeft:4,wordBreak:"break-word"}}
+                      className="share-desc">
+                      {bug.description.includes("<") && bug.description.includes(">")
+                        ? <span dangerouslySetInnerHTML={{__html: bug.description}} />
+                        : bug.description}
+                    </div>
+                    <style>{`
+                      .share-desc ul, .share-desc ol { padding-left:20px; margin:6px 0; }
+                      .share-desc li { margin-bottom:4px; line-height:1.7; }
+                      .share-desc p  { margin:0 0 8px; }
+                      .share-desc code { background:#F3F4F6; border:1px solid #E5E7EB;
+                        border-radius:4px; padding:1px 5px; font-family:monospace;
+                        font-size:12px; color:#B5451B; }
+                    `}</style>
+                  </>
                 ) : (
                   <p style={{fontSize:13,color:"#9CA3AF",fontStyle:"italic"}}>Nenhuma descrição.</p>
                 )}
