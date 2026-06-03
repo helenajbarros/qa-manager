@@ -565,10 +565,12 @@ export default function BugDetail() {
   const { data: users }     = useAsync(() => usersApi.list(), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
 
-  const [form,    setForm]    = useState(null);
-  const [confirm, setConfirm] = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [err,     setErr]     = useState(null);
+  const [form,       setForm]       = useState(null);
+  const [confirm,    setConfirm]    = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [err,        setErr]        = useState(null);
+  const [shareUrl,   setShareUrl]   = useState(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   if (l1) return <Loading />;
   if (e1 || !bug) return <ErrorMsg msg={e1||"Bug não encontrado"} />;
@@ -641,9 +643,6 @@ export default function BugDetail() {
     try { await bugsApi.delete(bug.id); navigate("/bugs"); }
     catch(e) { setErr(e.message); }
   }
-
-  const [shareUrl,   setShareUrl]   = useState(null);
-  const [shareLoading, setShareLoading] = useState(false);
 
   async function handleShare() {
     setShareLoading(true);
