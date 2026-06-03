@@ -16,11 +16,11 @@ function verifyToken(token) {
 }
 
 async function findAll() {
-  return query("SELECT id,name,email,role,active,default_project_id,created_at FROM users ORDER BY name");
+  return query("SELECT id,name,email,role,active,default_project_id,created_by_id,created_at FROM users ORDER BY name");
 }
 
 async function findById(id) {
-  const rows = await query("SELECT id,name,email,role,active,default_project_id,created_at FROM users WHERE id=$1", [id]);
+  const rows = await query("SELECT id,name,email,role,active,default_project_id,created_by_id,created_at FROM users WHERE id=$1", [id]);
   return rows[0];
 }
 
@@ -36,10 +36,18 @@ async function login(email, password) {
   return { token: generateToken(user), user: await findById(user.id) };
 }
 
-async function create({ name, email, password, role, default_project_id }) {
+async function findByCreator(creatorId) {
+  // Retorna o próprio usuário + todos que ele criou
+  return query(
+    "SELECT id,name,email,role,active,default_project_id,created_by_id,created_at FROM users WHERE id=$1 OR created_by_id=$1 ORDER BY name",
+    [creatorId]
+  );
+}
+
+async function create({ name, email, password, role, default_project_id, created_by_id }) {
   const rows = await query(
-    "INSERT INTO users (name,email,password,role,default_project_id) VALUES ($1,$2,$3,$4,$5) RETURNING id",
-    [name.trim(), email.trim().toLowerCase(), hash(password), role||"viewer", default_project_id||null]
+    "INSERT INTO users (name,email,password,role,default_project_id,created_by_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
+    [name.trim(), email.trim().toLowerCase(), hash(password), role||"viewer", default_project_id||null, created_by_id||null]
   );
   return findById(rows[0].id);
 }
@@ -58,4 +66,4 @@ async function remove(id) {
   return execute("DELETE FROM users WHERE id=$1", [id]);
 }
 
-module.exports = { findAll, findById, findByEmail, login, create, update, remove, verifyToken };
+module.exports = { findAll, findById, findByEmail, findByCreator, login, create, update, remove, verifyToken };
