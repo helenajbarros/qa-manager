@@ -35,7 +35,9 @@ const ST_COLORS   = {
 const ACT_ICONS = {"criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤","editou o bug":"✏"};
 
 export default function ShareBug() {
-  const { token } = useParams();
+  const params = useParams();
+  // Fallback: pega o token direto da URL caso useParams não funcione
+  const token = params.token || window.location.pathname.split("/share/")[1]?.split("/")[0];
 
   const { data: bug, loading, error } = useAsync(async () => {
     const res = await fetch(`${getBase()}/share/${token}`);

@@ -51,14 +51,13 @@ export default function App() {
   const isShareRoute = currentPath.startsWith("/share/") || savedRedirect.startsWith("/share/");
 
   if (isShareRoute) {
-    // Limpa o sessionStorage para não interferir depois
     if (savedRedirect.startsWith("/share/")) {
       sessionStorage.removeItem("qa_redirect");
     }
     return (
       <Routes>
         <Route path="/share/:token" element={<ShareBug />} />
-        <Route path="*" element={<ShareBug />} />
+        <Route path="*" element={<Navigate to={currentPath.startsWith("/share/") ? currentPath : savedRedirect} replace />} />
       </Routes>
     );
   }
