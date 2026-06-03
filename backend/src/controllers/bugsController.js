@@ -27,9 +27,13 @@ const store   = async (req,res,next) => {
 };
 const update  = async (req,res,next) => {
   try {
-    if(!req.body.title?.trim()) return r.badRequest(res,"title obrigatório");
-    if(!await svc.findById(req.params.id)) return r.notFound(res,"Bug");
-    r.ok(res, await svc.update(req.params.id, req.body, req.user?.id));
+    // title só é obrigatório se enviado (permite atualizações parciais como autosave de steps)
+    if("title" in req.body && !req.body.title?.trim()) return r.badRequest(res,"title obrigatório");
+    const existing = await svc.findById(req.params.id);
+    if(!existing) return r.notFound(res,"Bug");
+    // Merge com dados existentes para atualizações parciais
+    const merged = { ...existing, ...req.body };
+    r.ok(res, await svc.update(req.params.id, merged, req.user?.id));
   } catch(e){next(e);}
 };
 const destroy = async (req,res,next) => {
