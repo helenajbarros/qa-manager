@@ -233,15 +233,16 @@ async function exportHTML(projectName, projectId, filters) {
   function pieChart(items, title) {
     const total = items.reduce((a,b)=>a+b.value,0);
     if (!total) return `<div class="chart-box"><h3>${title}</h3><p style="color:#999;text-align:center">Sem dados</p></div>`;
-    let angle=-90, paths="", legends="";
+    let angleDeg=-90, paths="", legends="";
     items.forEach(item => {
       const pct=item.value/total;
-      const a1=angle*Math.PI/180, a2=(angle+pct*360)*Math.PI/180;
+      const a1=angleDeg*Math.PI/180;
+      angleDeg+=pct*360;
+      const a2=angleDeg*Math.PI/180;
       const x1=100+80*Math.cos(a1), y1=100+80*Math.sin(a1);
       const x2=100+80*Math.cos(a2), y2=100+80*Math.sin(a2);
-      paths+=`<path d="M100,100 L${x1},${y1} A80,80 0 ${pct>.5?1:0},1 ${x2},${y2} Z" fill="${item.color}" stroke="white" stroke-width="2"/>`;
+      paths+=`<path d="M100,100 L${x1.toFixed(2)},${y1.toFixed(2)} A80,80 0 ${pct>.5?1:0},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${item.color}" stroke="white" stroke-width="2"/>`;
       legends+=`<div class="legend-item"><span class="legend-dot" style="background:${item.color}"></span>${item.label}: <b>${item.value}</b> (${(pct*100).toFixed(1)}%)</div>`;
-      angle+=pct*360;
     });
     return `<div class="chart-box"><h3>${title}</h3><div class="pie-wrap"><svg viewBox="0 0 200 200" width="180" height="180">${paths}</svg><div class="legends">${legends}</div></div></div>`;
   }

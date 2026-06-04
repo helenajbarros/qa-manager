@@ -1,6 +1,20 @@
 const { query } = require("../database/connection");
 
-async function getExportData({ project_id } = {}) {
+async function getExportData({ project_id, user_id, user_role } = {}) {
+  const pid = project_id ? parseInt(project_id) : null;
+
+  // Valida se o usuário tem acesso ao projeto (exceto admin)
+  if (pid && user_role !== "admin") {
+    const access = await query(
+      `SELECT 1 FROM user_projects WHERE user_id = $1 AND project_id = $2`,
+      [user_id, pid]
+    );
+    if (!access.length) {
+      const err = new Error("Acesso negado ao projeto");
+      err.status = 403;
+      throw err;
+    }
+  }
   const pid = project_id ? parseInt(project_id) : null;
   const pM  = pid ? `AND m.project_id = ${pid}` : "";
   const pC  = pid ? `AND c.project_id = ${pid}` : "";

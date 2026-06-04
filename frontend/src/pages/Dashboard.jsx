@@ -7,6 +7,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveCo
 import { ExportButton } from "../components/ExportButton.jsx";
 
 const PIE_COLORS = ["#16A34A","#DC2626","#7C3AED","#9CA3AF"];
+const EXEC_COLORS = { "Passou":"#16A34A", "Falhou":"#DC2626", "Bloqueado":"#7C3AED", "Não executado":"#9CA3AF" };
+const BUG_COLORS  = { "Aberto":"#DC2626", "Em andamento":"#F59E0B", "Corrigido":"#16A34A", "Fechado":"#9CA3AF" };
 const PAGE_SIZE  = 5;
 
 function MetricCard({ label, value, sub, color, id }) {
@@ -334,7 +336,7 @@ export default function Dashboard() {
               <PieChart>
                 <Pie data={execPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
                   label={({percent}) => `${(percent*100).toFixed(0)}%`}>
-                  {execPie.map((_,i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+                  {execPie.map((d,i) => <Cell key={i} fill={EXEC_COLORS[d.name] || PIE_COLORS[i]} />)}
                 </Pie>
                 <Tooltip /><Legend />
               </PieChart>
@@ -348,7 +350,7 @@ export default function Dashboard() {
               <PieChart>
                 <Pie data={bugPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
                   label={({percent}) => `${(percent*100).toFixed(0)}%`}>
-                  {bugPie.map((_,i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
+                  {bugPie.map((d,i) => <Cell key={i} fill={BUG_COLORS[d.name] || PIE_COLORS[i]} />)}
                 </Pie>
                 <Tooltip /><Legend />
               </PieChart>

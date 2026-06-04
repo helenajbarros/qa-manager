@@ -7,7 +7,11 @@ const router = Router();
 
 router.get("/", authenticate, async (req, res, next) => {
   try {
-    r.ok(res, await getExportData(req.query));
+    r.ok(res, await getExportData({
+      ...req.query,
+      user_id:   req.user.id,
+      user_role: req.user.role,
+    }));
   } catch(e) { next(e); }
 });
 
