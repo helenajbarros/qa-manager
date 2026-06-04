@@ -325,31 +325,45 @@ function applyFilters(data, filters) {
     };
   }
 
-  // Quando filtro de status ativo, total_executions mostra só o status selecionado
-  const totalExecDisplay = status
-    ? (status === "passed"       ? passed
-    : status === "failed"        ? failed
-    : status === "blocked"       ? blocked
-    : status === "not_executed"  ? not_executed
-    : total)
-    : total;
+  // Quando filtro de status ativo, isola apenas o valor do status selecionado
+  // para que métricas, gráfico de execuções e total fiquem consistentes entre si.
+  let displayPassed = passed, displayFailed = failed;
+  let displayBlocked = blocked, displayNotExec = not_executed;
+  let displayTotal = total;
+  if (status) {
+    displayPassed   = status === "passed"       ? passed       : 0;
+    displayFailed   = status === "failed"        ? failed       : 0;
+    displayBlocked  = status === "blocked"       ? blocked      : 0;
+    displayNotExec  = status === "not_executed"  ? not_executed : 0;
+    displayTotal    = displayPassed + displayFailed + displayBlocked + displayNotExec;
+  }
+  const displayExecuted = displayTotal - displayNotExec;
+
+  // Bugs: quando filtro é só de status de execução (sem module_id),
+  // mantém bugs globais pois bugs não têm status de execução vinculado diretamente.
+  // Quando module_id ativo, já foi recalculado acima em filteredBugsSummary.
 
   return {
     summary: {
       ...summary,
-      total_executions: totalExecDisplay,
+      total_executions: displayTotal,
       total_cases: module_id && filteredModules?.length
         ? filteredModules.reduce((a, m) => a + (m.total_cases || 0), 0)
         : summary.total_cases,
-      passed, failed, blocked, not_executed,
-      success_rate: executed > 0 ? +((passed / executed) * 100).toFixed(1) : 0,
-      fail_rate:    executed > 0 ? +((failed / executed) * 100).toFixed(1) : 0,
-      block_rate:   executed > 0 ? +((blocked / executed) * 100).toFixed(1) : 0,
+      passed:       displayPassed,
+      failed:       displayFailed,
+      blocked:      displayBlocked,
+      not_executed: displayNotExec,
+      success_rate: displayExecuted > 0 ? +((displayPassed   / displayExecuted) * 100).toFixed(1) : 0,
+      fail_rate:    displayExecuted > 0 ? +((displayFailed   / displayExecuted) * 100).toFixed(1) : 0,
+      block_rate:   displayExecuted > 0 ? +((displayBlocked  / displayExecuted) * 100).toFixed(1) : 0,
     },
     bugs:            filteredBugsSummary,
     modules:         filteredModules,
     bugs_per_module: filteredBpm,
     cycles:          filteredCycles,
+    // Passa o status ativo para o componente poder filtrar modBarData
+    activeStatus:    status || null,
   };
 }
 
@@ -372,6 +386,7 @@ export default function Dashboard() {
   const { summary, bugs, modules, bugs_per_module } = filtered;
   const cycles = filtered.cycles?.filter(c => c.status === 'active') || [];
   const hasActiveFilters = Object.values(filters).some(Boolean);
+  const activeStatus = filtered.activeStatus;
 
   const execPie = [
     { name:"Passou",        value: summary.passed },
@@ -387,10 +402,14 @@ export default function Dashboard() {
     { name:"Fechado",      value: bugs.closed },
   ].filter(d => d.value > 0);
 
-  const modBarData = modules?.filter(m => m.total_executions > 0).slice(0,8).map(m => ({
-    name:   m.name.length>12 ? m.name.slice(0,12)+"…" : m.name,
-    Passou: m.passed, Falhou: m.failed, Bloq: m.blocked,
-  })) || [];
+  // modBarData respeita filtro de status: mostra só a coluna do status ativo
+  const modBarData = modules?.filter(m => m.total_executions > 0).slice(0,8).map(m => {
+    if (activeStatus === "passed")       return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Passou: m.passed };
+    if (activeStatus === "failed")       return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Falhou: m.failed };
+    if (activeStatus === "blocked")      return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Bloq: m.blocked };
+    if (activeStatus === "not_executed") return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, "Não exec": m.not_executed };
+    return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Passou: m.passed, Falhou: m.failed, Bloq: m.blocked };
+  }) || [];
 
   return (
     <div className="page" id="dashboard-page">
@@ -470,9 +489,10 @@ export default function Dashboard() {
               <XAxis dataKey="name" tick={{fontSize:12}} />
               <YAxis tick={{fontSize:12}} allowDecimals={false} />
               <Tooltip /><Legend />
-              <Bar dataKey="Passou" stackId="a" fill="#16A34A" />
-              <Bar dataKey="Falhou" stackId="a" fill="#DC2626" />
-              <Bar dataKey="Bloq"   stackId="a" fill="#7C3AED" radius={[4,4,0,0]} />
+              <Bar dataKey="Passou"   stackId="a" fill="#16A34A" />
+              <Bar dataKey="Falhou"   stackId="a" fill="#DC2626" />
+              <Bar dataKey="Bloq"     stackId="a" fill="#7C3AED" />
+              <Bar dataKey="Não exec" stackId="a" fill="#9CA3AF" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
