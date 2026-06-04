@@ -159,25 +159,16 @@ async function exportExcel(projectName, projectId, filters) {
     ["Em andamento",data.bugs.filter(b=>b.status==="in_progress").length],
     ["Corrigidos",data.bugs.filter(b=>b.status==="fixed").length],
     ["Fechados",data.bugs.filter(b=>b.status==="closed").length],[""],
-    ["CICLOS",""],...data.cycles.map(c=>[c.name,`${c.passed||0} ✓  ${c.failed||0} ✗  ${c.total||0} total`])
+
   ];
   const sumWs=XLSX.utils.aoa_to_sheet(sumRows);
   sumWs["!cols"]=[{wch:24},{wch:44}];
   XLSX.utils.book_append_sheet(wb,sumWs,"Resumo");
 
   const tcH=["ID","Módulo","Título","Prioridade","Responsável","Pré-condições","Passos","Resultado esperado","Criado em"];
-  const tcR=data.testCases.map(tc=>[tc.id,tc.module||"—",tc.title,PL[tc.priority]||tc.priority,tc.assigned_to||"—",tc.preconditions||"—",tc.steps||"—",tc.expected_result||"—",fd(tc.created_at)]);
-  const tcWs=XLSX.utils.aoa_to_sheet([tcH,...tcR]);
-  applyStyles(tcWs,tcH,tcR,"2563EB");
-  tcWs["!cols"]=[{wch:6},{wch:16},{wch:36},{wch:10},{wch:18},{wch:28},{wch:36},{wch:28},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,tcWs,"Casos de Teste");
+  // Aba Casos de Teste removida do relatório
 
-  const cyH=["Ciclo","Versão","Status","Início","Fim","Tipos","Total","Passou","Falhou","Bloqueado","Não exec","% Sucesso"];
-  const cyR=data.cycles.map(c=>{ const d2=(c.total||0)-(c.not_executed||0); const pct=d2>0?((c.passed/d2)*100).toFixed(1)+"%":"—"; return [c.name,c.version||"—",SL[c.status]||c.status,fd(c.start_date),fd(c.end_date),c.test_types?c.test_types.split(",").join(", "):"—",c.total||0,c.passed||0,c.failed||0,c.blocked||0,c.not_executed||0,pct]; });
-  const cyWs=XLSX.utils.aoa_to_sheet([cyH,...cyR]);
-  applyStyles(cyWs,cyH,cyR,"7C3AED");
-  cyWs["!cols"]=[{wch:24},{wch:10},{wch:12},{wch:12},{wch:12},{wch:28},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10}];
-  XLSX.utils.book_append_sheet(wb,cyWs,"Ciclos");
+  // Aba Ciclos removida do relatório
 
   const exH=["Ciclo","TC #","Caso de teste","Módulo","Status","Executado por","Responsável","Comentário","URL Evidência","Bug vinculado","Executado em"];
   const exR=data.executions.map(e=>[e.cycle,e.tc_id,e.test_case,e.module||"—",SL[e.status]||e.status,e.executed_by||"—",e.assigned_to||"—",e.comment||"—",e.evidence_url||"—",e.bug_id?`#${e.bug_id} ${e.bug_title}`:"—",fd(e.executed_at)]);
@@ -266,6 +257,74 @@ async function exportHTML(projectName, projectId, filters) {
       </div><div class="bar-nums">${p}✓ ${f}✗</div></div>`;
     }).join("");
     return `<div class="chart-box wide"><h3>${title}</h3><div class="bar-legend"><span style="background:#10B981"></span>Passou <span style="background:#EF4444"></span>Falhou <span style="background:#8B5CF6"></span>Bloqueado <span style="background:#E5E7EB;border:1px solid #ccc"></span>Não exec</div>${bars}</div>`;
+  }
+
+  function trendChart(cycles) {
+    if (!cycles || cycles.length < 2) return "";
+    const sorted = [...cycles]
+      .filter(c => (c.total||0) > 0)
+      .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
+      .slice(-10);
+    if (sorted.length < 2) return "";
+
+    const W = 600, H = 200, padL = 40, padR = 20, padT = 20, padB = 50;
+    const chartW = W - padL - padR;
+    const chartH = H - padT - padB;
+    const step = chartW / (sorted.length - 1);
+
+    const points = sorted.map((c, i) => {
+      const exec = (c.total||0) - (c.not_executed||0);
+      const succ = exec > 0 ? +((c.passed/exec)*100).toFixed(1) : 0;
+      const fail = exec > 0 ? +((c.failed/exec)*100).toFixed(1) : 0;
+      const x = padL + i * step;
+      const ySucc = padT + chartH - (succ/100)*chartH;
+      const yFail = padT + chartH - (fail/100)*chartH;
+      const date = c.start_date ? c.start_date.slice(0,10).split("-").reverse().slice(0,2).join("/") : "";
+      const name = (c.name||"").length > 10 ? (c.name||"").slice(0,10)+"…" : (c.name||"");
+      return { x, ySucc, yFail, succ, fail, label: `${i+1}º ${name}${date?" ("+date+")":""}` };
+    });
+
+    const succLine = points.map((p,i) => `${i===0?"M":"L"}${p.x.toFixed(1)},${p.ySucc.toFixed(1)}`).join(" ");
+    const failLine = points.map((p,i) => `${i===0?"M":"L"}${p.x.toFixed(1)},${p.yFail.toFixed(1)}`).join(" ");
+
+    // Y axis labels
+    const yLabels = [0,25,50,75,100].map(v => {
+      const y = padT + chartH - (v/100)*chartH;
+      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E2E8F0" stroke-width="1"/>
+              <text x="${padL-4}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#94A3B8">${v}%</text>`;
+    }).join("");
+
+    // X axis labels
+    const xLabels = points.map(p =>
+      `<text x="${p.x.toFixed(1)}" y="${(padT+chartH+16).toFixed(1)}" text-anchor="middle" font-size="9" fill="#64748B">${p.label}</text>`
+    ).join("");
+
+    // Dots and value labels
+    const succDots = points.map(p =>
+      `<circle cx="${p.x.toFixed(1)}" cy="${p.ySucc.toFixed(1)}" r="4" fill="#10B981"/>
+       <text x="${p.x.toFixed(1)}" y="${(p.ySucc-8).toFixed(1)}" text-anchor="middle" font-size="10" fill="#10B981" font-weight="bold">${p.succ}%</text>`
+    ).join("");
+    const failDots = points.map(p =>
+      `<circle cx="${p.x.toFixed(1)}" cy="${p.yFail.toFixed(1)}" r="4" fill="#EF4444"/>
+       <text x="${p.x.toFixed(1)}" y="${(p.yFail+16).toFixed(1)}" text-anchor="middle" font-size="10" fill="#EF4444" font-weight="bold">${p.fail}%</text>`
+    ).join("");
+
+    return `<div class="chart-box wide">
+      <h3>Tendência de qualidade por ciclo</h3>
+      <div style="font-size:11px;color:#94A3B8;margin-bottom:8px">Taxa de sucesso e falha nos últimos ${sorted.length} ciclos executados</div>
+      <div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px">
+        <span><span style="display:inline-block;width:12px;height:3px;background:#10B981;vertical-align:middle;margin-right:4px"></span>Sucesso</span>
+        <span><span style="display:inline-block;width:12px;height:3px;background:#EF4444;vertical-align:middle;margin-right:4px"></span>Falha</span>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;width:100%;max-width:${W}px">
+        ${yLabels}
+        <path d="${succLine}" fill="none" stroke="#10B981" stroke-width="2.5"/>
+        <path d="${failLine}" fill="none" stroke="#EF4444" stroke-width="2.5"/>
+        ${succDots}
+        ${failDots}
+        ${xLabels}
+      </svg>
+    </div>`;
   }
 
   function table(headers, rows) {
@@ -362,13 +421,9 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
     ${pieChart(execPie,"Execuções por Status")}
     ${pieChart(bugPie,"Bugs por Status")}
     ${barChart(modData,"Resultados por Módulo")}
+    ${trendChart(data.cycles)}
   </div>
-  <h2>Casos de Teste</h2>
-  ${table(["ID","Módulo","Título","Prioridade","Responsável"],
-    data.testCases.map(tc=>[tc.id,tc.module||"—",tc.title,`<span class="badge badge-${tc.priority}">${PL[tc.priority]||tc.priority}</span>`,tc.assigned_to||"—"]))}
-  <h2>Ciclos de Teste</h2>
-  ${table(["Ciclo","Versão","Status","Início","Fim","Total","Passou","Falhou","% Sucesso"],
-    data.cycles.map(c=>{const d2=(c.total||0)-(c.not_executed||0);const pct=d2>0?((c.passed/d2)*100).toFixed(1)+"%":"—";return[c.name,c.version||"—",`<span class="badge badge-${c.status}">${SL[c.status]||c.status}</span>`,fd(c.start_date),fd(c.end_date),c.total||0,`<span class="green">${c.passed||0}</span>`,`<span class="red">${c.failed||0}</span>`,pct];}))}
+
   <h2>Execuções</h2>
   ${table(["Ciclo","TC #","Caso de teste","Módulo","Status","Executado por","Comentário"],
     data.executions.map(e=>[e.cycle,e.tc_id,e.test_case,e.module||"—",`<span class="badge badge-${e.status}">${SL[e.status]||e.status}</span>`,e.executed_by||"—",e.comment||"—"]))}
