@@ -25,7 +25,6 @@ const app  = express();
 const PORT = process.env.PORT || 3001;
 
 // ── Rate Limiting ─────────────────────────────────────────────
-// Login: máx 10 tentativas por 15 minutos por IP
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -34,7 +33,6 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// API geral: máx 300 requisições por minuto por IP
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 300,
@@ -48,11 +46,10 @@ app.use(express.json());
 app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-// Aplica rate limit geral na API
 app.use("/api", apiLimiter);
 
 app.use("/api/users",                 require("./routes/userProjects"));
-app.use("/api/users/login",           loginLimiter); // rate limit extra no login
+app.use("/api/users/login",           loginLimiter);
 app.use("/api/users",                 require("./routes/users"));
 app.use("/api/projects",              require("./routes/projects"));
 app.use("/api/modules",               require("./routes/modules"));
@@ -65,9 +62,6 @@ app.use("/api/bugs",                  require("./routes/bugs"));
 app.use("/api/dashboard",             authenticate, require("./routes/dashboard"));
 app.use("/api/export",                authenticate, require("./routes/export"));
 app.use("/api/backup",                require("./routes/backup"));
-
-// ROTA TEMPORÁRIA — remover após migração
-app.use("/api", require("./migrate_route_temp"));
 
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })
