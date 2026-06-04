@@ -89,7 +89,8 @@ async function create({ title, description, comment, tracker_url, severity, stat
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", status||"open", mod||null, test_case_id||null,
-     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null]
+     // BUG 4 CORRIGIDO: project_id||1 causava bugs indo sempre para projeto 1 se não enviado
+     created_by_id||null, project_id||null, assigned_to_id||null, pr_url||null, steps||null]
   );
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);

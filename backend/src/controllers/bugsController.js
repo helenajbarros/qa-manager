@@ -2,6 +2,20 @@ const svc    = require("../services/bugsService");
 const r      = require("../utils/response");
 const path   = require("path");
 const multer = require("multer");
+const { getUserProjectIds } = require("../services/userProjectsService");
+
+// BUG 3 CORRIGIDO: valida se o usuário tem acesso ao projeto do bug
+async function canAccessProject(user, projectId) {
+  if (!projectId) return true; // sem projeto, não bloqueia
+  if (user.role === "admin") return true;
+  if (user.role === "manager") {
+    const { query } = require("../database/connection");
+    const rows = await query("SELECT id FROM projects WHERE id=$1 AND created_by_id=$2", [projectId, user.id]);
+    if (rows.length > 0) return true;
+  }
+  const ids = await getUserProjectIds(user.id, user.role);
+  return (ids || []).map(Number).includes(Number(projectId));
+}
 
 const storage = multer.diskStorage({
   destination: (_,__,cb) => cb(null, process.env.QA_UPLOAD_DIR || "uploads"),
@@ -22,6 +36,8 @@ const show    = async (req,res,next) => {
 const store   = async (req,res,next) => {
   try {
     if(!req.body.title?.trim()) return r.badRequest(res,"title obrigatório");
+    if(!(await canAccessProject(req.user, req.body.project_id)))
+      return res.status(403).json({success:false,error:"Sem acesso a este projeto"});
     r.created(res, await svc.create(req.body));
   } catch(e){next(e);}
 };
@@ -38,6 +54,10 @@ const update  = async (req,res,next) => {
 };
 const destroy = async (req,res,next) => {
   try {
+    const bug = await svc.findById(req.params.id);
+    if(!bug) return r.notFound(res,"Bug");
+    if(!(await canAccessProject(req.user, bug.project_id)))
+      return res.status(403).json({success:false,error:"Sem acesso a este projeto"});
     const x = await svc.remove(req.params.id);
     x.changes===0 ? r.notFound(res,"Bug") : r.noContent(res);
   } catch(e){next(e);}

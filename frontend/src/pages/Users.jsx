@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { usersApi, projectsApi } from "../services/resources.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -146,7 +146,9 @@ function ProjectAccessModal({ user, projects, onClose }) {
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
 
-  useState(() => {
+  // BUG 7 CORRIGIDO: useState não re-executa quando user.id muda; useEffect correto
+  useEffect(() => {
+    setLoading(true);
     fetchUserProjects(user.id).then(ids => {
       setSelected(ids.map(Number));
       setLoading(false);

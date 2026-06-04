@@ -15,9 +15,19 @@ async function findAll(userId, role) {
     return query(sql + " ORDER BY p.name");
   }
 
-  // Gerente vê apenas os projetos que criou
+  // BUG 1 CORRIGIDO: gerente só via created_by_id, ignorava user_projects.
+  // Agora gerente vê projetos que criou + projetos vinculados via user_projects.
   if (role === "manager") {
-    return query(sql + " WHERE p.created_by_id = $1 ORDER BY p.name", [userId]);
+    const linkedIds = await getUserProjectIds(userId, role);
+    const ids = linkedIds || [];
+    if (ids.length === 0) {
+      return query(sql + " WHERE p.created_by_id = $1 ORDER BY p.name", [userId]);
+    }
+    const placeholders = ids.map((_, i) => `$${i + 2}`).join(",");
+    return query(
+      sql + ` WHERE (p.created_by_id = $1 OR p.id IN (${placeholders})) ORDER BY p.name`,
+      [userId, ...ids]
+    );
   }
 
   // Editor e Visualizador só veem os projetos vinculados

@@ -3,13 +3,24 @@ const crypto = require("crypto");
 
 function hash(p) { return crypto.createHash("sha256").update(p+"qa_salt_2024").digest("hex"); }
 
+// BUG 2 CORRIGIDO: token era base64 simples sem assinatura — qualquer um podia forjar.
+// Agora usa HMAC-SHA256 com secret do ambiente para assinar o payload.
+const SECRET = process.env.JWT_SECRET || "qa_secret_fallback_change_in_production";
+
 function generateToken(user) {
-  return Buffer.from(JSON.stringify({ id: user.id, role: user.role, ts: Date.now() })).toString("base64");
+  const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, ts: Date.now() })).toString("base64");
+  const sig = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
+  return `${payload}.${sig}`;
 }
 
 function verifyToken(token) {
   try {
-    const p = JSON.parse(Buffer.from(token, "base64").toString("utf8"));
+    const [payload, sig] = (token || "").split(".");
+    if (!payload || !sig) return null;
+    const expected = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
+    // Comparação em tempo constante para evitar timing attacks
+    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) return null;
+    const p = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
     if (Date.now() - p.ts > 8*60*60*1000) return null;
     return p;
   } catch { return null; }

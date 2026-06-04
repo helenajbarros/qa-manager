@@ -18,6 +18,8 @@ export function ProjectProvider({ children }) {
     }
 
     setLoading(true);
+    // BUG 6 CORRIGIDO no backend (projectsService): gerente agora recebe
+    // projetos que criou + projetos vinculados via user_projects
     projectsApi.list()
       .then(list => {
         setProjects(list);
