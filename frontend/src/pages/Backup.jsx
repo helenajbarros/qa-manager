@@ -63,6 +63,7 @@ export default function Backup() {
       return;
     }
 
+    
     const confirmed = window.confirm(
       `⚠ ATENÇÃO!\n\nVocê está prestes a SUBSTITUIR todos os dados atuais pelo arquivo:\n"${file.name}"\n\nEssa ação não pode ser desfeita.\n\nTem certeza?`
     );
