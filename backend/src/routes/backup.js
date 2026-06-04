@@ -29,8 +29,18 @@ router.get("/download", authenticate, requireAdmin, async (req, res, next) => {
       sql += `-- ${table}\n`;
       for (const row of res2.rows) {
         const cols = Object.keys(row).join(",");
-        const vals = Object.values(row).map(v =>
-          v === null ? "NULL" : `'${String(v).replace(/'/g, "''")}'`
+        const vals = Object.values(row).map(v => {
+          if (v === null) return "NULL";
+          // Formata datas para ISO 8601 compatível com PostgreSQL
+          if (v instanceof Date) return `'${v.toISOString().replace("T", " ").slice(0, 19)}'`;
+          const s = String(v);
+          // Detecta strings que parecem datas JS (ex: "Thu May 07 2026...")
+          if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) [A-Za-z]{3}/.test(s)) {
+            const d = new Date(s);
+            if (!isNaN(d)) return `'${d.toISOString().replace("T", " ").slice(0, 19)}'`;
+          }
+          return `'${s.replace(/'/g, "''")}'`;
+        }
         ).join(",");
         sql += `INSERT INTO ${table} (${cols}) VALUES (${vals}) ON CONFLICT DO NOTHING;\n`;
       }

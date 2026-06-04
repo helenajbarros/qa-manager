@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express    = require("express");
 const cors       = require("cors");
 const path       = require("path");
@@ -90,3 +91,4 @@ async function start() {
 }
 
 start().catch(err => { console.error("Erro:", err); process.exit(1); });
+
