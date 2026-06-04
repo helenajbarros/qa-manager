@@ -3,7 +3,7 @@ import { useAsync }      from "../hooks/useAsync.js";
 import { dashboardApi }  from "../services/resources.js";
 import { useProject }    from "../context/ProjectContext.jsx";
 import { Loading, ErrorMsg } from "../components/UI.jsx";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid } from "recharts";
 import { ExportButton } from "../components/ExportButton.jsx";
 
 const PIE_COLORS  = ["#16A34A","#DC2626","#7C3AED","#9CA3AF"];
@@ -430,6 +430,24 @@ export default function Dashboard() {
     return { name: n, Passou: m.passed || 0, Falhou: m.failed || 0, Bloq: m.blocked || 0 };
   });
 
+  // Tendência por ciclo — ordena por data e calcula taxa de sucesso
+  const allCycles = data?.cycles || [];
+  const trendData = [...allCycles]
+    .filter(c => c.total_executions > 0)
+    .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
+    .slice(-10) // últimos 10 ciclos
+    .map(c => {
+      const exec = c.total_executions - (c.not_executed || 0);
+      const successRate = exec > 0 ? +((c.passed / exec) * 100).toFixed(1) : 0;
+      const failRate    = exec > 0 ? +((c.failed / exec) * 100).toFixed(1) : 0;
+      return {
+        name: c.name.length > 14 ? c.name.slice(0,14)+"…" : c.name,
+        Sucesso: successRate,
+        Falha:   failRate,
+        Bugs:    0, // placeholder — não temos bugs por ciclo direto
+      };
+    });
+
   return (
     <div className="page" id="dashboard-page">
       <div className="page-header">
@@ -513,6 +531,26 @@ export default function Dashboard() {
               <Bar dataKey="Bloq"     stackId="a" fill="#7C3AED" />
               <Bar dataKey="Não exec" stackId="a" fill="#9CA3AF" radius={[4,4,0,0]} />
             </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {trendData.length >= 2 && (
+        <div className="card mb-20">
+          <div className="card-title">Tendência de qualidade por ciclo</div>
+          <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:8}}>
+            Taxa de sucesso e falha nos últimos {trendData.length} ciclos executados
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={trendData} margin={{top:4,right:16,left:-16,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="name" tick={{fontSize:11}} />
+              <YAxis tick={{fontSize:11}} unit="%" domain={[0,100]} />
+              <Tooltip formatter={(v) => `${v}%`} />
+              <Legend />
+              <Line type="monotone" dataKey="Sucesso" stroke="#16A34A" strokeWidth={2} dot={{r:4}} activeDot={{r:6}} />
+              <Line type="monotone" dataKey="Falha"   stroke="#DC2626" strokeWidth={2} dot={{r:4}} activeDot={{r:6}} />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}
