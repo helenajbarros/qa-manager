@@ -10,7 +10,16 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 10*1024*1024 } });
 
-const index   = async (req,res,next) => { try { r.ok(res, await svc.findAllCycles(req.query)); } catch(e){next(e);} };
+const index   = async (req,res,next) => {
+  try {
+    const result = await svc.findAllCycles(req.query);
+    if (result && result.data) {
+      res.json({ success:true, data: result.data, total: result.total, page: result.page, pages: result.pages });
+    } else {
+      r.ok(res, result);
+    }
+  } catch(e){next(e);}
+};
 const show    = async (req,res,next) => { try { const x=await svc.findCycleById(req.params.id); x?r.ok(res,x):r.notFound(res,"Ciclo"); } catch(e){next(e);} };
 const store   = async (req,res,next) => { try { if(!req.body.name?.trim()) return r.badRequest(res,"name obrigatório"); r.created(res, await svc.createCycle(req.body)); } catch(e){next(e);} };
 const update  = async (req,res,next) => { try { if(!req.body.name?.trim()) return r.badRequest(res,"name obrigatório"); r.ok(res, await svc.updateCycle(req.params.id, req.body, req.user?.id)); } catch(e){next(e);} };

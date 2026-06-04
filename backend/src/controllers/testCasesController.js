@@ -5,7 +5,7 @@ const index   = async (req,res,next) => {
   try {
     const result = await svc.findAll(req.query);
     if (result && result.data) {
-      res.json({ success:true, data: result.data, meta: { total:result.total, page:result.page, pages:result.pages, limit:result.limit } });
+      res.json({ success:true, data: result.data, total: result.total, page: result.page, pages: result.pages });
     } else {
       r.ok(res, result);
     }

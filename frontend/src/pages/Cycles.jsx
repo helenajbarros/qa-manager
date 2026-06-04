@@ -88,8 +88,7 @@ function CycleForm({ initial={}, onSave, onCancel, saving }) {
 }
 
 function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
-  const { data: allCasesRaw, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId}:{}), [projectId]);
-  const allCases = allCasesRaw?.data ?? allCasesRaw;
+  const { data: allCases, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId}:{}), [projectId]);
   const [selected, setSelected] = useState([]);
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState("");
@@ -164,10 +163,8 @@ function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
 
 function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
   const { user: currentUser } = useAuth();
-  const { data: bugsRaw  } = useAsync(() => bugsApi.list());
-  const { data: usersRaw } = useAsync(() => usersApi.list());
-  const bugs  = bugsRaw?.data  ?? bugsRaw;
-  const users = usersRaw?.data ?? usersRaw;
+  const { data: bugs  } = useAsync(() => bugsApi.list());
+  const { data: users } = useAsync(() => usersApi.list());
   const [form, setForm] = useState({
     status:         execution.status         || "not_executed",
     evidence_url:   execution.evidence_url   || "",
@@ -500,9 +497,7 @@ export default function Cycles() {
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
 
-  const { data: cyclesRaw, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
-  // Suporta resposta paginada { data } e lista simples
-  const cycles = cyclesRaw?.data ?? cyclesRaw;
+  const { data: cycles, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
   const [modal,   setModal]   = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [detail,  setDetail]  = useState(null);

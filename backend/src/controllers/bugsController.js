@@ -12,9 +12,9 @@ const upload = multer({ storage, limits: { fileSize: 10*1024*1024 } });
 const index   = async (req,res,next) => {
   try {
     const result = await svc.findAll(req.query);
-    // Suporta resposta paginada { data, total, page, pages } e lista simples
+    // Sempre retorna array em data + meta no topo para o api.js processar corretamente
     if (result && result.data) {
-      res.json({ success:true, data: result.data, meta: { total:result.total, page:result.page, pages:result.pages, limit:result.limit } });
+      res.json({ success:true, data: result.data, total: result.total, page: result.page, pages: result.pages });
     } else {
       r.ok(res, result);
     }
