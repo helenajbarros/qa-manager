@@ -43,11 +43,12 @@ export const modulesApi = {
 };
 
 export const testCasesApi = {
-  list:   (p)        => api.get(`/test-cases${qs(p)}`),
-  get:    (id)       => api.get(`/test-cases/${id}`),
-  create: (d)        => api.post("/test-cases", d),
-  update: (id, d)    => api.put(`/test-cases/${id}`, d),
-  delete: (id)       => api.delete(`/test-cases/${id}`),
+  list:        (p)     => api.get(`/test-cases${qs(p)}`),
+  get:         (id)    => api.get(`/test-cases/${id}`),
+  create:      (d)     => api.post("/test-cases", d),
+  update:      (id, d) => api.put(`/test-cases/${id}`, d),
+  delete:      (id)    => api.delete(`/test-cases/${id}`),
+  getActivity: (id)    => api.get(`/test-cases/${id}/activity`),
 };
 
 export const cyclesApi = {
@@ -60,9 +61,12 @@ export const cyclesApi = {
   addExecutions:   (id, ids)    => api.post(`/cycles/${id}/executions`, { test_case_ids: ids }),
   updateExecution: (id, eid, d) => api.put(`/cycles/${id}/executions/${eid}`, d),
   deleteExecution: (id, eid)    => api.delete(`/cycles/${id}/executions/${eid}`),
+  getActivity:     (id)         => api.get(`/cycles/${id}/activity`),
 };
 
 export const bugsApi = {
+  // Suporta paginação: list({ project_id, page, limit, status, severity, search })
+  // Retorna { data, meta: { total, page, pages } } quando paginado
   list:           (p)           => api.get(`/bugs${qs(p)}`),
   get:            (id)          => api.get(`/bugs/${id}`),
   create:         (d)           => api.post("/bugs", d),

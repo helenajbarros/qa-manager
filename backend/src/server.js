@@ -12,6 +12,7 @@ const { upgradeBugsTable }        = require("./database/migrations_bugs_v2");
 const { addShareTokensTable }     = require("./database/migrations_share_tokens");
 const { addDefaultProjectColumn } = require("./database/migrations_default_project");
 const { addProjectsCreatorColumn }= require("./database/migrations_projects_creator");
+const { addActivityTables }        = require("./database/migrations_activity");
 const { runSeed }       = require("./database/seed");
 const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
@@ -77,6 +78,7 @@ async function start() {
   await addShareTokensTable();
   await addDefaultProjectColumn();
   await addProjectsCreatorColumn();
+  await addActivityTables();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);

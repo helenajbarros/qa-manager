@@ -45,15 +45,33 @@ async function attachAll(bug) {
   return { ...bug, evidence_files: files, related_bugs: relations };
 }
 
-async function findAll({ status, severity, module_id, project_id, search } = {}) {
+async function findAll({ status, severity, module_id, project_id, search, page, limit } = {}) {
   const conds = ["1=1"]; const params = [];
   if (project_id) { params.push(project_id); conds.push(`b.project_id = $${params.length}`); }
   if (status)     { params.push(status);      conds.push(`b.status = $${params.length}`); }
   if (severity)   { params.push(severity);    conds.push(`b.severity = $${params.length}`); }
   if (module_id)  { params.push(module_id);   conds.push(`b.module_id = $${params.length}`); }
   if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(b.title) LIKE $${params.length}`); }
-  const rows = await query(`${BASE} WHERE ${conds.join(" AND ")} ORDER BY b.created_at DESC`, params);
-  return Promise.all(rows.map(attachAll));
+
+  const where = conds.join(" AND ");
+
+  // Paginação
+  const pageNum  = Math.max(1, parseInt(page)  || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
+  const offset   = (pageNum - 1) * pageSize;
+
+  // Total sem paginação
+  const countRows = await query(`SELECT COUNT(*) AS total FROM bugs b WHERE ${where}`, params);
+  const total = parseInt(countRows[0]?.total || 0);
+
+  params.push(pageSize); const limitIdx  = params.length;
+  params.push(offset);   const offsetIdx = params.length;
+  const rows = await query(
+    `${BASE} WHERE ${where} ORDER BY b.created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    params
+  );
+  const data = await Promise.all(rows.map(attachAll));
+  return { data, total, page: pageNum, limit: pageSize, pages: Math.ceil(total / pageSize) };
 }
 
 async function findById(id) {
@@ -89,8 +107,7 @@ async function create({ title, description, comment, tracker_url, severity, stat
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", status||"open", mod||null, test_case_id||null,
-     // BUG 4 CORRIGIDO: project_id||1 causava bugs indo sempre para projeto 1 se não enviado
-     created_by_id||null, project_id||null, assigned_to_id||null, pr_url||null, steps||null]
+     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null]
   );
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);

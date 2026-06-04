@@ -1,9 +1,40 @@
 const { query, execute } = require("../database/connection");
 
-async function findAllCycles({ project_id, search } = {}) {
+async function logActivity(cycle_id, user_id, action, detail) {
+  try {
+    await query(
+      "INSERT INTO cycle_activity (cycle_id, user_id, action, detail) VALUES ($1,$2,$3,$4)",
+      [cycle_id, user_id || null, action, detail || null]
+    );
+  } catch(_) {}
+}
+
+async function getActivity(cycle_id) {
+  return query(`
+    SELECT ca.*, u.name AS user_name
+    FROM cycle_activity ca
+    LEFT JOIN users u ON u.id = ca.user_id
+    WHERE ca.cycle_id = $1
+    ORDER BY ca.created_at ASC
+  `, [cycle_id]);
+}
+
+async function findAllCycles({ project_id, search, page, limit } = {}) {
   const conds = ["1=1"]; const params = [];
   if (project_id) { params.push(project_id); conds.push(`c.project_id = $${params.length}`); }
   if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(c.name) LIKE $${params.length}`); }
+
+  const where = conds.join(" AND ");
+
+  const pageNum  = Math.max(1, parseInt(page)  || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const offset   = (pageNum - 1) * pageSize;
+
+  const countRows = await query(`SELECT COUNT(*) AS total FROM test_cycles c WHERE ${where}`, params);
+  const total = parseInt(countRows[0]?.total || 0);
+
+  params.push(pageSize); const limitIdx  = params.length;
+  params.push(offset);   const offsetIdx = params.length;
   const rows = await query(`
     SELECT c.*,
       COUNT(e.id) AS total_executions,
@@ -13,9 +44,11 @@ async function findAllCycles({ project_id, search } = {}) {
       SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
     FROM test_cycles c
     LEFT JOIN test_executions e ON e.cycle_id = c.id
-    WHERE ${conds.join(" AND ")} GROUP BY c.id ORDER BY c.created_at DESC
+    WHERE ${where} GROUP BY c.id ORDER BY c.created_at DESC
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
   `, params);
-  return rows.map(r => ({...r, total_executions:parseInt(r.total_executions||0), passed:parseInt(r.passed||0), failed:parseInt(r.failed||0), blocked:parseInt(r.blocked||0), not_executed:parseInt(r.not_executed||0)}));
+  const data = rows.map(r => ({...r, total_executions:parseInt(r.total_executions||0), passed:parseInt(r.passed||0), failed:parseInt(r.failed||0), blocked:parseInt(r.blocked||0), not_executed:parseInt(r.not_executed||0)}));
+  return { data, total, page: pageNum, limit: pageSize, pages: Math.ceil(total / pageSize) };
 }
 
 async function findCycleById(id) {
@@ -29,15 +62,23 @@ async function createCycle({ name, description, version, test_types, start_date,
     "INSERT INTO test_cycles (name,description,version,test_types,start_date,end_date,project_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
     [name.trim(), description||null, version||null, types, start_date||null, end_date||null, project_id||1]
   );
-  return findCycleById(rows[0].id);
+  const cycle = await findCycleById(rows[0].id);
+  await logActivity(rows[0].id, null, "criou o ciclo", null);
+  return cycle;
 }
 
-async function updateCycle(id, { name, description, version, test_types, start_date, end_date, status }) {
+async function updateCycle(id, { name, description, version, test_types, start_date, end_date, status }, userId) {
+  const prev  = await findCycleById(id);
   const types = Array.isArray(test_types) ? test_types.join(",") : (test_types||null);
   await execute(
     "UPDATE test_cycles SET name=$1,description=$2,version=$3,test_types=$4,start_date=$5,end_date=$6,status=$7 WHERE id=$8",
     [name.trim(), description||null, version||null, types, start_date||null, end_date||null, status||"active", id]
   );
+  if (prev) {
+    if (prev.name !== name.trim()) await logActivity(id, userId, "editou o nome", `"${prev.name}" → "${name.trim()}"`);
+    if ((prev.status||"active") !== (status||"active")) await logActivity(id, userId, "alterou o status", `${prev.status} → ${status}`);
+    if ((prev.version||"") !== (version||"")) await logActivity(id, userId, "alterou a versão", `${prev.version||"-"} → ${version||"-"}`);
+  }
   return findCycleById(id);
 }
 
@@ -112,5 +153,6 @@ async function removeExecution(id) {
 module.exports = {
   findAllCycles, findCycleById, createCycle, updateCycle, removeCycle,
   findExecutionsByCycle, findExecutionById, addExecutions, updateExecution,
-  addEvidenceFile, removeEvidenceFile, removeExecution,
+  addEvidenceFile, deleteEvidenceFile,
+  logActivity, getActivity,
 };

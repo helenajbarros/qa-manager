@@ -282,10 +282,54 @@ function TCDetailModal({ execution, onClose }) {
   );
 }
 
+function ActivityTimeline({ activity }) {
+  if (!activity?.length) return (
+    <div style={{color:"var(--text-muted)",fontSize:13,padding:"24px 0",textAlign:"center"}}>
+      Nenhuma atividade registrada.
+    </div>
+  );
+  const fmtDate = d => {
+    if (!d) return "";
+    const dt = new Date(d);
+    return dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  };
+  const dotColors = {
+    "criou o ciclo":"var(--text-muted)",
+    "alterou o status":"var(--success)",
+    "editou o nome":"var(--warning)",
+    "alterou a versão":"var(--accent)",
+  };
+  return (
+    <div style={{padding:"8px 0"}}>
+      {activity.map((a,i) => (
+        <div key={a.id||i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:12,
+          paddingBottom:12,borderBottom:i<activity.length-1?"1px solid var(--border)":"none"}}>
+          <div style={{width:10,height:10,borderRadius:"50%",flexShrink:0,marginTop:4,
+            background:dotColors[a.action]||"var(--text-muted)"}} />
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,lineHeight:1.5}}>
+              <span style={{fontWeight:500}}>{a.user_name||"Sistema"}</span>
+              <span style={{color:"var(--text-muted)",marginLeft:6}}>{a.action}</span>
+              {a.detail && (
+                <span style={{fontSize:11,color:"var(--accent)",marginLeft:6,
+                  background:"var(--accent-bg)",padding:"1px 8px",borderRadius:10}}>
+                  {a.detail}
+                </span>
+              )}
+            </div>
+            <div style={{fontSize:11,color:"var(--text-muted)",marginTop:2}}>{fmtDate(a.created_at)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CycleDetail({ cycle, onBack, onRefresh }) {
   const { user }    = useAuth();
   const isViewer    = user?.role === "viewer";
   const { data: execs, loading, error, refetch } = useAsync(()=>cyclesApi.listExecutions(cycle.id), [cycle.id]);
+  const { data: activity } = useAsync(()=>cyclesApi.getActivity(cycle.id), [cycle.id]);
   const [addModal,  setAddModal]  = useState(false);
   const [execModal, setExecModal] = useState(null);
   const [tcModal,   setTcModal]   = useState(null);
@@ -293,6 +337,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
   const [filter,    setFilter]    = useState("");
   const [search,    setSearch]    = useState("");
   const [page,      setPage]      = useState(1);
+  const [activeTab, setActiveTab] = useState("execucoes");
   const { currentProject } = useProject();
 
   const existingIds = (execs||[]).map(e=>e.test_case_id);
@@ -348,12 +393,41 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
         ))}
       </div>
 
+      {/* Abas: Execuções | Histórico */}
+      <div style={{display:"flex",gap:8,marginBottom:16,borderBottom:"1px solid var(--border)",paddingBottom:0}}>
+        {[["execucoes","▶ Execuções"],["historico","📋 Histórico"]].map(([key,label])=>(
+          <button key={key} onClick={()=>setActiveTab(key)}
+            style={{padding:"8px 16px",background:"none",border:"none",cursor:"pointer",
+              fontSize:13,fontWeight:activeTab===key?600:400,
+              color:activeTab===key?"var(--accent)":"var(--text-muted)",
+              borderBottom:activeTab===key?"2px solid var(--accent)":"2px solid transparent",
+              marginBottom:-1}}>
+            {label}
+            {key==="historico" && activity?.length > 0 && (
+              <span style={{marginLeft:6,background:"var(--border)",borderRadius:10,
+                padding:"1px 6px",fontSize:10,color:"var(--text-muted)"}}>
+                {activity.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "execucoes" && (
       <div style={{marginBottom:16}}>
         <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}
           placeholder="🔍 Buscar por título, módulo ou ID..."
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,width:"100%",maxWidth:380}} />
       </div>
+      )}
 
+      {activeTab === "historico" && (
+        <div className="card" style={{padding:"16px 20px"}}>
+          <ActivityTimeline activity={activity||[]} />
+        </div>
+      )}
+
+      {activeTab === "execucoes" && (
       <div className="card">
         {!filtered.length ? <Empty icon="🔁" text="Nenhuma execução encontrada." /> : (
           <>
@@ -406,6 +480,8 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
           </>
         )}
       </div>
+
+      )} {/* end execucoes tab */}
 
       {addModal  && <AddCasesModal cycleId={cycle.id} existingIds={existingIds} projectId={currentProject?.id} onClose={()=>setAddModal(false)} onAdded={()=>{refetch();onRefresh();}} />}
       {execModal && <ExecutionModal cycleId={cycle.id} execution={execModal} onClose={()=>setExecModal(null)} onSaved={()=>{refetch();onRefresh();}} />}
