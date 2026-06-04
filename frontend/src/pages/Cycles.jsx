@@ -164,8 +164,10 @@ function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
 
 function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
   const { user: currentUser } = useAuth();
-  const { data: bugs  } = useAsync(() => bugsApi.list());
-  const { data: users } = useAsync(() => usersApi.list());
+  const { data: bugsRaw  } = useAsync(() => bugsApi.list());
+  const { data: usersRaw } = useAsync(() => usersApi.list());
+  const bugs  = bugsRaw?.data  ?? bugsRaw;
+  const users = usersRaw?.data ?? usersRaw;
   const [form, setForm] = useState({
     status:         execution.status         || "not_executed",
     evidence_url:   execution.evidence_url   || "",

@@ -99,9 +99,11 @@ export default function TestCases() {
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
 
-  const { data: cases,   loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: modules, loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: users }                                   = useAsync(() => usersApi.list());
+  const { data: casesRaw,  loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: usersRaw }                                  = useAsync(() => usersApi.list());
+  const cases = casesRaw?.data ?? casesRaw;
+  const users = usersRaw?.data ?? usersRaw;
 
   const [modal,     setModal]     = useState(null);
   const [confirm,   setConfirm]   = useState(null);

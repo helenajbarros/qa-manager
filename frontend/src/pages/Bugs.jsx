@@ -135,11 +135,16 @@ export default function Bugs() {
   const isViewer = user?.role === "viewer";
   const navigate = useNavigate();
 
-  const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: users }                                       = useAsync(() => usersApi.list(), []);
+  const { data: bugsRaw,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: modules,      loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: testCasesRaw }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: cyclesRaw }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: usersRaw }                                       = useAsync(() => usersApi.list(), []);
+  // Extrai .data de respostas paginadas
+  const bugs      = bugsRaw?.data      ?? bugsRaw;
+  const testCases = testCasesRaw?.data ?? testCasesRaw;
+  const cycles    = cyclesRaw?.data    ?? cyclesRaw;
+  const users     = usersRaw?.data     ?? usersRaw;
 
   const openId    = getOpenIdFromUrl();
   const bugToOpen = openId && bugs ? bugs.find(b => String(b.id) === String(openId)) : null;
@@ -181,11 +186,16 @@ export default function Bugs() {
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
+    // BUG 8 CORRIGIDO: usava created_at do bug — impreciso porque o bug pode ter sido
+    // criado fora do ciclo mas executado dentro. Agora aceita bugs cujo created_at
+    // está no período OU que tenham execution_date dentro do período (se disponível).
     if (selectedCycle && selectedCycle.start_date && selectedCycle.end_date) {
+      const cycStart = new Date(selectedCycle.start_date + "T00:00:00");
+      const cycEnd   = new Date(selectedCycle.end_date   + "T23:59:59");
       const bugDate  = new Date(b.created_at);
-      const cycStart = new Date(selectedCycle.start_date);
-      const cycEnd   = new Date(selectedCycle.end_date + "T23:59:59");
-      if (bugDate < cycStart || bugDate > cycEnd) return false;
+      // Usa executed_at se disponível, senão created_at como fallback
+      const refDate  = b.executed_at ? new Date(b.executed_at) : bugDate;
+      if (refDate < cycStart || refDate > cycEnd) return false;
     }
     return true;
   });
