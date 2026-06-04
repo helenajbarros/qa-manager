@@ -58,20 +58,20 @@ async function saveUserProjects(userId, projectIds) {
   });
 }
 
-const ROLE_LABELS = { admin:"Admin", manager:"Gerente", editor:"Editor", viewer:"Visualizador" };
+const ROLE_LABELS = { admin:"Admin", manager:"Gerente", editor:"Colaborador / Tester", viewer:"Visualizador" };
 const ROLE_COLORS = { admin:"var(--danger)", manager:"#7C3AED", editor:"var(--accent)", viewer:"var(--text-muted)" };
 
 // Perfis que Admin pode criar
 const ROLE_OPTS_ADMIN = [
   { value:"admin",   label:"Admin — acesso total" },
   { value:"manager", label:"Gerente — tudo exceto backup" },
-  { value:"editor",  label:"Editor — pode criar e editar" },
+  { value:"editor",  label:"Colaborador / Tester — pode criar e editar" },
   { value:"viewer",  label:"Visualizador — somente leitura" },
 ];
 // Perfis que Gerente pode criar (não pode criar Admin)
 const ROLE_OPTS_MANAGER = [
   { value:"manager", label:"Gerente — tudo exceto backup" },
-  { value:"editor",  label:"Editor — pode criar e editar" },
+  { value:"editor",  label:"Colaborador / Tester — pode criar e editar" },
   { value:"viewer",  label:"Visualizador — somente leitura" },
 ];
 
@@ -137,7 +137,7 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsA
         <strong>Permissões:</strong><br />
         🔴 <strong>Admin</strong> — acesso total incluindo backup e banco<br />
         🟣 <strong>Gerente</strong> — tudo exceto backup, vinculável a projetos<br />
-        🔵 <strong>Editor</strong> — cria e edita nos projetos atribuídos<br />
+        🔵 <strong>Colaborador / Tester</strong> — cria e edita nos projetos atribuídos<br />
         ⚫ <strong>Visualizador</strong> — somente leitura nos projetos atribuídos
       </div>
       <div className="modal-footer">

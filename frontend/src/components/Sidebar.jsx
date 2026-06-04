@@ -14,7 +14,7 @@ const links = [
   { to: "/bugs",       icon: "🐛", label: "Bugs" },
 ];
 
-const ROLE_LABEL = { admin:"Admin", manager:"Gerente", editor:"Editor", viewer:"Visualizador" };
+const ROLE_LABEL = { admin:"Admin", manager:"Gerente", editor:"Colaborador / Tester", viewer:"Visualizador" };
 const ROLE_COLOR = { admin:"#DC2626", manager:"#7C3AED", editor:"#2563EB", viewer:"#6B7280" };
 
 export default function Sidebar() {
