@@ -153,6 +153,6 @@ async function removeExecution(id) {
 module.exports = {
   findAllCycles, findCycleById, createCycle, updateCycle, removeCycle,
   findExecutionsByCycle, findExecutionById, addExecutions, updateExecution,
-  addEvidenceFile, deleteEvidenceFile,
+  addEvidenceFile, removeEvidenceFile, removeExecution,
   logActivity, getActivity,
 };
