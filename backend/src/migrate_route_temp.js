@@ -4,7 +4,7 @@
 
 const express = require("express");
 const router  = express.Router();
-const { query, execute } = require("../database/connection");
+const { query, execute } = require("./database/connection");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
@@ -53,4 +53,3 @@ router.get("/migrate-passwords", async (req, res) => {
 });
 
 module.exports = router;
-
