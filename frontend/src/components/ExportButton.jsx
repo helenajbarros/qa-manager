@@ -170,12 +170,7 @@ async function exportExcel(projectName, projectId, filters) {
 
   // Aba Ciclos removida do relatório
 
-  const exH=["Ciclo","TC #","Caso de teste","Módulo","Status","Executado por","Responsável","Comentário","URL Evidência","Bug vinculado","Executado em"];
-  const exR=data.executions.map(e=>[e.cycle,e.tc_id,e.test_case,e.module||"—",SL[e.status]||e.status,e.executed_by||"—",e.assigned_to||"—",e.comment||"—",e.evidence_url||"—",e.bug_id?`#${e.bug_id} ${e.bug_title}`:"—",fd(e.executed_at)]);
-  const exWs=XLSX.utils.aoa_to_sheet([exH,...exR]);
-  applyStyles(exWs,exH,exR,"059669");
-  exWs["!cols"]=[{wch:20},{wch:6},{wch:32},{wch:16},{wch:14},{wch:18},{wch:18},{wch:30},{wch:30},{wch:24},{wch:14}];
-  XLSX.utils.book_append_sheet(wb,exWs,"Execuções");
+  // Aba Execuções removida do relatório
 
   const bgH=["#","Título","Módulo","TC","Severidade","Status","Criado por","Comentário","Tracker","Criado em"];
   const bgR=data.bugs.map(b=>[b.id,b.title,b.module||"—",b.tc_id?`#${b.tc_id}`:"—",SVL[b.severity]||b.severity,SL[b.status]||b.status,b.created_by||"—",b.comment||"—",b.tracker_url||"—",fd(b.created_at)]);
@@ -424,9 +419,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
     ${trendChart(data.cycles)}
   </div>
 
-  <h2>Execuções</h2>
-  ${table(["Ciclo","TC #","Caso de teste","Módulo","Status","Executado por","Comentário"],
-    data.executions.map(e=>[e.cycle,e.tc_id,e.test_case,e.module||"—",`<span class="badge badge-${e.status}">${SL[e.status]||e.status}</span>`,e.executed_by||"—",e.comment||"—"]))}
+
   <h2>Bugs</h2>
   ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
     data.bugs.map(b=>[b.id,b.title,b.module||"—",`<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,`<span class="badge badge-${b.status}">${SL[b.status]||b.status}</span>`,b.created_by||"—",b.tracker_url?`<a href="${b.tracker_url}" target="_blank">Ver</a>`:"—"]))}
