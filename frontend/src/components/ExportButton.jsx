@@ -233,18 +233,26 @@ async function exportHTML(projectName, projectId, filters) {
   function pieChart(items, title) {
     const total = items.reduce((a,b)=>a+b.value,0);
     if (!total) return `<div class="chart-box"><h3>${title}</h3><p style="color:#999;text-align:center">Sem dados</p></div>`;
-    let angleDeg=-90, paths="", legends="";
-    items.forEach(item => {
-      const pct=item.value/total;
-      const a1=angleDeg*Math.PI/180;
-      angleDeg+=pct*360;
-      const a2=angleDeg*Math.PI/180;
-      const x1=100+80*Math.cos(a1), y1=100+80*Math.sin(a1);
-      const x2=100+80*Math.cos(a2), y2=100+80*Math.sin(a2);
-      paths+=`<path d="M100,100 L${x1.toFixed(2)},${y1.toFixed(2)} A80,80 0 ${pct>.5?1:0},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${item.color}" stroke="white" stroke-width="2"/>`;
-      legends+=`<div class="legend-item"><span class="legend-dot" style="background:${item.color}"></span>${item.label}: <b>${item.value}</b> (${(pct*100).toFixed(1)}%)</div>`;
-    });
-    return `<div class="chart-box"><h3>${title}</h3><div class="pie-wrap"><svg viewBox="0 0 200 200" width="180" height="180">${paths}</svg><div class="legends">${legends}</div></div></div>`;
+    let svgPaths="", legends="";
+    // Caso especial: 1 item = 100% — arco de 360graus e invalido em SVG, usar circulo
+    if (items.length === 1) {
+      svgPaths = `<circle cx="100" cy="100" r="80" fill="${items[0].color}"/>`;
+      legends  = `<div class="legend-item"><span class="legend-dot" style="background:${items[0].color}"></span>${items[0].label}: <b>${items[0].value}</b> (100.0%)</div>`;
+    } else {
+      let angleDeg=-90;
+      items.forEach(item => {
+        const pct=item.value/total;
+        const a1=angleDeg*Math.PI/180;
+        angleDeg+=pct*360;
+        const a2=angleDeg*Math.PI/180;
+        const x1=100+80*Math.cos(a1), y1=100+80*Math.sin(a1);
+        const x2=100+80*Math.cos(a2), y2=100+80*Math.sin(a2);
+        svgPaths+=`<path d="M100,100 L${x1.toFixed(2)},${y1.toFixed(2)} A80,80 0 ${pct>.5?1:0},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${item.color}" fill-opacity="1" stroke="white" stroke-width="2"/>`;
+        legends +=`<div class="legend-item"><span class="legend-dot" style="background:${item.color}"></span>${item.label}: <b>${item.value}</b> (${(pct*100).toFixed(1)}%)</div>`;
+      });
+    }
+    // width/height fixos em px garantem renderizacao correta no print engine do browser
+    return `<div class="chart-box"><h3>${title}</h3><div class="pie-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="180" height="180" style="display:block;width:180px;height:180px;flex-shrink:0">${svgPaths}</svg><div class="legends">${legends}</div></div></div>`;
   }
 
   function barChart(items, title) {
@@ -325,9 +333,9 @@ async function exportHTML(projectName, projectId, filters) {
     .card,.chart-box{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid;}
     .charts{display:flex!important;flex-wrap:wrap!important;}
     .chart-box{page-break-inside:avoid;}
-    svg{display:block!important;visibility:visible!important;}
-    svg path{display:block!important;}
-    .pie-wrap{display:flex!important;}
+    .pie-wrap{display:flex!important;align-items:center!important;}
+    svg{display:block!important;visibility:visible!important;overflow:visible!important;}
+    svg path,svg circle{display:block!important;visibility:visible!important;fill-opacity:1!important;}
     h2{break-before:auto;}
     table{break-inside:avoid;}
   }

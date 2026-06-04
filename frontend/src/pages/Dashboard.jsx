@@ -226,13 +226,21 @@ function applyFilters(data, filters) {
 
   // BUG 2 CORRIGIDO: ciclos sem data de início ou fim eram sempre incluídos,
   // mesmo fora do período. Ciclo sem datas só entra se nenhum filtro de data estiver ativo.
+  // NOVO: filtro de só data_from OU só data_to funciona independentemente.
   const filteredCycles = cycles?.filter(c => {
     const cStart = c.start_date ? new Date(c.start_date + "T00:00:00") : null;
     const cEnd   = c.end_date   ? new Date(c.end_date   + "T23:59:59") : null;
     if (from || to) {
-      if (!cStart && !cEnd) return false; // ciclo sem datas: excluir quando há filtro de período
-      if (from && cEnd   && cEnd   < from) return false;
-      if (to   && cStart && cStart > to)   return false;
+      if (!cStart && !cEnd) return false;
+      // só data_from: exclui ciclos que terminaram antes
+      if (from && !to && cEnd && cEnd < from) return false;
+      // só data_to: exclui ciclos que começaram depois
+      if (to && !from && cStart && cStart > to) return false;
+      // ambas as datas: sobreposição de períodos
+      if (from && to) {
+        if (cEnd   && cEnd   < from) return false;
+        if (cStart && cStart > to)   return false;
+      }
     }
     return true;
   }) || [];
@@ -275,10 +283,10 @@ function applyFilters(data, filters) {
   const total    = passed + failed + blocked + not_executed;
   const executed = total - not_executed;
 
-  // BUG 5 CORRIGIDO: bugs nunca eram filtrados por módulo — o objeto `bugs` do summary
-  // sempre vinha com totais globais. Quando module_id está ativo, recalcular a partir
-  // dos dados de bugs_per_module do módulo filtrado.
-  let filteredBugsSummary = bugs;
+  // Quando filtro é só de período (sem module_id), bugs e módulos NÃO são zerados —
+  // bugs existem independente de ciclo. Só recalculamos execuções pelos ciclos filtrados.
+  // Se não há ciclos no período, execuções ficam zeradas mas bugs/módulos continuam visíveis.
+  let filteredBugsSummary = bugs; // bugs sempre mostram o estado atual, independente de período
   if (module_id && filteredBpm?.length) {
     const bOpen       = filteredBpm.reduce((a, m) => a + (m.open_bugs  || 0), 0);
     const bFixed      = filteredBpm.reduce((a, m) => a + (m.fixed_bugs || 0), 0);
@@ -455,11 +463,11 @@ export default function Dashboard() {
             {cycles.map(c => <CycleCard key={c.id} cycle={c} />)}
           </div>
         </div>
-      ) : hasActiveFilters ? (
+      ) : (filters.date_from || filters.date_to) ? (
         <div style={{ background:"var(--surface)", border:"1px solid var(--border)",
-          borderRadius:10, padding:24, textAlign:"center",
-          color:"var(--text-muted)", marginBottom:20 }}>
-          Nenhum ciclo encontrado para o período selecionado.
+          borderRadius:10, padding:"14px 18px", marginBottom:20,
+          color:"var(--text-muted)", fontSize:13 }}>
+          Nenhum ciclo ativo encontrado para o período selecionado. Os dados de bugs e módulos abaixo refletem o estado atual do projeto.
         </div>
       ) : null}
 
