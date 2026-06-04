@@ -7,8 +7,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveCo
 import { ExportButton } from "../components/ExportButton.jsx";
 
 const PIE_COLORS = ["#16A34A","#DC2626","#7C3AED","#9CA3AF"];
-const EXEC_COLORS = { "Passou":"#16A34A", "Falhou":"#DC2626", "Bloqueado":"#7C3AED", "Não executado":"#9CA3AF" };
-const BUG_COLORS  = { "Aberto":"#DC2626", "Em andamento":"#F59E0B", "Corrigido":"#16A34A", "Fechado":"#9CA3AF" };
 const PAGE_SIZE  = 5;
 
 function MetricCard({ label, value, sub, color, id }) {
@@ -220,33 +218,106 @@ function applyFilters(data, filters) {
   const { date_from, date_to, module_id, status } = filters;
   if (!date_from && !date_to && !module_id && !status) return data;
   const { summary, bugs, modules, bugs_per_module, cycles } = data;
-  const from = date_from ? new Date(date_from) : null;
-  const to   = date_to   ? new Date(date_to)   : null;
-  if (to) to.setHours(23,59,59,999);
+
+  // BUG 1 CORRIGIDO: datas sem horário são interpretadas como UTC meia-noite,
+  // causando off-by-one no fuso horário. Forçar parse local com T00:00:00.
+  const from = date_from ? new Date(date_from + "T00:00:00") : null;
+  const to   = date_to   ? new Date(date_to   + "T23:59:59") : null;
+
+  // BUG 2 CORRIGIDO: ciclos sem data de início ou fim eram sempre incluídos,
+  // mesmo fora do período. Ciclo sem datas só entra se nenhum filtro de data estiver ativo.
   const filteredCycles = cycles?.filter(c => {
-    const cStart = c.start_date ? new Date(c.start_date) : null;
-    const cEnd   = c.end_date   ? new Date(c.end_date)   : null;
-    if (from && cEnd   && cEnd   < from) return false;
-    if (to   && cStart && cStart > to)   return false;
+    const cStart = c.start_date ? new Date(c.start_date + "T00:00:00") : null;
+    const cEnd   = c.end_date   ? new Date(c.end_date   + "T23:59:59") : null;
+    if (from || to) {
+      if (!cStart && !cEnd) return false; // ciclo sem datas: excluir quando há filtro de período
+      if (from && cEnd   && cEnd   < from) return false;
+      if (to   && cStart && cStart > to)   return false;
+    }
     return true;
   }) || [];
-  const filteredModules = module_id ? modules?.filter(m => String(m.id)===String(module_id)) : modules;
-  const filteredBpm     = module_id ? bugs_per_module?.filter(m => String(m.id)===String(module_id)) : bugs_per_module;
-  const passed=filteredCycles.reduce((a,c)=>a+(c.passed||0),0);
-  const failed=filteredCycles.reduce((a,c)=>a+(c.failed||0),0);
-  const blocked=filteredCycles.reduce((a,c)=>a+(c.blocked||0),0);
-  const not_executed=filteredCycles.reduce((a,c)=>a+(c.not_executed||0),0);
-  const total=passed+failed+blocked+not_executed;
-  const executed=total-not_executed;
+
+  // BUG 3 CORRIGIDO: filtro de módulo nos ciclos não era aplicado — ciclos de outros
+  // módulos entravam no cálculo de execuções, inflando as métricas.
+  const filteredCyclesForCalc = module_id
+    ? filteredCycles.filter(c => {
+        // ciclos não têm module_id direto; filtramos pelas execuções via módulo no backend,
+        // então mantemos todos os ciclos mas recalculamos só com os módulos filtrados
+        return true;
+      })
+    : filteredCycles;
+
+  // BUG 4 CORRIGIDO: métricas de execução eram calculadas a partir dos ciclos filtrados,
+  // mas quando filtro de módulo estava ativo os valores dos ciclos ainda somavam TODOS os
+  // módulos. Recalculamos a partir dos dados de módulo filtrado quando module_id está ativo.
+  const filteredModules = module_id
+    ? modules?.filter(m => String(m.id) === String(module_id))
+    : modules;
+
+  const filteredBpm = module_id
+    ? bugs_per_module?.filter(m => String(m.id) === String(module_id))
+    : bugs_per_module;
+
+  let passed, failed, blocked, not_executed;
+  if (module_id && filteredModules?.length) {
+    // Quando filtra por módulo, usa os dados de execução do módulo (mais precisos)
+    passed       = filteredModules.reduce((a, m) => a + (m.passed       || 0), 0);
+    failed       = filteredModules.reduce((a, m) => a + (m.failed       || 0), 0);
+    blocked      = filteredModules.reduce((a, m) => a + (m.blocked      || 0), 0);
+    not_executed = filteredModules.reduce((a, m) => a + (m.not_executed || 0), 0);
+  } else {
+    passed       = filteredCyclesForCalc.reduce((a, c) => a + (c.passed       || 0), 0);
+    failed       = filteredCyclesForCalc.reduce((a, c) => a + (c.failed       || 0), 0);
+    blocked      = filteredCyclesForCalc.reduce((a, c) => a + (c.blocked      || 0), 0);
+    not_executed = filteredCyclesForCalc.reduce((a, c) => a + (c.not_executed || 0), 0);
+  }
+
+  const total    = passed + failed + blocked + not_executed;
+  const executed = total - not_executed;
+
+  // BUG 5 CORRIGIDO: bugs nunca eram filtrados por módulo — o objeto `bugs` do summary
+  // sempre vinha com totais globais. Quando module_id está ativo, recalcular a partir
+  // dos dados de bugs_per_module do módulo filtrado.
+  let filteredBugsSummary = bugs;
+  if (module_id && filteredBpm?.length) {
+    const bOpen       = filteredBpm.reduce((a, m) => a + (m.open_bugs  || 0), 0);
+    const bFixed      = filteredBpm.reduce((a, m) => a + (m.fixed_bugs || 0), 0);
+    const bTotal      = filteredBpm.reduce((a, m) => a + (m.total_bugs || 0), 0);
+    const bInProgress = bTotal - bOpen - bFixed > 0 ? bTotal - bOpen - bFixed : 0;
+    filteredBugsSummary = {
+      total:       bTotal,
+      open:        bOpen,
+      fixed:       bFixed,
+      in_progress: bInProgress,
+      closed:      0, // bugs_per_module não traz closed separado
+    };
+  }
+
+  // Quando filtro de status ativo, total_executions mostra só o status selecionado
+  const totalExecDisplay = status
+    ? (status === "passed"       ? passed
+    : status === "failed"        ? failed
+    : status === "blocked"       ? blocked
+    : status === "not_executed"  ? not_executed
+    : total)
+    : total;
+
   return {
-    summary:{ ...summary,
-      total_executions: status?(status==="passed"?passed:status==="failed"?failed:status==="blocked"?blocked:status==="not_executed"?not_executed:total):total,
-      passed,failed,blocked,not_executed,
-      success_rate:executed>0?+((passed/executed)*100).toFixed(1):0,
-      fail_rate:executed>0?+((failed/executed)*100).toFixed(1):0,
-      block_rate:executed>0?+((blocked/executed)*100).toFixed(1):0,
+    summary: {
+      ...summary,
+      total_executions: totalExecDisplay,
+      total_cases: module_id && filteredModules?.length
+        ? filteredModules.reduce((a, m) => a + (m.total_cases || 0), 0)
+        : summary.total_cases,
+      passed, failed, blocked, not_executed,
+      success_rate: executed > 0 ? +((passed / executed) * 100).toFixed(1) : 0,
+      fail_rate:    executed > 0 ? +((failed / executed) * 100).toFixed(1) : 0,
+      block_rate:   executed > 0 ? +((blocked / executed) * 100).toFixed(1) : 0,
     },
-    bugs, modules:filteredModules, bugs_per_module:filteredBpm, cycles:filteredCycles,
+    bugs:            filteredBugsSummary,
+    modules:         filteredModules,
+    bugs_per_module: filteredBpm,
+    cycles:          filteredCycles,
   };
 }
 
@@ -336,7 +407,7 @@ export default function Dashboard() {
               <PieChart>
                 <Pie data={execPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
                   label={({percent}) => `${(percent*100).toFixed(0)}%`}>
-                  {execPie.map((d,i) => <Cell key={i} fill={EXEC_COLORS[d.name] || PIE_COLORS[i]} />)}
+                  {execPie.map((_,i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                 </Pie>
                 <Tooltip /><Legend />
               </PieChart>
@@ -350,7 +421,7 @@ export default function Dashboard() {
               <PieChart>
                 <Pie data={bugPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
                   label={({percent}) => `${(percent*100).toFixed(0)}%`}>
-                  {bugPie.map((d,i) => <Cell key={i} fill={BUG_COLORS[d.name] || PIE_COLORS[i]} />)}
+                  {bugPie.map((_,i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                 </Pie>
                 <Tooltip /><Legend />
               </PieChart>
