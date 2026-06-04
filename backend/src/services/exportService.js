@@ -15,7 +15,6 @@ async function getExportData({ project_id, user_id, user_role } = {}) {
       throw err;
     }
   }
-  const pid = project_id ? parseInt(project_id) : null;
   const pM  = pid ? `AND m.project_id = ${pid}` : "";
   const pC  = pid ? `AND c.project_id = ${pid}` : "";
   const pB  = pid ? `AND b.project_id = ${pid}` : "";
