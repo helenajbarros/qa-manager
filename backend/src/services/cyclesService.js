@@ -6,7 +6,9 @@ async function logActivity(cycle_id, user_id, action, detail) {
       "INSERT INTO cycle_activity (cycle_id, user_id, action, detail) VALUES ($1,$2,$3,$4)",
       [cycle_id, user_id || null, action, detail || null]
     );
-  } catch(_) {}
+  } catch(err) {
+    console.error("[cycle_activity] logActivity error:", err.message);
+  }
 }
 
 async function getActivity(cycle_id) {

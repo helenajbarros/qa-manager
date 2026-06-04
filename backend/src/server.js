@@ -25,6 +25,9 @@ process.env.QA_UPLOAD_DIR = UPLOAD_DIR;
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
+// Render usa proxy reverso — necessário para rate limiting funcionar corretamente
+app.set("trust proxy", 1);
+
 // ── Rate Limiting ─────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
