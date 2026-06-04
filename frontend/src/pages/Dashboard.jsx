@@ -435,16 +435,20 @@ export default function Dashboard() {
   const trendData = [...allCycles]
     .filter(c => c.total_executions > 0)
     .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
-    .slice(-10) // últimos 10 ciclos
-    .map(c => {
+    .slice(-10)
+    .map((c, i, arr) => {
       const exec = c.total_executions - (c.not_executed || 0);
       const successRate = exec > 0 ? +((c.passed / exec) * 100).toFixed(1) : 0;
       const failRate    = exec > 0 ? +((c.failed / exec) * 100).toFixed(1) : 0;
+      const date = c.start_date
+        ? new Date(c.start_date + "T12:00:00").toLocaleDateString("pt-BR", {day:"2-digit",month:"2-digit"})
+        : new Date(c.created_at).toLocaleDateString("pt-BR", {day:"2-digit",month:"2-digit"});
+      const label = `${i+1}º — ${c.name.length > 10 ? c.name.slice(0,10)+"…" : c.name} (${date})`;
       return {
-        name: c.name.length > 14 ? c.name.slice(0,14)+"…" : c.name,
+        name: label,
         Sucesso: successRate,
         Falha:   failRate,
-        Bugs:    0, // placeholder — não temos bugs por ciclo direto
+        _ordem: i + 1,
       };
     });
 
@@ -541,15 +545,19 @@ export default function Dashboard() {
           <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:8}}>
             Taxa de sucesso e falha nos últimos {trendData.length} ciclos executados
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={trendData} margin={{top:4,right:16,left:-16,bottom:0}}>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={trendData} margin={{top:16,right:24,left:-16,bottom:40}}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" tick={{fontSize:11}} />
+              <XAxis dataKey="name" tick={{fontSize:10}} angle={-20} textAnchor="end" interval={0} />
               <YAxis tick={{fontSize:11}} unit="%" domain={[0,100]} />
-              <Tooltip formatter={(v) => `${v}%`} />
-              <Legend />
-              <Line type="monotone" dataKey="Sucesso" stroke="#16A34A" strokeWidth={2} dot={{r:4}} activeDot={{r:6}} />
-              <Line type="monotone" dataKey="Falha"   stroke="#DC2626" strokeWidth={2} dot={{r:4}} activeDot={{r:6}} />
+              <Tooltip formatter={(v, name) => [`${v}%`, name]} labelFormatter={(l) => `Ciclo: ${l}`} />
+              <Legend verticalAlign="top" />
+              <Line type="monotone" dataKey="Sucesso" stroke="#16A34A" strokeWidth={2}
+                dot={{r:5,fill:"#16A34A"}} activeDot={{r:7}}
+                label={{position:"top",fontSize:10,fill:"#16A34A",formatter:(v)=>`${v}%`}} />
+              <Line type="monotone" dataKey="Falha" stroke="#DC2626" strokeWidth={2}
+                dot={{r:5,fill:"#DC2626"}} activeDot={{r:7}}
+                label={{position:"bottom",fontSize:10,fill:"#DC2626",formatter:(v)=>`${v}%`}} />
             </LineChart>
           </ResponsiveContainer>
         </div>
