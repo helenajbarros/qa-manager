@@ -68,8 +68,9 @@ const ROLE_OPTS_ADMIN = [
   { value:"editor",  label:"Editor — pode criar e editar" },
   { value:"viewer",  label:"Visualizador — somente leitura" },
 ];
-// Perfis que Gerente pode criar (não pode criar Admin nem outro Gerente)
+// Perfis que Gerente pode criar (não pode criar Admin)
 const ROLE_OPTS_MANAGER = [
+  { value:"manager", label:"Gerente — tudo exceto backup" },
   { value:"editor",  label:"Editor — pode criar e editar" },
   { value:"viewer",  label:"Visualizador — somente leitura" },
 ];
@@ -245,9 +246,9 @@ export default function Users() {
     try {
       const data = { ...form };
       if (modal.mode === "edit" && !data.password) delete data.password;
-      // Gerente não pode criar/promover para Admin nem para Gerente
-      if (!isAdmin && (data.role === "admin" || data.role === "manager")) {
-        setErr("Gerentes só podem criar Editores ou Visualizadores.");
+      // Gerente não pode criar/promover para Admin
+      if (!isAdmin && data.role === "admin") {
+        setErr("Gerentes não podem criar usuários Admin.");
         setSaving(false); return;
       }
       // Gerente não pode editar usuário Admin nem usuário que não criou
