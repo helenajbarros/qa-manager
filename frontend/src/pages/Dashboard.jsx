@@ -34,9 +34,19 @@ function StackBar({ passed=0, failed=0, blocked=0, not_executed=0 }) {
   );
 }
 
-function CycleCard({ cycle }) {
-  const exec    = cycle.total_executions || 0;
-  const pct     = exec > 0 ? Math.round((cycle.passed/exec)*100) : 0;
+function CycleCard({ cycle, activeStatus }) {
+  // Quando filtro de status ativo, mostra só o valor do status selecionado
+  const displayCycle = activeStatus ? {
+    ...cycle,
+    passed:       activeStatus === "passed"       ? (cycle.passed       || 0) : 0,
+    failed:       activeStatus === "failed"        ? (cycle.failed       || 0) : 0,
+    blocked:      activeStatus === "blocked"       ? (cycle.blocked      || 0) : 0,
+    not_executed: activeStatus === "not_executed"  ? (cycle.not_executed || 0) : 0,
+  } : cycle;
+  const exec = activeStatus
+    ? (displayCycle.passed + displayCycle.failed + displayCycle.blocked + displayCycle.not_executed)
+    : (cycle.total_executions || 0);
+  const pct  = exec > 0 ? Math.round((displayCycle.passed / exec) * 100) : 0;
   const types   = cycle.test_types ? cycle.test_types.split(",").filter(Boolean) : [];
   const fmtDate = d => d ? new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : null;
   const startD  = fmtDate(cycle.start_date);
@@ -72,13 +82,13 @@ function CycleCard({ cycle }) {
           ))}
         </div>
       )}
-      <StackBar passed={cycle.passed} failed={cycle.failed} blocked={cycle.blocked} not_executed={cycle.not_executed} />
+      <StackBar passed={displayCycle.passed} failed={displayCycle.failed} blocked={displayCycle.blocked} not_executed={displayCycle.not_executed} />
       <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:12 }}>
         <div style={{ display:"flex", gap:12 }}>
-          <span style={{ color:"#16A34A" }}>✓ {cycle.passed||0}</span>
-          <span style={{ color:"#DC2626" }}>✗ {cycle.failed||0}</span>
-          <span style={{ color:"#7C3AED" }}>⊘ {cycle.blocked||0}</span>
-          <span style={{ color:"var(--text-muted)" }}>— {cycle.not_executed||0}</span>
+          <span style={{ color:"#16A34A" }}>✓ {displayCycle.passed||0}</span>
+          <span style={{ color:"#DC2626" }}>✗ {displayCycle.failed||0}</span>
+          <span style={{ color:"#7C3AED" }}>⊘ {displayCycle.blocked||0}</span>
+          <span style={{ color:"var(--text-muted)" }}>— {displayCycle.not_executed||0}</span>
         </div>
         <span style={{ fontWeight:600, color: pct>=70?"#16A34A":pct>=40?"#D97706":"#DC2626" }}>
           {pct}%
@@ -403,13 +413,22 @@ export default function Dashboard() {
   ].filter(d => d.value > 0);
 
   // modBarData respeita filtro de status: mostra só a coluna do status ativo
-  const modBarData = modules?.filter(m => m.total_executions > 0).slice(0,8).map(m => {
-    if (activeStatus === "passed")       return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Passou: m.passed };
-    if (activeStatus === "failed")       return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Falhou: m.failed };
-    if (activeStatus === "blocked")      return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Bloq: m.blocked };
-    if (activeStatus === "not_executed") return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, "Não exec": m.not_executed };
-    return { name: m.name.length>12 ? m.name.slice(0,12)+"…" : m.name, Passou: m.passed, Falhou: m.failed, Bloq: m.blocked };
-  }) || [];
+  // e exclui módulos com valor zero no status selecionado
+  const modBarData = (modules || []).filter(m => {
+    if (!activeStatus) return m.total_executions > 0;
+    if (activeStatus === "passed")       return (m.passed       || 0) > 0;
+    if (activeStatus === "failed")       return (m.failed       || 0) > 0;
+    if (activeStatus === "blocked")      return (m.blocked      || 0) > 0;
+    if (activeStatus === "not_executed") return (m.not_executed || 0) > 0;
+    return m.total_executions > 0;
+  }).slice(0,8).map(m => {
+    const n = m.name.length > 12 ? m.name.slice(0,12)+"…" : m.name;
+    if (activeStatus === "passed")       return { name: n, Passou: m.passed       || 0 };
+    if (activeStatus === "failed")       return { name: n, Falhou: m.failed       || 0 };
+    if (activeStatus === "blocked")      return { name: n, Bloq:   m.blocked      || 0 };
+    if (activeStatus === "not_executed") return { name: n, "Não exec": m.not_executed || 0 };
+    return { name: n, Passou: m.passed || 0, Falhou: m.failed || 0, Bloq: m.blocked || 0 };
+  });
 
   return (
     <div className="page" id="dashboard-page">
@@ -504,7 +523,7 @@ export default function Dashboard() {
             Ciclos de Teste ({cycles.length})
           </h2>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:12 }}>
-            {cycles.map(c => <CycleCard key={c.id} cycle={c} />)}
+            {cycles.map(c => <CycleCard key={c.id} cycle={c} activeStatus={activeStatus} />)}
           </div>
         </div>
       ) : (filters.date_from || filters.date_to) ? (
