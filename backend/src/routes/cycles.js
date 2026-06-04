@@ -15,4 +15,7 @@ router.delete("/:id/executions/:execId",                  c.removeExecution);
 router.post("/:id/executions/:execId/evidence",           ...c.uploadEvidence);
 router.delete("/:id/executions/:execId/evidence/:fileId", c.deleteEvidence);
 
+// Histórico de atividades do ciclo
+router.get("/:id/activity", c.listActivity);
+
 module.exports = router;
