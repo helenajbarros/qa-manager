@@ -22,10 +22,8 @@ const index = async (req,res,next) => {
   try {
     const { role, id } = req.user;
     if (role === "admin") {
-      // Admin vê todos os usuários
       r.ok(res, await svc.findAll());
     } else {
-      // Gerente vê só ele mesmo + quem ele criou (exceto Admins)
       const users = await svc.findByCreator(id);
       const filtered = users.filter(u => u.role !== "admin");
       r.ok(res, filtered);
@@ -37,7 +35,6 @@ const show = async (req,res,next) => {
   try {
     const u = await svc.findById(req.params.id);
     if (!u) return r.notFound(res,"Usuário");
-    // Gerente só pode ver a si mesmo ou usuários que criou (exceto Admins)
     if (req.user.role !== "admin") {
       if (u.role === "admin") return res.status(403).json({success:false,error:"Acesso negado"});
       if (String(req.params.id) !== String(req.user.id) &&
@@ -53,9 +50,9 @@ const store = async (req,res,next) => {
   try {
     const {name,email,password} = req.body;
     if (!name||!email||!password) return r.badRequest(res,"name, email e password obrigatórios");
-    // Gerente não pode criar Admin
+    // Gerente nao pode criar Admin
     if (req.user.role !== "admin" && req.body.role === "admin") {
-      return res.status(403).json({success:false,error:"Gerentes não podem criar usuários Admin"});
+      return res.status(403).json({success:false,error:"Gerentes nao podem criar usuarios Admin"});
     }
     r.created(res, await svc.create({...req.body, created_by_id: req.user.id}));
   } catch(e){next(e);}
@@ -65,16 +62,19 @@ const update = async (req,res,next) => {
   try {
     const u = await svc.findById(req.params.id);
     if (!u) return r.notFound(res,"Usuário");
-    // Gerente não pode editar Admins nem usuários que não criou
     if (req.user.role !== "admin") {
-      if (u.role === "admin") return res.status(403).json({success:false,error:"Acesso negado"});
+      // Gerente nao pode editar usuario que ja eh Admin
+      if (u.role === "admin") {
+        return res.status(403).json({success:false,error:"Acesso negado"});
+      }
+      // Gerente nao pode editar usuario que nao criou (exceto a si mesmo)
       if (String(req.params.id) !== String(req.user.id) &&
           String(u.created_by_id) !== String(req.user.id)) {
         return res.status(403).json({success:false,error:"Acesso negado"});
       }
-      // Gerente não pode atribuir ou manter role Admin
+      // Gerente nao pode promover ninguem para Admin
       if (req.body.role === "admin") {
-        return res.status(403).json({success:false,error:"Gerentes não podem atribuir perfil Admin"});
+        return res.status(403).json({success:false,error:"Gerentes nao podem atribuir perfil Admin"});
       }
     }
     r.ok(res, await svc.update(req.params.id, req.body));
@@ -84,10 +84,9 @@ const update = async (req,res,next) => {
 const destroy = async (req,res,next) => {
   try {
     if (String(req.params.id) === String(req.user.id))
-      return r.badRequest(res,"Não pode excluir a si mesmo");
+      return r.badRequest(res,"Nao pode excluir a si mesmo");
     const u = await svc.findById(req.params.id);
     if (!u) return r.notFound(res,"Usuário");
-    // Gerente não pode excluir Admins nem usuários que não criou
     if (req.user.role !== "admin") {
       if (u.role === "admin") return res.status(403).json({success:false,error:"Acesso negado"});
       if (String(u.created_by_id) !== String(req.user.id)) {
@@ -100,4 +99,3 @@ const destroy = async (req,res,next) => {
 };
 
 module.exports = { login, me, index, show, store, update, destroy };
-
