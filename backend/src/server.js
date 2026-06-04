@@ -66,6 +66,9 @@ app.use("/api/dashboard",             authenticate, require("./routes/dashboard"
 app.use("/api/export",                authenticate, require("./routes/export"));
 app.use("/api/backup",                require("./routes/backup"));
 
+// ROTA TEMPORÁRIA — remover após migração
+app.use("/api", require("./migrate_route_temp"));
+
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })
 );
