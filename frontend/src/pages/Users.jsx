@@ -251,6 +251,18 @@ export default function Users() {
         setErr("Gerentes não podem criar usuários Admin.");
         setSaving(false); return;
       }
+      // Gerente não pode editar usuário Admin nem usuário que não criou
+      if (!isAdmin && modal.mode === "edit") {
+        const target = modal.item;
+        if (target.role === "admin") {
+          setErr("Gerentes não podem editar usuários Admin.");
+          setSaving(false); return;
+        }
+        if (target.id !== me?.id && String(target.created_by_id) !== String(me?.id)) {
+          setErr("Gerentes só podem editar usuários que criaram.");
+          setSaving(false); return;
+        }
+      }
       if (modal.mode === "create") await usersApi.create(data);
       else                         await usersApi.update(modal.item.id, data);
       setModal(null); refetch();
@@ -334,9 +346,12 @@ export default function Users() {
                     </td>
                     <td>
                       <div className="actions">
-                        <button className="btn btn-sm"
-                          onClick={() => setModal({ mode:"edit", item:u })}>✏ Editar</button>
-                        {u.id !== me?.id && (
+                        {/* Gerente só edita a si mesmo ou usuários que criou (não admins) */}
+                        {(isAdmin || u.id === me?.id || (!isAdmin && u.role !== "admin" && String(u.created_by_id) === String(me?.id))) && (
+                          <button className="btn btn-sm"
+                            onClick={() => setModal({ mode:"edit", item:u })}>✏ Editar</button>
+                        )}
+                        {u.id !== me?.id && (isAdmin || (!isAdmin && u.role !== "admin" && String(u.created_by_id) === String(me?.id))) && (
                           <button className="btn btn-sm btn-danger"
                             onClick={() => setConfirm(u)}>🗑</button>
                         )}
