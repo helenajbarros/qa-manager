@@ -155,6 +155,21 @@ function FiltersBar({ filters, onChange, modules }) {
   function set(key, val) { onChange({ ...filters, [key]: val }); }
   const hasFilters = filters.date_from || filters.date_to || filters.module_id || filters.status;
 
+  // Valida período invertido: início depois do fim
+  const dateError = filters.date_from && filters.date_to && filters.date_from > filters.date_to
+    ? "A data de início não pode ser maior que a data fim."
+    : null;
+
+  function setDate(key, val) {
+    const next = { ...filters, [key]: val };
+    // Se período ficou invertido, limpa a outra data automaticamente
+    if (next.date_from && next.date_to && next.date_from > next.date_to) {
+      if (key === "date_from") next.date_to = "";
+      else next.date_from = "";
+    }
+    onChange(next);
+  }
+
   return (
     <div id="dashboard-filters" style={{
       background:"var(--surface)", border:"1px solid var(--border)",
@@ -169,17 +184,24 @@ function FiltersBar({ filters, onChange, modules }) {
           </div>
           <div>
             <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DATA INÍCIO (de)</div>
-            <input type="date" value={filters.date_from||""} onChange={e=>set("date_from",e.target.value)}
+            <input type="date" value={filters.date_from||""} onChange={e=>setDate("date_from",e.target.value)}
+              max={filters.date_to||undefined}
               style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
                 fontSize:13, background:"var(--surface)" }} />
           </div>
           <div style={{ alignSelf:"flex-end", color:"var(--text-muted)", fontSize:13, paddingBottom:8 }}>até</div>
           <div>
             <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DATA FIM (até)</div>
-            <input type="date" value={filters.date_to||""} onChange={e=>set("date_to",e.target.value)}
+            <input type="date" value={filters.date_to||""} onChange={e=>setDate("date_to",e.target.value)}
+              min={filters.date_from||undefined}
               style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
                 fontSize:13, background:"var(--surface)" }} />
           </div>
+          {dateError && (
+            <div style={{ width:"100%", fontSize:11, color:"var(--danger)", marginTop:4 }}>
+              ⚠ {dateError}
+            </div>
+          )}
         </div>
         <div style={{ flex:"1 1 160px" }}>
           <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>MÓDULO</div>
