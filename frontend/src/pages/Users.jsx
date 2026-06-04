@@ -80,11 +80,16 @@ const NO_PROJECT_ROLES = ["admin"];
 
 function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsAdmin, projects=[] }) {
   const roleOpts = currentUserIsAdmin ? ROLE_OPTS_ADMIN : ROLE_OPTS_MANAGER;
+  // Se o gerente estiver editando um usuário com perfil fora das suas opções (ex: admin),
+  // força o valor inicial para "editor" para evitar envio silencioso de role inválido
+  const allowedValues = roleOpts.map(o => o.value);
+  const roleWasDowngraded = !currentUserIsAdmin && !allowedValues.includes(initial.role);
+  const safeRole = allowedValues.includes(initial.role) ? initial.role : (allowedValues[0] || "editor");
   const [form, setForm] = useState({
     name:               initial.name               || "",
     email:              initial.email              || "",
     password:           "",
-    role:               initial.role               || "viewer",
+    role:               safeRole,
     active:             initial.active !== undefined ? initial.active : 1,
     default_project_id: initial.default_project_id || "",
   });
@@ -104,6 +109,12 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsA
       </Field>
       <div className="form-row">
         <Field label="Perfil de acesso">
+          {roleWasDowngraded && (
+            <div style={{ fontSize:12, color:"var(--danger)", background:"#FEE2E2",
+              borderRadius:6, padding:"6px 10px", marginBottom:8 }}>
+              ⚠ Este usuário tem perfil Admin — você não pode editar o perfil dele.
+            </div>
+          )}
           <Select value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} options={roleOpts} />
         </Field>
         {isEdit && (
