@@ -173,7 +173,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
   .header p{opacity:.8;font-size:14px;}
   .filter-badge{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 16px;margin:0 40px 0;font-size:13px;color:#1E40AF;}
   .container{max-width:1200px;margin:0 auto;padding:32px 24px;}
-  h2{font-size:20px;color:#1E3A5F;margin:32px 0 16px;border-bottom:3px solid #2563EB;padding-bottom:8px;}
+  h2{font-size:20px;color:#1E3A5F;margin:32px 0 16px;border-bottom:3px solid #2563EB;padding-bottom:8px;break-after:avoid;page-break-after:avoid;}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:32px;}
   .card{background:white;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
   .card .val{font-size:32px;font-weight:700;margin:8px 0;}
@@ -221,7 +221,8 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
     .pie-wrap{display:flex!important;align-items:center!important;}
     svg{display:block!important;visibility:visible!important;overflow:visible!important;}
     svg path,svg circle{display:block!important;visibility:visible!important;fill-opacity:1!important;}
-    h2{break-before:auto;}
+    h2{break-before:auto;break-after:avoid;page-break-after:avoid;}
+    h2 + table, h2 + div{break-before:avoid;page-break-before:avoid;}
     table{break-inside:avoid;}
   }
 </style>
@@ -251,10 +252,10 @@ ${u?`<div class="filter-badge">🔍 ${u}</div>`:""}
   </div>
 
 
-  <h2>Bugs</h2>
-  ${b(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],a.bugs.map(A=>[A.id,A.title,A.module||"—",`<span class="badge badge-${A.severity}">${YP[A.severity]||A.severity}</span>`,`<span class="badge badge-${A.status}">${ey[A.status]||A.status}</span>`,A.created_by||"—",A.tracker_url?`<a href="${A.tracker_url}" target="_blank">Ver</a>`:"—"]))}
-  <h2>Métricas por Módulo</h2>
-  ${b(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],a.modules.map(A=>{const k=(A.total_executions||0)-(A.not_executed||0),P=k>0?(A.passed/k*100).toFixed(1)+"%":"—";return[A.module||A.name,A.total_cases||0,A.total_executions||0,`<span class="green">${A.passed||0}</span>`,`<span class="red">${A.failed||0}</span>`,A.blocked||0,A.total_bugs||0,P]}))}
+  ${a.bugs.length>0?`<h2>Bugs</h2>
+  ${b(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],a.bugs.map(A=>[A.id,A.title,A.module||"—",'<span class="badge badge-'+A.severity+'">'+(YP[A.severity]||A.severity)+"</span>",'<span class="badge badge-'+A.status+'">'+(ey[A.status]||A.status)+"</span>",A.created_by||"—",A.tracker_url?'<a href="'+A.tracker_url+'" target="_blank">Ver</a>':"—"]))}`:""}
+  ${a.modules.length>0?`<h2>Métricas por Módulo</h2>
+  ${b(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],a.modules.map(A=>{const k=(A.total_executions||0)-(A.not_executed||0),P=k>0?(A.passed/k*100).toFixed(1)+"%":"—";return[A.module||A.name,A.total_cases||0,A.total_executions||0,'<span class="green">'+(A.passed||0)+"</span>",'<span class="red">'+(A.failed||0)+"</span>",A.blocked||0,A.total_bugs||0,P]}))}`:""}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
   <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">

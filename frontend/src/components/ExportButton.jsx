@@ -342,7 +342,7 @@ async function exportHTML(projectName, projectId, filters) {
   .header p{opacity:.8;font-size:14px;}
   .filter-badge{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 16px;margin:0 40px 0;font-size:13px;color:#1E40AF;}
   .container{max-width:1200px;margin:0 auto;padding:32px 24px;}
-  h2{font-size:20px;color:#1E3A5F;margin:32px 0 16px;border-bottom:3px solid #2563EB;padding-bottom:8px;}
+  h2{font-size:20px;color:#1E3A5F;margin:32px 0 16px;border-bottom:3px solid #2563EB;padding-bottom:8px;break-after:avoid;page-break-after:avoid;}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:32px;}
   .card{background:white;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
   .card .val{font-size:32px;font-weight:700;margin:8px 0;}
@@ -390,7 +390,8 @@ async function exportHTML(projectName, projectId, filters) {
     .pie-wrap{display:flex!important;align-items:center!important;}
     svg{display:block!important;visibility:visible!important;overflow:visible!important;}
     svg path,svg circle{display:block!important;visibility:visible!important;fill-opacity:1!important;}
-    h2{break-before:auto;}
+    h2{break-before:auto;break-after:avoid;page-break-after:avoid;}
+    h2 + table, h2 + div{break-before:avoid;page-break-before:avoid;}
     table{break-inside:avoid;}
   }
 </style>
@@ -420,12 +421,12 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   </div>
 
 
-  <h2>Bugs</h2>
+  ${data.bugs.length > 0 ? `<h2>Bugs</h2>
   ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
-    data.bugs.map(b=>[b.id,b.title,b.module||"—",`<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,`<span class="badge badge-${b.status}">${SL[b.status]||b.status}</span>`,b.created_by||"—",b.tracker_url?`<a href="${b.tracker_url}" target="_blank">Ver</a>`:"—"]))}
-  <h2>Métricas por Módulo</h2>
+    data.bugs.map(b=>[b.id,b.title,b.module||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}
+  ${data.modules.length > 0 ? `<h2>Métricas por Módulo</h2>
   ${table(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],
-    data.modules.map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";return[m.module||m.name,m.total_cases||0,m.total_executions||0,`<span class="green">${m.passed||0}</span>`,`<span class="red">${m.failed||0}</span>`,m.blocked||0,m.total_bugs||0,pct];}))}
+    data.modules.map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";return[m.module||m.name,m.total_cases||0,m.total_executions||0,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : ""}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
   <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
