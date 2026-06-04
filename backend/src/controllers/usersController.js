@@ -53,9 +53,9 @@ const store = async (req,res,next) => {
   try {
     const {name,email,password} = req.body;
     if (!name||!email||!password) return r.badRequest(res,"name, email e password obrigatórios");
-    // Gerente não pode criar Admin
-    if (req.user.role !== "admin" && req.body.role === "admin") {
-      return res.status(403).json({success:false,error:"Gerentes não podem criar usuários Admin"});
+    // Gerente não pode criar Admin nem outro Gerente
+    if (req.user.role !== "admin" && ["admin","manager"].includes(req.body.role)) {
+      return res.status(403).json({success:false,error:"Gerentes só podem criar Editores ou Visualizadores"});
     }
     r.created(res, await svc.create({...req.body, created_by_id: req.user.id}));
   } catch(e){next(e);}
@@ -72,9 +72,9 @@ const update = async (req,res,next) => {
           String(u.created_by_id) !== String(req.user.id)) {
         return res.status(403).json({success:false,error:"Acesso negado"});
       }
-      // Gerente não pode promover para Admin
-      if (req.body.role === "admin") {
-        return res.status(403).json({success:false,error:"Gerentes não podem promover para Admin"});
+      // Gerente não pode promover para Admin nem para Gerente
+      if (["admin","manager"].includes(req.body.role)) {
+        return res.status(403).json({success:false,error:"Gerentes só podem atribuir Editor ou Visualizador"});
       }
     }
     r.ok(res, await svc.update(req.params.id, req.body));
