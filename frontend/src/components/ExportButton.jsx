@@ -273,7 +273,7 @@ async function exportHTML(projectName, projectId, filters) {
 <title>Relatório QA — ${projectName||"Projeto"}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .header{background:linear-gradient(135deg,#1E3A5F,#2563EB);color:white;padding:32px 40px;}
   .header h1{font-size:28px;margin-bottom:6px;}
   .header p{opacity:.8;font-size:14px;}
@@ -306,14 +306,30 @@ async function exportHTML(projectName, projectId, filters) {
   tr.even td{background:#F8FAFC;}
   tbody tr:hover td{background:#EFF6FF;}
   .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
-  .badge-passed,.badge-fixed,.badge-completed{background:#D1FAE5;color:#065F46;}
-  .badge-failed,.badge-open{background:#FEE2E2;color:#991B1B;}
+  .badge-passed,.badge-completed{background:#D1FAE5;color:#065F46;}
+  .badge-fixed{background:#D1FAE5;color:#065F46;}
+  .badge-failed{background:#FEE2E2;color:#991B1B;}
+  .badge-open{background:#FEE2E2;color:#991B1B;}
   .badge-blocked,.badge-critical{background:#EDE9FE;color:#5B21B6;}
   .badge-not_executed,.badge-closed,.badge-archived{background:#F3F4F6;color:#374151;}
   .badge-in_progress,.badge-active{background:#FEF3C7;color:#92400E;}
+  .badge-medium{background:#FEF3C7;color:#92400E;}
+  .badge-high{background:#FEE2E2;color:#991B1B;}
+  .badge-low{background:#F3F4F6;color:#374151;}
   .footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px;}
   .no-print{}
-  @media print{.no-print{display:none!important}body{background:white}.card,.chart-box{box-shadow:none;border:1px solid #E2E8F0}}
+  @media print{
+    .no-print{display:none!important}
+    body{background:white}
+    .card,.chart-box{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid;}
+    .charts{display:flex!important;flex-wrap:wrap!important;}
+    .chart-box{page-break-inside:avoid;}
+    svg{display:block!important;visibility:visible!important;}
+    svg path{display:block!important;}
+    .pie-wrap{display:flex!important;}
+    h2{break-before:auto;}
+    table{break-inside:avoid;}
+  }
 </style>
 </head>
 <body>
