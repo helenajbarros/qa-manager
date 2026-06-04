@@ -88,7 +88,8 @@ function CycleForm({ initial={}, onSave, onCancel, saving }) {
 }
 
 function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
-  const { data: allCases, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId}:{}), [projectId]);
+  const { data: allCasesRaw, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId}:{}), [projectId]);
+  const allCases = allCasesRaw?.data ?? allCasesRaw;
   const [selected, setSelected] = useState([]);
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState("");
@@ -497,7 +498,9 @@ export default function Cycles() {
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
 
-  const { data: cycles, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: cyclesRaw, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
+  // Suporta resposta paginada { data } e lista simples
+  const cycles = cyclesRaw?.data ?? cyclesRaw;
   const [modal,   setModal]   = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [detail,  setDetail]  = useState(null);
