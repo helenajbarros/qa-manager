@@ -5,6 +5,7 @@ function cast(col) {
 }
 
 async function getDashboard({ project_id } = {}) {
+  const num = v => parseInt(v || 0);
   const pid    = project_id ? parseInt(project_id) : null;
   const pWhere  = pid ? `AND c.project_id = ${pid}` : "";
   const pWhereM = pid ? `AND m.project_id = ${pid}` : "";
@@ -70,8 +71,8 @@ async function getDashboard({ project_id } = {}) {
       SUM(CASE WHEN b.status='closed'      THEN 1 ELSE 0 END) AS closed
     FROM test_executions e
     JOIN test_cycles c ON c.id = e.cycle_id
-    LEFT JOIN bugs b ON b.id = e.bug_id
-    WHERE b.id IS NOT NULL ${pWhere}
+    INNER JOIN bugs b ON b.id = e.bug_id
+    WHERE 1=1 ${pWhere}
     GROUP BY e.cycle_id
   `);
   const bugsByCycle = {};
@@ -94,7 +95,6 @@ async function getDashboard({ project_id } = {}) {
     WHERE 1=1 ${pWhere} GROUP BY c.id ORDER BY c.created_at DESC
   `);
 
-  const num = v => parseInt(v || 0);
   const total    = num(exec.total);
   const passed   = num(exec.passed);
   const failed   = num(exec.failed);
