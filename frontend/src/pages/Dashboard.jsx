@@ -165,7 +165,7 @@ function ExpandableTable({ title, id, headers, rows, renderRow, totalCount }) {
 // ── Filtros ───────────────────────────────────────────────────
 function FiltersBar({ filters, onChange, modules, cycles = [] }) {
   function set(key, val) { onChange({ ...filters, [key]: val }); }
-  const hasFilters = filters.date_from || filters.date_to || filters.module_id || filters.status || filters.cycle_id;
+  const hasFilters = filters.date_from || filters.date_to || filters.module_id || filters.status || filters.cycle_id || filters.period;
 
   // Valida período invertido: início depois do fim
   const dateError = filters.date_from && filters.date_to && filters.date_from > filters.date_to
@@ -173,8 +173,7 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
     : null;
 
   function setDate(key, val) {
-    const next = { ...filters, [key]: val };
-    // Se período ficou invertido, limpa a outra data automaticamente
+    const next = { ...filters, [key]: val, period: "custom" };
     if (next.date_from && next.date_to && next.date_from > next.date_to) {
       if (key === "date_from") next.date_to = "";
       else next.date_from = "";
@@ -182,20 +181,55 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
     onChange(next);
   }
 
+  // Atalhos de período
+  function setPeriod(period) {
+    const today = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    let from = "", to = fmt(today);
+    if (period === "week") {
+      const d = new Date(today); d.setDate(today.getDate() - 7);
+      from = fmt(d);
+    } else if (period === "month") {
+      from = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+    } else if (period === "lastmonth") {
+      from = fmt(new Date(today.getFullYear(), today.getMonth()-1, 1));
+      to   = fmt(new Date(today.getFullYear(), today.getMonth(), 0));
+    } else if (period === "3months") {
+      const d = new Date(today); d.setMonth(today.getMonth()-3);
+      from = fmt(d);
+    } else if (period === "year") {
+      from = fmt(new Date(today.getFullYear(), 0, 1));
+    } else if (period === "custom") {
+      onChange({ ...filters, period: "custom" });
+      return;
+    }
+    onChange({ ...filters, period, date_from: from, date_to: to, cycle_id: "" });
+  }
+
   // Ao selecionar um ciclo, preenche automaticamente as datas de início e fim
   function setCycle(cycleId) {
     if (!cycleId) {
-      onChange({ ...filters, cycle_id: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: "", date_from: "", date_to: "", period: "" });
       return;
     }
     const cycle = cycles.find(c => String(c.id) === String(cycleId));
     onChange({
       ...filters,
       cycle_id:  cycleId,
+      period:    "custom",
       date_from: cycle?.start_date ? cycle.start_date.slice(0,10) : filters.date_from,
       date_to:   cycle?.end_date   ? cycle.end_date.slice(0,10)   : filters.date_to,
     });
   }
+
+  const PERIODS = [
+    { value:"week",      label:"Esta semana" },
+    { value:"month",     label:"Este mês" },
+    { value:"lastmonth", label:"Mês anterior" },
+    { value:"3months",   label:"Últimos 3 meses" },
+    { value:"year",      label:"Este ano" },
+    { value:"custom",    label:"Personalizado" },
+  ];
 
   return (
     <div id="dashboard-filters" style={{
@@ -206,24 +240,42 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
         <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end",
           background:"var(--bg)", border:"1px solid var(--border)", borderRadius:8,
           padding:"10px 14px", flex:"1 1 340px" }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"var(--accent)", width:"100%", marginBottom:2 }}>
-            📅 PERÍODO DO CICLO
+          <div style={{ fontSize:11, fontWeight:700, color:"var(--accent)", width:"100%", marginBottom:4 }}>
+            📅 PERÍODO
           </div>
-          <div>
-            <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DATA INÍCIO (de)</div>
-            <input type="date" value={filters.date_from||""} onChange={e=>setDate("date_from",e.target.value)}
-              max={filters.date_to||undefined}
-              style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
-                fontSize:13, background:"var(--surface)" }} />
+          {/* Atalhos de período */}
+          <div style={{ display:"flex", flexWrap:"wrap", gap:4, width:"100%", marginBottom:4 }}>
+            {PERIODS.map(p => (
+              <button key={p.value} onClick={() => setPeriod(p.value)}
+                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, cursor:"pointer",
+                  border:"1px solid var(--border)",
+                  background: filters.period === p.value ? "var(--accent)" : "var(--surface)",
+                  color: filters.period === p.value ? "#fff" : "var(--text-muted)",
+                  fontWeight: filters.period === p.value ? 600 : 400 }}>
+                {p.label}
+              </button>
+            ))}
           </div>
-          <div style={{ alignSelf:"flex-end", color:"var(--text-muted)", fontSize:13, paddingBottom:8 }}>até</div>
-          <div>
-            <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DATA FIM (até)</div>
-            <input type="date" value={filters.date_to||""} onChange={e=>setDate("date_to",e.target.value)}
-              min={filters.date_from||undefined}
-              style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
-                fontSize:13, background:"var(--surface)" }} />
-          </div>
+          {/* Campos de data — só mostra quando Personalizado ou ciclo selecionado */}
+          {(filters.period === "custom" || filters.cycle_id) && (
+            <div style={{ display:"flex", gap:8, alignItems:"flex-end", flexWrap:"wrap" }}>
+              <div>
+                <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>DE</div>
+                <input type="date" value={filters.date_from||""} onChange={e=>setDate("date_from",e.target.value)}
+                  max={filters.date_to||undefined}
+                  style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+                    fontSize:13, background:"var(--surface)" }} />
+              </div>
+              <div style={{ alignSelf:"flex-end", color:"var(--text-muted)", fontSize:13, paddingBottom:8 }}>até</div>
+              <div>
+                <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>ATÉ</div>
+                <input type="date" value={filters.date_to||""} onChange={e=>setDate("date_to",e.target.value)}
+                  min={filters.date_from||undefined}
+                  style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+                    fontSize:13, background:"var(--surface)" }} />
+              </div>
+            </div>
+          )}
           {dateError && (
             <div style={{ width:"100%", fontSize:11, color:"var(--danger)", marginTop:4 }}>
               ⚠ {dateError}
@@ -346,11 +398,12 @@ function applyFilters(data, filters) {
   const total    = passed + failed + blocked + not_executed;
   const executed = total - not_executed;
 
-  // Quando filtro é só de período (sem module_id), bugs e módulos NÃO são zerados —
-  // bugs existem independente de ciclo. Só recalculamos execuções pelos ciclos filtrados.
-  // Se não há ciclos no período, execuções ficam zeradas mas bugs/módulos continuam visíveis.
-  let filteredBugsSummary = bugs; // bugs sempre mostram o estado atual, independente de período
-  if (module_id && filteredBpm?.length) {
+  // Quando ciclo específico selecionado, usa os bugs vinculados a esse ciclo
+  // Quando filtro é só de período ou sem filtro, usa bugs globais do projeto
+  let filteredBugsSummary = bugs;
+  if (cycle_id && filteredCycles.length === 1 && filteredCycles[0].bugs) {
+    filteredBugsSummary = filteredCycles[0].bugs;
+  } else if (module_id && filteredBpm?.length) {
     const bOpen       = filteredBpm.reduce((a, m) => a + (m.open_bugs  || 0), 0);
     const bFixed      = filteredBpm.reduce((a, m) => a + (m.fixed_bugs || 0), 0);
     const bTotal      = filteredBpm.reduce((a, m) => a + (m.total_bugs || 0), 0);
@@ -507,7 +560,10 @@ export default function Dashboard() {
           borderRadius:8, padding:"8px 14px", marginBottom:16,
           fontSize:12, color:"var(--accent)", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
           <strong>🔍 Filtros ativos:</strong>
-          {(filters.date_from || filters.date_to) && (
+          {filters.period && filters.period !== "custom" && (
+            <span>Período: {["week","month","lastmonth","3months","year"].includes(filters.period) ? {week:"Esta semana",month:"Este mês",lastmonth:"Mês anterior","3months":"Últimos 3 meses",year:"Este ano"}[filters.period] : ""}</span>
+          )}
+          {(filters.date_from || filters.date_to) && filters.period === "custom" && !filters.cycle_id && (
             <span>Período: {filters.date_from ? fmtBR(filters.date_from) : "início"} → {filters.date_to ? fmtBR(filters.date_to) : "hoje"}</span>
           )}
           {filters.cycle_id  && <span>Ciclo: {filterCycles?.find(c=>String(c.id)===String(filters.cycle_id))?.name}</span>}

@@ -59,6 +59,29 @@ async function getDashboard({ project_id } = {}) {
     WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC
   `);
 
+  // Bugs vinculados a execucoes de cada ciclo
+  const bugsByCycleRows = await query(`
+    SELECT
+      e.cycle_id,
+      COUNT(DISTINCT b.id) AS total,
+      SUM(CASE WHEN b.status='open'        THEN 1 ELSE 0 END) AS open,
+      SUM(CASE WHEN b.status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN b.status='fixed'       THEN 1 ELSE 0 END) AS fixed,
+      SUM(CASE WHEN b.status='closed'      THEN 1 ELSE 0 END) AS closed
+    FROM test_executions e
+    JOIN test_cycles c ON c.id = e.cycle_id
+    LEFT JOIN bugs b ON b.id = e.bug_id
+    WHERE b.id IS NOT NULL ${pWhere}
+    GROUP BY e.cycle_id
+  `);
+  const bugsByCycle = {};
+  bugsByCycleRows.forEach(r => {
+    bugsByCycle[r.cycle_id] = {
+      total: num(r.total), open: num(r.open),
+      in_progress: num(r.in_progress), fixed: num(r.fixed), closed: num(r.closed)
+    };
+  });
+
   const cycleRows = await query(`
     SELECT c.*,
       COUNT(e.id) AS total_executions,
@@ -92,7 +115,13 @@ async function getDashboard({ project_id } = {}) {
     },
     modules:         modRows.map(m=>({...m, total_cases:num(m.total_cases), total_executions:num(m.total_executions), passed:num(m.passed), failed:num(m.failed), blocked:num(m.blocked), not_executed:num(m.not_executed)})),
     bugs_per_module: bpmRows.map(m=>({...m, total_bugs:num(m.total_bugs), open_bugs:num(m.open_bugs), fixed_bugs:num(m.fixed_bugs)})),
-    cycles:          cycleRows.map(c=>({...c, total_executions:num(c.total_executions), passed:num(c.passed), failed:num(c.failed), blocked:num(c.blocked), not_executed:num(c.not_executed)})),
+    cycles: cycleRows.map(c=>({
+      ...c,
+      total_executions: num(c.total_executions),
+      passed:  num(c.passed), failed:  num(c.failed),
+      blocked: num(c.blocked), not_executed: num(c.not_executed),
+      bugs: bugsByCycle[c.id] || { total:0, open:0, in_progress:0, fixed:0, closed:0 },
+    })),
   };
 }
 

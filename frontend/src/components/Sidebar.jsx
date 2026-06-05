@@ -97,6 +97,10 @@ export default function Sidebar() {
             background:"none", cursor:"pointer", color:"var(--text-muted)" }}>
             Sair
           </button>
+          <div style={{ fontSize:10, color:"var(--text-muted)", textAlign:"center",
+            marginTop:8, opacity:0.5 }}>
+            v1.2.0
+          </div>
         </div>
       )}
     </aside>
