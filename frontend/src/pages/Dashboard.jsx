@@ -279,8 +279,8 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
 
 function applyFilters(data, filters) {
   if (!data) return data;
-  const { date_from, date_to, module_id, status } = filters;
-  if (!date_from && !date_to && !module_id && !status) return data;
+  const { date_from, date_to, module_id, status, cycle_id } = filters;
+  if (!date_from && !date_to && !module_id && !status && !cycle_id) return data;
   const { summary, bugs, modules, bugs_per_module, cycles } = data;
 
   // BUG 1 CORRIGIDO: datas sem horário são interpretadas como UTC meia-noite,
@@ -288,19 +288,18 @@ function applyFilters(data, filters) {
   const from = date_from ? new Date(date_from + "T00:00:00") : null;
   const to   = date_to   ? new Date(date_to   + "T23:59:59") : null;
 
-  // BUG 2 CORRIGIDO: ciclos sem data de início ou fim eram sempre incluídos,
-  // mesmo fora do período. Ciclo sem datas só entra se nenhum filtro de data estiver ativo.
-  // NOVO: filtro de só data_from OU só data_to funciona independentemente.
+  // Se ciclo específico selecionado, filtra só esse ciclo
+  // Caso contrário, filtra por período de datas
   const filteredCycles = cycles?.filter(c => {
+    // Filtro por ciclo específico — prioridade máxima
+    if (cycle_id) return String(c.id) === String(cycle_id);
+
     const cStart = c.start_date ? new Date(c.start_date + "T00:00:00") : null;
     const cEnd   = c.end_date   ? new Date(c.end_date   + "T23:59:59") : null;
     if (from || to) {
       if (!cStart && !cEnd) return false;
-      // só data_from: exclui ciclos que terminaram antes
       if (from && !to && cEnd && cEnd < from) return false;
-      // só data_to: exclui ciclos que começaram depois
       if (to && !from && cStart && cStart > to) return false;
-      // ambas as datas: sobreposição de períodos
       if (from && to) {
         if (cEnd   && cEnd   < from) return false;
         if (cStart && cStart > to)   return false;
