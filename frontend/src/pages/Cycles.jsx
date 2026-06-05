@@ -605,8 +605,9 @@ export default function Cycles() {
                 </thead>
                 <tbody>
                   {paged.map(c => {
-                    const exec = c.total_executions||0;
-                    const pct  = exec>0?Math.round(((c.passed||0)/exec)*100):0;
+                    const exec    = c.total_executions||0;
+                    const executed = exec - (c.not_executed||0); // exclui não executados
+                    const pct  = executed>0?Math.round(((c.passed||0)/executed)*100):0;
                     const types = c.test_types?c.test_types.split(",").filter(Boolean):[];
                     return (
                       <tr key={c.id}>

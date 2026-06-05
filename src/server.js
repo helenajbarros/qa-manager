@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors    = require("cors");
 
@@ -32,11 +34,10 @@ app.get("/api/health", (_req, res) =>
 
 app.use(errorHandler);
 
-// Inicializa o banco de forma assíncrona e só então sobe o servidor
 async function start() {
-  await initDatabase();   // carrega sql.js WASM
-  runMigrations();        // cria tabelas
-  runSeed();              // insere dados de exemplo
+  await initDatabase();
+  runMigrations();
+  runSeed();
 
   app.listen(PORT, () => {
     console.log(`\n🚀  QA System API rodando em http://localhost:${PORT}`);
