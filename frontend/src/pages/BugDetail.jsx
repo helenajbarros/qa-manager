@@ -89,7 +89,9 @@ function SidebarAccordion({ title, children, defaultOpen=true, badge }) {
 
 // ── Passos editáveis ─────────────────────────────────────────
 function StepsSection({ steps, onChange, isViewer }) {
-  const list = steps ? steps.split("\n").filter(Boolean) : [];
+  // Quando visualizando: filtra linhas vazias. Quando editando: mantém todas as linhas
+  const raw  = steps ? steps.split("\n") : [];
+  const list = isViewer ? raw.filter(Boolean) : raw;
 
   function updateStep(i, val) {
     const next = [...list]; next[i] = val;

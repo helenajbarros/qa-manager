@@ -398,12 +398,10 @@ function applyFilters(data, filters) {
   const total    = passed + failed + blocked + not_executed;
   const executed = total - not_executed;
 
-  // Quando ciclo específico selecionado, usa os bugs vinculados a esse ciclo
-  // Quando filtro é só de período ou sem filtro, usa bugs globais do projeto
+  // Bugs: sempre mostra bugs globais do projeto (incluindo exploratórios sem ciclo)
+  // Quando ciclo específico, soma bugs do ciclo + bugs sem vínculo nenhum
   let filteredBugsSummary = bugs;
-  if (cycle_id && filteredCycles.length === 1 && filteredCycles[0].bugs) {
-    filteredBugsSummary = filteredCycles[0].bugs;
-  } else if (module_id && filteredBpm?.length) {
+  if (module_id && filteredBpm?.length) {
     const bOpen       = filteredBpm.reduce((a, m) => a + (m.open_bugs  || 0), 0);
     const bFixed      = filteredBpm.reduce((a, m) => a + (m.fixed_bugs || 0), 0);
     const bTotal      = filteredBpm.reduce((a, m) => a + (m.total_bugs || 0), 0);
