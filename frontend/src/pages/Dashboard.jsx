@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAsync }      from "../hooks/useAsync.js";
-import { dashboardApi }  from "../services/resources.js";
+import { dashboardApi, cyclesApi }  from "../services/resources.js";
 import { useProject }    from "../context/ProjectContext.jsx";
 import { Loading, ErrorMsg } from "../components/UI.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid } from "recharts";
@@ -163,9 +163,9 @@ function ExpandableTable({ title, id, headers, rows, renderRow, totalCount }) {
 }
 
 // ── Filtros ───────────────────────────────────────────────────
-function FiltersBar({ filters, onChange, modules }) {
+function FiltersBar({ filters, onChange, modules, cycles = [] }) {
   function set(key, val) { onChange({ ...filters, [key]: val }); }
-  const hasFilters = filters.date_from || filters.date_to || filters.module_id || filters.status;
+  const hasFilters = filters.date_from || filters.date_to || filters.module_id || filters.status || filters.cycle_id;
 
   // Valida período invertido: início depois do fim
   const dateError = filters.date_from && filters.date_to && filters.date_from > filters.date_to
@@ -180,6 +180,21 @@ function FiltersBar({ filters, onChange, modules }) {
       else next.date_from = "";
     }
     onChange(next);
+  }
+
+  // Ao selecionar um ciclo, preenche automaticamente as datas de início e fim
+  function setCycle(cycleId) {
+    if (!cycleId) {
+      onChange({ ...filters, cycle_id: "", date_from: "", date_to: "" });
+      return;
+    }
+    const cycle = cycles.find(c => String(c.id) === String(cycleId));
+    onChange({
+      ...filters,
+      cycle_id:  cycleId,
+      date_from: cycle?.start_date ? cycle.start_date.slice(0,10) : filters.date_from,
+      date_to:   cycle?.end_date   ? cycle.end_date.slice(0,10)   : filters.date_to,
+    });
   }
 
   return (
@@ -216,6 +231,19 @@ function FiltersBar({ filters, onChange, modules }) {
           )}
         </div>
         <div style={{ flex:"1 1 160px" }}>
+          <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>CICLO</div>
+          <select value={filters.cycle_id||""} onChange={e=>setCycle(e.target.value)}
+            style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
+              fontSize:13, background:"var(--surface)", width:"100%" }}>
+            <option value="">Todos os ciclos</option>
+            {cycles.map(c => {
+              const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
+              const label = `${c.name}${c.version?" (v"+c.version+")":""}${date?" — "+date:""}`;
+              return <option key={c.id} value={c.id}>{label}</option>;
+            })}
+          </select>
+        </div>
+        <div style={{ flex:"1 1 180px" }}>
           <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>MÓDULO</div>
           <select value={filters.module_id||""} onChange={e=>set("module_id",e.target.value)}
             style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
@@ -389,6 +417,13 @@ export default function Dashboard() {
   const { data, loading, error } = useAsync(
     () => dashboardApi.get(pid ? { project_id: pid } : {}), [pid]
   );
+
+  // Busca ciclos para o filtro de ciclo no seletor
+  const { data: cyclesRaw } = useAsync(
+    () => cyclesApi.list(pid ? { project_id: pid } : {}), [pid]
+  );
+  const filterCycles = cyclesRaw?.data ?? cyclesRaw ?? [];
+
   const filtered = useMemo(() => applyFilters(data, filters), [data, filters]);
 
   if (loading) return <Loading />;
@@ -466,7 +501,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <FiltersBar filters={filters} onChange={setFilters} modules={data?.modules} />
+      <FiltersBar filters={filters} onChange={setFilters} modules={data?.modules} cycles={filterCycles} />
 
       {hasActiveFilters && (
         <div style={{ background:"var(--accent-bg)", border:"1px solid var(--accent)",
@@ -476,6 +511,7 @@ export default function Dashboard() {
           {(filters.date_from || filters.date_to) && (
             <span>Período: {filters.date_from ? fmtBR(filters.date_from) : "início"} → {filters.date_to ? fmtBR(filters.date_to) : "hoje"}</span>
           )}
+          {filters.cycle_id  && <span>Ciclo: {filterCycles?.find(c=>String(c.id)===String(filters.cycle_id))?.name}</span>}
           {filters.module_id && <span>Módulo: {data?.modules?.find(m=>String(m.id)===String(filters.module_id))?.name}</span>}
           {filters.status    && <span>Status: {filters.status}</span>}
           <span style={{ color:"var(--text-muted)" }}>— {cycles?.length || 0} ciclo(s)</span>
