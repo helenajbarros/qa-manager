@@ -46,7 +46,9 @@ function CycleCard({ cycle, activeStatus }) {
   const exec = activeStatus
     ? (displayCycle.passed + displayCycle.failed + displayCycle.blocked + displayCycle.not_executed)
     : (cycle.total_executions || 0);
-  const pct  = exec > 0 ? Math.round((displayCycle.passed / exec) * 100) : 0;
+  // Exclui não executados do denominador — só conta o que foi efetivamente testado
+  const executed = exec - (displayCycle.not_executed || 0);
+  const pct  = executed > 0 ? Math.round((displayCycle.passed / executed) * 100) : 0;
   const types   = cycle.test_types ? cycle.test_types.split(",").filter(Boolean) : [];
   const fmtDate = d => d ? new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : null;
   const startD  = fmtDate(cycle.start_date);
