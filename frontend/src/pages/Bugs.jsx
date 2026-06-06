@@ -187,6 +187,18 @@ export default function Bugs() {
   const [deepLinkOpened, setDeepLinkOpened] = useState(false);
   const [page, setPage] = useState(1);
 
+  // Busca IDs de bugs do ciclo selecionado via useEffect (deve ficar ANTES dos early returns)
+  const [cycleBugIdsSet, setCycleBugIdsSet] = useState(null);
+  useEffect(() => {
+    if (!filterCycle || filterCycle === "none" || filterCycle === "") {
+      setCycleBugIdsSet(null);
+      return;
+    }
+    cyclesApi.getBugs(filterCycle).then(ids => {
+      setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
+    }).catch(() => setCycleBugIdsSet(new Set()));
+  }, [filterCycle]);
+
   if (l1 || l2) return <Loading />;
   if (e1 || e2) return <ErrorMsg msg={e1 || e2} />;
 
@@ -204,18 +216,6 @@ export default function Bugs() {
   const selectedCycle = filterCycle && cycles && filterCycle !== "none"
     ? (cycles.find(c => String(c.id) === filterCycle) || null)
     : null;
-
-  // Busca IDs de bugs do ciclo selecionado via useEffect (sem hook condicional)
-  const [cycleBugIdsSet, setCycleBugIdsSet] = useState(null);
-  useEffect(() => {
-    if (!filterCycle || filterCycle === "none" || filterCycle === "") {
-      setCycleBugIdsSet(null);
-      return;
-    }
-    cyclesApi.getBugs(filterCycle).then(ids => {
-      setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
-    }).catch(() => setCycleBugIdsSet(new Set()));
-  }, [filterCycle]);
 
   const filtered = (bugs || []).filter(b => {
     if (filterSev && b.severity !== filterSev)          return false;
