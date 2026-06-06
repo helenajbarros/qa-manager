@@ -13,20 +13,21 @@ const TEST_TYPES_BUG = [
 ];
 
 function StepsSectionBug({ steps, onChange }) {
-  const [list, setList] = useState(() => steps ? steps.split("\n") : []);
+  // Sem useState — usa steps diretamente para evitar hook em componente condicional
+  const list = steps ? steps.split("\n") : [];
   function updateStep(i, val) {
-    const n=[...list]; n[i]=val; setList(n); onChange(n.join("\n"));
+    const n=[...list]; n[i]=val; onChange(n.join("\n"));
   }
   function addStep() {
-    const n=[...list,""]; setList(n); onChange(n.join("\n"));
+    const n=[...list,""]; onChange(n.join("\n") + (list.length===0?"\n":""));
     setTimeout(()=>{ const inp=document.querySelectorAll(".step-input-bug"); if(inp[inp.length-1])inp[inp.length-1].focus(); },50);
   }
   function removeStep(i) {
-    const n=list.filter((_,idx)=>idx!==i); setList(n); onChange(n.join("\n"));
+    onChange(list.filter((_,idx)=>idx!==i).join("\n"));
   }
   return (
     <div>
-      {list.length===0 && <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic",marginBottom:8}}>Nenhum passo adicionado.</p>}
+      {list.filter(Boolean).length===0 && <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic",marginBottom:8}}>Nenhum passo adicionado.</p>}
       {list.map((step,i)=>(
         <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"flex-start"}}>
           <div style={{minWidth:24,height:24,borderRadius:"50%",background:"var(--accent-bg)",color:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:500,flexShrink:0,marginTop:6}}>{i+1}</div>
