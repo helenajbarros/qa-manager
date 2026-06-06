@@ -6,6 +6,11 @@ import { useAuth }    from "../context/AuthContext.jsx";
 import { useProject } from "../context/ProjectContext.jsx";
 import { Loading, ErrorMsg, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.jsx";
 
+const TEST_TYPES = [
+  "Funcional","Regressão","Integração","Performance","Segurança",
+  "Usabilidade","Smoke","Sanidade","Exploratório","Aceitação","API","Automação"
+];
+
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 const ACT_ICONS   = {"criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤","editou o bug":"✏","adicionou passo":"➕","removeu passo":"➖"};
