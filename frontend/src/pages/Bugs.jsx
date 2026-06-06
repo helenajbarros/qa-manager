@@ -205,17 +205,13 @@ export default function Bugs() {
     ? (cycles.find(c => String(c.id) === filterCycle) || null)
     : null;
 
-  // Busca IDs de bugs do ciclo selecionado
+  // Busca IDs de bugs do ciclo selecionado — sempre chama o hook, mas retorna null quando desnecessário
+  const activeCycleId = filterCycle && filterCycle !== "none" && filterCycle !== "" ? filterCycle : null;
   const { data: cycleBugsData } = useAsync(
-    () => filterCycle && filterCycle !== "none" && filterCycle !== ""
-      ? cyclesApi.getBugs(filterCycle)
-      : Promise.resolve(null),
-    [filterCycle]
+    () => activeCycleId ? cyclesApi.getBugs(activeCycleId) : Promise.resolve(null),
+    [activeCycleId]
   );
   const cycleBugIdsSet = cycleBugsData ? new Set(cycleBugsData.map(Number)) : null;
-
-  // IDs de todos os bugs que aparecem em algum ciclo (para filtro "sem vínculo")
-  const allCycleData = cycles || [];
 
   const filtered = (bugs || []).filter(b => {
     if (filterSev && b.severity !== filterSev)          return false;
