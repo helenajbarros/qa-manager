@@ -33,9 +33,12 @@ const removeExecution = async (req,res,next) => { try { const x=await svc.remove
 // Histórico de atividades do ciclo
 const listActivity = async (req,res,next) => { try { r.ok(res, await svc.getActivity(req.params.id)); } catch(e){next(e);} };
 
+// Bug IDs vinculados ao ciclo
+const listBugs = async (req,res,next) => { try { r.ok(res, await svc.getBugIdsByCycle(req.params.id)); } catch(e){next(e);} };
+
 const uploadEvidence = [upload.single("file"), async (req,res,next) => {
   try { if(!req.file) return r.badRequest(res,"Arquivo obrigatório"); r.ok(res, await svc.addEvidenceFile(req.params.execId, req.file)); } catch(e){next(e);}
 }];
 const deleteEvidence = async (req,res,next) => { try { r.ok(res, await svc.removeEvidenceFile(req.params.execId, req.params.fileId)); } catch(e){next(e);} };
 
-module.exports = { index, show, store, update, destroy, listExecutions, addExecutions, updateExecution, removeExecution, uploadEvidence, deleteEvidence, listActivity };
+module.exports = { index, show, store, update, destroy, listExecutions, addExecutions, updateExecution, removeExecution, uploadEvidence, deleteEvidence, listActivity, listBugs };

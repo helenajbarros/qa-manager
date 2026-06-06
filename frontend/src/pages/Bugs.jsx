@@ -181,6 +181,7 @@ export default function Bugs() {
   const [filterSt,       setFilterSt]       = useState("");
   const [filterMod,      setFilterMod]      = useState("");
   const [filterCycle,    setFilterCycle]    = useState("");
+  const [cycleBugIds,    setCycleBugIds]    = useState(null); // null = não carregado
   const [saving,         setSaving]         = useState(false);
   const [err,            setErr]            = useState(null);
   const [deepLinkOpened, setDeepLinkOpened] = useState(false);
@@ -200,9 +201,21 @@ export default function Bugs() {
     navigator.clipboard.writeText(link).then(() => alert("Link copiado!\n" + link));
   }
 
-  const selectedCycle = filterCycle && cycles
+  const selectedCycle = filterCycle && cycles && filterCycle !== "none"
     ? (cycles.find(c => String(c.id) === filterCycle) || null)
     : null;
+
+  // Busca IDs de bugs do ciclo selecionado
+  const { data: cycleBugsData } = useAsync(
+    () => filterCycle && filterCycle !== "none" && filterCycle !== ""
+      ? cyclesApi.getBugs(filterCycle)
+      : Promise.resolve(null),
+    [filterCycle]
+  );
+  const cycleBugIdsSet = cycleBugsData ? new Set(cycleBugsData.map(Number)) : null;
+
+  // IDs de todos os bugs que aparecem em algum ciclo (para filtro "sem vínculo")
+  const allCycleData = cycles || [];
 
   const filtered = (bugs || []).filter(b => {
     if (filterSev && b.severity !== filterSev)          return false;
@@ -214,16 +227,17 @@ export default function Bugs() {
     // BUG 8 CORRIGIDO: usava created_at do bug — impreciso porque o bug pode ter sido
     // criado fora do ciclo mas executado dentro. Agora aceita bugs cujo created_at
     // está no período OU que tenham execution_date dentro do período (se disponível).
-    // Filtro "Sem vínculo": bugs sem caso de teste vinculado (exploratórios)
-    if (filterCycle === "none") {
-      return !b.test_case_id;
+    // Filtro por ciclo específico: usa bug_ids das execuções do ciclo
+    if (filterCycle && filterCycle !== "none") {
+      if (!cycleBugIdsSet) return true; // aguardando carregamento
+      return cycleBugIdsSet.has(Number(b.id));
     }
-    if (selectedCycle && selectedCycle.start_date && selectedCycle.end_date) {
-      const cycStart = new Date(selectedCycle.start_date + "T00:00:00");
-      const cycEnd   = new Date(selectedCycle.end_date   + "T23:59:59");
-      const bugDate  = new Date(b.created_at);
-      const refDate  = b.executed_at ? new Date(b.executed_at) : bugDate;
-      if (refDate < cycStart || refDate > cycEnd) return false;
+    // Filtro "Sem vínculo": não tem TC e não aparece em nenhuma execução de ciclo
+    if (filterCycle === "none") {
+      if (b.test_case_id) return false;
+      // Se não tiver bug_id em nenhuma execução — verificamos pelo test_case_id como proxy
+      // (bug verdadeiramente exploratório não tem TC vinculado)
+      return true;
     }
     return true;
   });

@@ -152,9 +152,19 @@ async function removeExecution(id) {
   return execute("DELETE FROM test_executions WHERE id=$1", [id]);
 }
 
+async function getBugIdsByCycle(cycle_id) {
+  // Retorna IDs de bugs vinculados a execuções do ciclo
+  const rows = await query(`
+    SELECT DISTINCT e.bug_id
+    FROM test_executions e
+    WHERE e.cycle_id = $1 AND e.bug_id IS NOT NULL
+  `, [cycle_id]);
+  return rows.map(r => r.bug_id);
+}
+
 module.exports = {
   findAllCycles, findCycleById, createCycle, updateCycle, removeCycle,
   findExecutionsByCycle, findExecutionById, addExecutions, updateExecution,
   addEvidenceFile, removeEvidenceFile, removeExecution,
-  logActivity, getActivity,
+  logActivity, getActivity, getBugIdsByCycle,
 };

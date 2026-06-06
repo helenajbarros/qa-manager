@@ -62,6 +62,7 @@ export const cyclesApi = {
   updateExecution: (id, eid, d) => api.put(`/cycles/${id}/executions/${eid}`, d),
   deleteExecution: (id, eid)    => api.delete(`/cycles/${id}/executions/${eid}`),
   getActivity:     (id)         => api.get(`/cycles/${id}/activity`),
+  getBugs:         (id)         => api.get(`/cycles/${id}/bugs`),
 };
 
 export const bugsApi = {
