@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express    = require("express");
 const cors       = require("cors");
 const path       = require("path");
@@ -14,6 +15,7 @@ const { addShareTokensTable }     = require("./database/migrations_share_tokens"
 const { addDefaultProjectColumn } = require("./database/migrations_default_project");
 const { addProjectsCreatorColumn }= require("./database/migrations_projects_creator");
 const { addActivityTables }        = require("./database/migrations_activity");
+const { addBugTestType }           = require("./database/migrations_bug_test_type");
 const { runSeed }       = require("./database/seed");
 const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
@@ -83,6 +85,7 @@ async function start() {
   await addDefaultProjectColumn();
   await addProjectsCreatorColumn();
   await addActivityTables();
+  await addBugTestType();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);
@@ -91,4 +94,3 @@ async function start() {
 }
 
 start().catch(err => { console.error("Erro:", err); process.exit(1); });
-

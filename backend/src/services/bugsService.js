@@ -115,15 +115,15 @@ async function create({ title, description, comment, tracker_url, severity, stat
 }
 
 async function update(id, { title, description, comment, tracker_url, severity, status,
-  module_id, test_case_id, assigned_to_id, pr_url, steps }, userId) {
+  module_id, test_case_id, assigned_to_id, pr_url, steps, test_type }, userId) {
   const prev = await findById(id);
   const mod  = module_id || await extractModuleId(title);
   await execute(
     `UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,
-      status=$6,module_id=$7,test_case_id=$8,assigned_to_id=$9,pr_url=$10,steps=$11 WHERE id=$12`,
+      status=$6,module_id=$7,test_case_id=$8,assigned_to_id=$9,pr_url=$10,steps=$11,test_type=$12 WHERE id=$13`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", status||"open", mod||null, test_case_id||null,
-     assigned_to_id||null, pr_url||null, steps||null, id]
+     assigned_to_id||null, pr_url||null, steps||null, test_type||null, id]
   );
   // Log de atividades
   if (prev && prev.status !== status) {

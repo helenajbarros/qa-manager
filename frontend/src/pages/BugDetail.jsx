@@ -534,6 +534,7 @@ export default function BugDetail() {
       test_case_id:   bug.test_case_id   || "",
       assigned_to_id: bug.assigned_to_id || "",
       steps:          bug.steps          || "",
+      test_type:      bug.test_type      || "",
     });
 
   }
@@ -662,7 +663,13 @@ export default function BugDetail() {
             <BugStatus v={bug.status} />
             <Severity  v={bug.severity} />
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
-            {bug.test_case_id && (
+            {bug.test_type && (
+          <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,
+            background:"var(--accent-bg)",color:"var(--accent)",fontWeight:500}}>
+            {bug.test_type}
+          </span>
+        )}
+        {bug.test_case_id && (
               <span style={{fontSize:12,color:"var(--accent)",fontWeight:500,
                 background:"var(--accent-bg)",padding:"2px 10px",borderRadius:10}}>
                 TC #{bug.test_case_id}
@@ -722,6 +729,37 @@ export default function BugDetail() {
                   color: #B5451B;
                 }
               `}</style>
+            </div>
+          </Accordion>
+
+          {/* Tipo de Teste */}
+          <Accordion title="Tipo de Teste" defaultOpen={true}>
+            <div style={{padding:"12px 16px"}}>
+              {isEditing ? (
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {TEST_TYPES.map(t => (
+                    <button key={t} type="button"
+                      onClick={() => setForm(f => ({...f, test_type: f.test_type===t?"":t}))}
+                      style={{padding:"4px 12px",borderRadius:20,fontSize:12,cursor:"pointer",
+                        border:"1px solid var(--border)",
+                        background:form.test_type===t?"var(--accent)":"var(--surface)",
+                        color:form.test_type===t?"#fff":"var(--text-muted)"}}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                bug.test_type ? (
+                  <span style={{padding:"4px 14px",borderRadius:20,fontSize:12,
+                    background:"var(--accent-bg)",color:"var(--accent)",fontWeight:500}}>
+                    {bug.test_type}
+                  </span>
+                ) : (
+                  <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic"}}>
+                    Nenhum tipo de teste definido.
+                  </p>
+                )
+              )}
             </div>
           </Accordion>
 
@@ -956,4 +994,3 @@ export default function BugDetail() {
     </div>
   );
 }
-

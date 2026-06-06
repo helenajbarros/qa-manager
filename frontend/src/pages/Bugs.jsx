@@ -7,6 +7,37 @@ import { useProject }  from "../context/ProjectContext.jsx";
 import { FileUpload }  from "../components/FileUpload.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.jsx";
 
+const TEST_TYPES_BUG = [
+  "Funcional","Regressão","Integração","Performance","Segurança",
+  "Usabilidade","Smoke","Sanidade","Exploratório","Aceitação","API","Automação"
+];
+
+function StepsSectionBug({ steps, onChange }) {
+  const list = steps ? steps.split("\n") : [];
+  function updateStep(i, val) { const n=[...list];n[i]=val;onChange(n.join("\n")); }
+  function addStep() {
+    onChange([...list,""].join("\n"));
+    setTimeout(()=>{ const inp=document.querySelectorAll(".step-input-bug"); if(inp[inp.length-1])inp[inp.length-1].focus(); },50);
+  }
+  function removeStep(i) { onChange(list.filter((_,idx)=>idx!==i).join("\n")); }
+  return (
+    <div>
+      {list.length===0 && <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic",marginBottom:8}}>Nenhum passo adicionado.</p>}
+      {list.map((step,i)=>(
+        <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"flex-start"}}>
+          <div style={{minWidth:24,height:24,borderRadius:"50%",background:"var(--accent-bg)",color:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:500,flexShrink:0,marginTop:6}}>{i+1}</div>
+          <input className="step-input-bug" value={step} onChange={e=>updateStep(i,e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addStep();}if(e.key==="Backspace"&&step===""){e.preventDefault();removeStep(i);}}}
+            placeholder={"Passo "+(i+1)+"..."}
+            style={{flex:1,padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,background:"var(--bg)",color:"var(--text)"}} />
+          <button onClick={()=>removeStep(i)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text-muted)",padding:"4px",fontSize:13,marginTop:4}}>✕</button>
+        </div>
+      ))}
+      <button onClick={addStep} style={{width:"100%",padding:"7px",marginTop:4,border:"1px dashed var(--border)",borderRadius:6,background:"transparent",cursor:"pointer",fontSize:12,color:"var(--text-muted)",fontFamily:"inherit"}}>+ Adicionar passo</button>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 10;
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
@@ -95,9 +126,22 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
         <input value={form.tracker_url} onChange={set("tracker_url")}
           placeholder="https://app.clickup.com/t/..." />
       </Field>
-      <Field label="Comentário geral">
-        <textarea value={form.comment} onChange={set("comment")}
-          placeholder="Passos para reproduzir, ambiente afetado..." rows={3} />
+      <Field label="Passos para reproduzir">
+        <StepsSectionBug steps={form.comment} onChange={v => setForm(f=>({...f, comment:v}))} />
+      </Field>
+      <Field label="Tipo de Teste">
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+          {TEST_TYPES_BUG.map(t => (
+            <button key={t} type="button"
+              onClick={() => setForm(f => ({...f, test_type: f.test_type===t?"":t}))}
+              style={{padding:"3px 10px",borderRadius:20,fontSize:12,cursor:"pointer",
+                border:"1px solid var(--border)",
+                background:form.test_type===t?"var(--accent)":"var(--surface)",
+                color:form.test_type===t?"#fff":"var(--text-muted)"}}>
+              {t}
+            </button>
+          ))}
+        </div>
       </Field>
       <Field label="Descrição">
         <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />
@@ -135,16 +179,11 @@ export default function Bugs() {
   const isViewer = user?.role === "viewer";
   const navigate = useNavigate();
 
-  const { data: bugsRaw,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: modules,      loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: testCasesRaw }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: cyclesRaw }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: usersRaw }                                       = useAsync(() => usersApi.list(), []);
-  // Extrai .data de respostas paginadas
-  const bugs      = bugsRaw?.data      ?? bugsRaw;
-  const testCases = testCasesRaw?.data ?? testCasesRaw;
-  const cycles    = cyclesRaw?.data    ?? cyclesRaw;
-  const users     = usersRaw?.data     ?? usersRaw;
+  const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: users }                                       = useAsync(() => usersApi.list(), []);
 
   const openId    = getOpenIdFromUrl();
   const bugToOpen = openId && bugs ? bugs.find(b => String(b.id) === String(openId)) : null;
