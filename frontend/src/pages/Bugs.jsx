@@ -81,7 +81,6 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     description:    initial.description    || "",
     comment:        initial.comment        || "",
     steps:          initial.steps          || "",
-    test_type:      initial.test_type      || "",
     tracker_url:    initial.tracker_url    || "",
     pr_url:         initial.pr_url         || "",
     severity:       initial.severity       || "medium",
@@ -134,14 +133,6 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
       </Field>
       <Field label="Passos para reproduzir">
         <StepsSectionBug steps={form.steps} onChange={v => setForm(f=>({...f, steps:v}))} />
-      </Field>
-      <Field label="Tipo de Teste">
-        <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
-          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",
-            fontSize:13,background:"var(--surface)",width:"100%"}}>
-          <option value="">Selecione o tipo de teste...</option>
-          {TEST_TYPES_BUG.map(t=><option key={t} value={t}>{t}</option>)}
-        </select>
       </Field>
       <Field label="Descrição">
         <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />
