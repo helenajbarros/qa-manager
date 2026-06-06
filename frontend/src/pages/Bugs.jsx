@@ -80,6 +80,8 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     title:          initial.title          || "",
     description:    initial.description    || "",
     comment:        initial.comment        || "",
+    steps:          initial.steps          || "",
+    test_type:      initial.test_type      || "",
     tracker_url:    initial.tracker_url    || "",
     pr_url:         initial.pr_url         || "",
     severity:       initial.severity       || "medium",
@@ -131,7 +133,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
           placeholder="https://app.clickup.com/t/..." />
       </Field>
       <Field label="Passos para reproduzir">
-        <StepsSectionBug steps={form.comment} onChange={v => setForm(f=>({...f, comment:v}))} />
+        <StepsSectionBug steps={form.steps} onChange={v => setForm(f=>({...f, steps:v}))} />
       </Field>
       <Field label="Tipo de Teste">
         <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
