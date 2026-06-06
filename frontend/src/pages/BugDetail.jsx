@@ -536,6 +536,7 @@ export default function BugDetail() {
     setForm({
       title:          bug.title          || "",
       description:    bug.description    || "",
+      comment:        bug.comment        || "",
       tracker_url:    bug.tracker_url    || "",
       pr_url:         bug.pr_url         || "",
       severity:       bug.severity       || "medium",
@@ -546,7 +547,6 @@ export default function BugDetail() {
       steps:          bug.steps          || "",
       test_type:      bug.test_type      || "",
     });
-
   }
 
   async function handleSave() {
@@ -679,6 +679,12 @@ export default function BugDetail() {
             <BugStatus v={bug.status} />
             <Severity  v={bug.severity} />
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
+            {bug.test_type && (
+              <span style={{fontSize:11,padding:"2px 10px",borderRadius:10,
+                background:"var(--accent-bg)",color:"var(--accent)",fontWeight:500}}>
+                🧪 {bug.test_type}
+              </span>
+            )}
             {bug.test_case_id && (
               <span style={{fontSize:12,color:"var(--accent)",fontWeight:500,
                 background:"var(--accent-bg)",padding:"2px 10px",borderRadius:10}}>
