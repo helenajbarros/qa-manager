@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAsync }    from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, cyclesApi, usersApi } from "../services/resources.js";
@@ -181,7 +181,6 @@ export default function Bugs() {
   const [filterSt,       setFilterSt]       = useState("");
   const [filterMod,      setFilterMod]      = useState("");
   const [filterCycle,    setFilterCycle]    = useState("");
-  const [cycleBugIds,    setCycleBugIds]    = useState(null); // null = não carregado
   const [saving,         setSaving]         = useState(false);
   const [err,            setErr]            = useState(null);
   const [deepLinkOpened, setDeepLinkOpened] = useState(false);
@@ -205,13 +204,17 @@ export default function Bugs() {
     ? (cycles.find(c => String(c.id) === filterCycle) || null)
     : null;
 
-  // Busca IDs de bugs do ciclo selecionado — sempre chama o hook, mas retorna null quando desnecessário
-  const activeCycleId = filterCycle && filterCycle !== "none" && filterCycle !== "" ? filterCycle : null;
-  const { data: cycleBugsData } = useAsync(
-    () => activeCycleId ? cyclesApi.getBugs(activeCycleId) : Promise.resolve(null),
-    [activeCycleId]
-  );
-  const cycleBugIdsSet = cycleBugsData ? new Set(cycleBugsData.map(Number)) : null;
+  // Busca IDs de bugs do ciclo selecionado via useEffect (sem hook condicional)
+  const [cycleBugIdsSet, setCycleBugIdsSet] = useState(null);
+  useEffect(() => {
+    if (!filterCycle || filterCycle === "none" || filterCycle === "") {
+      setCycleBugIdsSet(null);
+      return;
+    }
+    cyclesApi.getBugs(filterCycle).then(ids => {
+      setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
+    }).catch(() => setCycleBugIdsSet(new Set()));
+  }, [filterCycle]);
 
   const filtered = (bugs || []).filter(b => {
     if (filterSev && b.severity !== filterSev)          return false;
