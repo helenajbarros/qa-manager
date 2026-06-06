@@ -94,9 +94,8 @@ function SidebarAccordion({ title, children, defaultOpen=true, badge }) {
 
 // ── Passos editáveis ─────────────────────────────────────────
 function StepsSection({ steps, onChange, isViewer }) {
-  // Quando visualizando: filtra linhas vazias. Quando editando: mantém todas as linhas
   const raw  = steps ? steps.split("\n") : [];
-  const list = isViewer ? raw.filter(Boolean) : raw;
+  const list = isViewer ? raw.filter(s => s.trim()) : raw;
 
   function updateStep(i, val) {
     const next = [...list]; next[i] = val;
@@ -662,6 +661,12 @@ export default function BugDetail() {
           <>
             <Select value={form.status}   onChange={v=>setForm(f=>({...f,status:v}))}   options={STATUS_OPTS} />
             <Select value={form.severity} onChange={v=>setForm(f=>({...f,severity:v}))} options={SEV_OPTS} />
+            <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
+              style={{padding:"5px 10px",borderRadius:6,border:"1px solid var(--border)",
+                fontSize:12,background:"var(--surface)",color:"var(--text)"}}>
+              <option value="">Tipo de teste...</option>
+              {TEST_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
           </>
         ) : (
           <>
@@ -734,37 +739,6 @@ export default function BugDetail() {
                   color: #B5451B;
                 }
               `}</style>
-            </div>
-          </Accordion>
-
-          {/* Tipo de Teste */}
-          <Accordion title="Tipo de Teste" defaultOpen={true}>
-            <div style={{padding:"12px 16px"}}>
-              {isEditing ? (
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                  {TEST_TYPES.map(t => (
-                    <button key={t} type="button"
-                      onClick={() => setForm(f => ({...f, test_type: f.test_type===t?"":t}))}
-                      style={{padding:"4px 12px",borderRadius:20,fontSize:12,cursor:"pointer",
-                        border:"1px solid var(--border)",
-                        background:form.test_type===t?"var(--accent)":"var(--surface)",
-                        color:form.test_type===t?"#fff":"var(--text-muted)"}}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                bug.test_type ? (
-                  <span style={{padding:"4px 14px",borderRadius:20,fontSize:12,
-                    background:"var(--accent-bg)",color:"var(--accent)",fontWeight:500}}>
-                    {bug.test_type}
-                  </span>
-                ) : (
-                  <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic"}}>
-                    Nenhum tipo de teste definido.
-                  </p>
-                )
-              )}
             </div>
           </Accordion>
 
