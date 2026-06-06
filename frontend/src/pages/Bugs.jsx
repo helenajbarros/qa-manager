@@ -214,11 +214,14 @@ export default function Bugs() {
     // BUG 8 CORRIGIDO: usava created_at do bug — impreciso porque o bug pode ter sido
     // criado fora do ciclo mas executado dentro. Agora aceita bugs cujo created_at
     // está no período OU que tenham execution_date dentro do período (se disponível).
+    // Filtro "Sem vínculo": bugs sem caso de teste vinculado (exploratórios)
+    if (filterCycle === "none") {
+      return !b.test_case_id;
+    }
     if (selectedCycle && selectedCycle.start_date && selectedCycle.end_date) {
       const cycStart = new Date(selectedCycle.start_date + "T00:00:00");
       const cycEnd   = new Date(selectedCycle.end_date   + "T23:59:59");
       const bugDate  = new Date(b.created_at);
-      // Usa executed_at se disponível, senão created_at como fallback
       const refDate  = b.executed_at ? new Date(b.executed_at) : bugDate;
       if (refDate < cycStart || refDate > cycEnd) return false;
     }
@@ -317,6 +320,7 @@ export default function Bugs() {
         <select value={filterCycle} onChange={e=>{ setFilterCycle(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:160}}>
           <option value="">🔁 Todos os ciclos</option>
+          <option value="none">🔍 Sem vínculo com ciclo</option>
           {cycleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={filterSev} onChange={e=>{ setFilterSev(e.target.value); setPage(1); }}
