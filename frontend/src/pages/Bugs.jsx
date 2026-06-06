@@ -13,13 +13,17 @@ const TEST_TYPES_BUG = [
 ];
 
 function StepsSectionBug({ steps, onChange }) {
-  const list = steps ? steps.split("\n") : [];
-  function updateStep(i, val) { const n=[...list];n[i]=val;onChange(n.join("\n")); }
+  const [list, setList] = useState(() => steps ? steps.split("\n") : []);
+  function updateStep(i, val) {
+    const n=[...list]; n[i]=val; setList(n); onChange(n.join("\n"));
+  }
   function addStep() {
-    onChange([...list,""].join("\n"));
+    const n=[...list,""]; setList(n); onChange(n.join("\n"));
     setTimeout(()=>{ const inp=document.querySelectorAll(".step-input-bug"); if(inp[inp.length-1])inp[inp.length-1].focus(); },50);
   }
-  function removeStep(i) { onChange(list.filter((_,idx)=>idx!==i).join("\n")); }
+  function removeStep(i) {
+    const n=list.filter((_,idx)=>idx!==i); setList(n); onChange(n.join("\n"));
+  }
   return (
     <div>
       {list.length===0 && <p style={{fontSize:13,color:"var(--text-muted)",fontStyle:"italic",marginBottom:8}}>Nenhum passo adicionado.</p>}
@@ -130,18 +134,12 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
         <StepsSectionBug steps={form.comment} onChange={v => setForm(f=>({...f, comment:v}))} />
       </Field>
       <Field label="Tipo de Teste">
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
-          {TEST_TYPES_BUG.map(t => (
-            <button key={t} type="button"
-              onClick={() => setForm(f => ({...f, test_type: f.test_type===t?"":t}))}
-              style={{padding:"3px 10px",borderRadius:20,fontSize:12,cursor:"pointer",
-                border:"1px solid var(--border)",
-                background:form.test_type===t?"var(--accent)":"var(--surface)",
-                color:form.test_type===t?"#fff":"var(--text-muted)"}}>
-              {t}
-            </button>
-          ))}
-        </div>
+        <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
+          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",
+            fontSize:13,background:"var(--surface)",width:"100%"}}>
+          <option value="">Selecione o tipo de teste...</option>
+          {TEST_TYPES_BUG.map(t=><option key={t} value={t}>{t}</option>)}
+        </select>
       </Field>
       <Field label="Descrição">
         <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />
@@ -150,12 +148,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
         <Field label="Arquivos / Evidências">
           <FileUpload files={initial.evidence_files || []} onUpload={onFileUpload} onDelete={onFileDelete} />
         </Field>
-      ) : (
-        <div style={{fontSize:12,color:"var(--text-muted)",padding:"8px 12px",
-          background:"var(--bg)",borderRadius:6,marginBottom:14}}>
-          💡 Você poderá anexar arquivos e evidências após salvar o bug.
-        </div>
-      )}
+      ) : null}
       <div className="modal-footer">
         <button className="btn" onClick={onCancel}>Cancelar</button>
         <button className="btn btn-primary" onClick={() => onSave(form)}

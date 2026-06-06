@@ -94,15 +94,19 @@ function SidebarAccordion({ title, children, defaultOpen=true, badge }) {
 
 // ── Passos editáveis ─────────────────────────────────────────
 function StepsSection({ steps, onChange, isViewer }) {
-  const raw  = steps ? steps.split("\n") : [];
-  const list = isViewer ? raw.filter(s => s.trim()) : raw;
+  const [localList, setLocalList] = useState(() => {
+    const raw = steps ? steps.split("\n") : [];
+    return isViewer ? raw.filter(s => s.trim()) : (raw.length ? raw : []);
+  });
 
   function updateStep(i, val) {
-    const next = [...list]; next[i] = val;
+    const next = [...localList]; next[i] = val;
+    setLocalList(next);
     onChange(next.join("\n"));
   }
   function addStep() {
-    const next = [...list, ""];
+    const next = [...localList, ""];
+    setLocalList(next);
     onChange(next.join("\n"));
     setTimeout(() => {
       const inputs = document.querySelectorAll(".step-input");
@@ -110,9 +114,11 @@ function StepsSection({ steps, onChange, isViewer }) {
     }, 50);
   }
   function removeStep(i) {
-    const next = list.filter((_, idx) => idx !== i);
+    const next = localList.filter((_, idx) => idx !== i);
+    setLocalList(next);
     onChange(next.join("\n"));
   }
+  const list = localList;
 
   return (
     <div>
