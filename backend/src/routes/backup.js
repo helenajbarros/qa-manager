@@ -29,18 +29,8 @@ router.get("/download", authenticate, requireAdmin, async (req, res, next) => {
       sql += `-- ${table}\n`;
       for (const row of res2.rows) {
         const cols = Object.keys(row).join(",");
-        const vals = Object.values(row).map(v => {
-          if (v === null) return "NULL";
-          // Formata datas para ISO 8601 compatível com PostgreSQL
-          if (v instanceof Date) return `'${v.toISOString().replace("T", " ").slice(0, 19)}'`;
-          const s = String(v);
-          // Detecta strings que parecem datas JS (ex: "Thu May 07 2026...")
-          if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) [A-Za-z]{3}/.test(s)) {
-            const d = new Date(s);
-            if (!isNaN(d)) return `'${d.toISOString().replace("T", " ").slice(0, 19)}'`;
-          }
-          return `'${s.replace(/'/g, "''")}'`;
-        }
+        const vals = Object.values(row).map(v =>
+          v === null ? "NULL" : `'${String(v).replace(/'/g, "''")}'`
         ).join(",");
         sql += `INSERT INTO ${table} (${cols}) VALUES (${vals}) ON CONFLICT DO NOTHING;\n`;
       }
@@ -64,8 +54,18 @@ router.post("/restore", authenticate, requireAdmin, upload.single("backup"), asy
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      // Limpa tabelas em ordem reversa para respeitar foreign keys
+      const tables = ["evidence_files","test_executions","bugs","test_cycles","test_cases","modules","user_projects","users","projects"];
+      for (const t of tables) {
+        try { await client.query(`DELETE FROM ${t}`); } catch(_) {}
+      }
+      // Reseta sequences para evitar conflito de IDs
+      const seqTables = ["projects","users","modules","test_cases","test_cycles","test_executions","bugs","evidence_files"];
+      for (const t of seqTables) {
+        try { await client.query(`SELECT setval(pg_get_serial_sequence('${t}','id'), 1, false)`); } catch(_) {}
+      }
       for (const stmt of statements) {
-        try { await client.query(stmt); } catch(e) { /* ignora conflitos */ }
+        try { await client.query(stmt.replace(/ ON CONFLICT DO NOTHING/g, "")); } catch(e) { /* ignora */ }
       }
       await client.query("COMMIT");
     } catch(e) {
