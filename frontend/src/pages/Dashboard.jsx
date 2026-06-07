@@ -340,10 +340,8 @@ function applyFilters(data, filters) {
   const from = date_from ? new Date(date_from + "T00:00:00") : null;
   const to   = date_to   ? new Date(date_to   + "T23:59:59") : null;
 
-  // Se ciclo específico selecionado, filtra só esse ciclo
-  // Caso contrário, filtra por período de datas
+  // Se ciclo específico: backend já filtrou tudo, só filtra a lista de ciclos
   const filteredCycles = cycles?.filter(c => {
-    // Filtro por ciclo específico — prioridade máxima
     if (cycle_id) return String(c.id) === String(cycle_id);
 
     const cStart = c.start_date ? new Date(c.start_date + "T00:00:00") : null;
@@ -373,6 +371,8 @@ function applyFilters(data, filters) {
   // BUG 4 CORRIGIDO: métricas de execução eram calculadas a partir dos ciclos filtrados,
   // mas quando filtro de módulo estava ativo os valores dos ciclos ainda somavam TODOS os
   // módulos. Recalculamos a partir dos dados de módulo filtrado quando module_id está ativo.
+  // Quando cycle_id ativo: backend já filtrou modules e bugs_per_module por ciclo
+  // Quando module_id ativo: filtra no frontend
   const filteredModules = module_id
     ? modules?.filter(m => String(m.id) === String(module_id))
     : modules;
@@ -465,7 +465,14 @@ export default function Dashboard() {
   const [filters, setFilters] = useState({});
 
   const { data, loading, error } = useAsync(
-    () => dashboardApi.get(pid ? { project_id: pid } : {}), [pid]
+    () => {
+      const params = pid ? { project_id: pid } : {};
+      // Quando ciclo específico selecionado, passa cycle_id para o backend
+      // Isso filtra execuções, módulos e bugs pelo ciclo no servidor
+      if (filters.cycle_id) params.cycle_id = filters.cycle_id;
+      return dashboardApi.get(params);
+    },
+    [pid, filters.cycle_id]
   );
 
   // Busca ciclos para o filtro de ciclo no seletor
@@ -708,4 +715,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
