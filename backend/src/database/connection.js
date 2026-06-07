@@ -8,10 +8,24 @@ let _db  = null;
 // ── PostgreSQL ────────────────────────────────────────────────
 async function initPg() {
   const { Pool } = require("pg");
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-  });
+  // Suporta DATABASE_URL ou variáveis separadas (para Supabase com username com ponto)
+  let poolConfig;
+  if (process.env.DB_HOST) {
+    poolConfig = {
+      host:     process.env.DB_HOST,
+      port:     parseInt(process.env.DB_PORT || "5432"),
+      database: process.env.DB_NAME || "postgres",
+      user:     process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      ssl: { rejectUnauthorized: false },
+    };
+  } else {
+    poolConfig = {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+    };
+  }
+  pool = new Pool(poolConfig);
   const client = await pool.connect();
   try { await client.query("SELECT 1"); console.log("[DB] Conectado ao PostgreSQL!"); }
   finally { client.release(); }
