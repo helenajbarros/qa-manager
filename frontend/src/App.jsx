@@ -40,7 +40,23 @@ function RedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth();
 
+  // Verifica se veio de um redirect do 404.html para rota /share/
+  const savedRedirect = sessionStorage.getItem("qa_redirect") || "";
+  const isShareRoute = savedRedirect.startsWith("/share/");
+
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
+
+  // Rota pública /share/ — não precisa de login
+  if (isShareRoute) {
+    const token = savedRedirect;
+    sessionStorage.removeItem("qa_redirect");
+    return (
+      <Routes>
+        <Route path="*" element={<Navigate to={token} replace />} />
+        <Route path="/share/:token" element={<ShareBug />} />
+      </Routes>
+    );
+  }
 
   if (!user) {
     return (
