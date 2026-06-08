@@ -23,16 +23,14 @@ function Guard({ children, adminOnly, managerOk }) {
   return children;
 }
 
-// Redireciona após login para rota salva (exceto rotas públicas)
 function RedirectHandler() {
   const navigate = useNavigate();
   useEffect(() => {
     const redirect = sessionStorage.getItem("qa_redirect");
-    if (redirect && redirect !== "/" && !redirect.startsWith("/share/")) {
+    if (redirect && redirect !== "/") {
       sessionStorage.removeItem("qa_redirect");
       navigate(redirect, { replace: true });
     } else if (redirect) {
-      // Limpa qualquer redirect que não deva ser usado aqui
       sessionStorage.removeItem("qa_redirect");
     }
   }, []);
@@ -43,24 +41,6 @@ export default function App() {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
-
-  // Rotas públicas — acessíveis sem login
-  // Verifica se a URL atual ou o redirect salvo é uma rota pública
-  const currentPath = window.location.pathname.replace("/qa-manager", "") || "/";
-  const savedRedirect = sessionStorage.getItem("qa_redirect") || "";
-  const isShareRoute = currentPath.startsWith("/share/") || savedRedirect.startsWith("/share/");
-
-  if (isShareRoute) {
-    if (savedRedirect.startsWith("/share/")) {
-      sessionStorage.removeItem("qa_redirect");
-    }
-    return (
-      <Routes>
-        <Route path="/share/:token" element={<ShareBug />} />
-        <Route path="*" element={<Navigate to={currentPath.startsWith("/share/") ? currentPath : savedRedirect} replace />} />
-      </Routes>
-    );
-  }
 
   if (!user) {
     return (
