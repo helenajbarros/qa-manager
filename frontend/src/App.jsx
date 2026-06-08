@@ -40,52 +40,38 @@ function RedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth();
 
-  // Verifica se veio de um redirect do 404.html para rota /share/
-  const savedRedirect = sessionStorage.getItem("qa_redirect") || "";
-  const isShareRoute = savedRedirect.startsWith("/share/");
-
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
 
-  // Rota pública /share/ — não precisa de login
-  if (isShareRoute) {
-    const token = savedRedirect;
-    sessionStorage.removeItem("qa_redirect");
-    return (
-      <Routes>
-        <Route path="*" element={<Navigate to={token} replace />} />
-        <Route path="/share/:token" element={<ShareBug />} />
-      </Routes>
-    );
-  }
-
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/share/:token" element={<ShareBug />} />
-        <Route path="*" element={<Login />} />
-      </Routes>
-    );
-  }
-
   return (
-    <div className="app">
-      <RedirectHandler />
-      <Sidebar />
-      <main className="main">
-        <Routes>
-          <Route path="/"             element={<Guard><Dashboard /></Guard>} />
-          <Route path="/modules"      element={<Guard><Modules /></Guard>} />
-          <Route path="/test-cases"   element={<Guard><TestCases /></Guard>} />
-          <Route path="/cycles"       element={<Guard><Cycles /></Guard>} />
-          <Route path="/bugs"         element={<Guard><Bugs /></Guard>} />
-          <Route path="/bugs/:id"     element={<Guard><BugDetail /></Guard>} />
-          <Route path="/projects"     element={<Guard managerOk><Projects /></Guard>} />
-          <Route path="/users"        element={<Guard managerOk><Users /></Guard>} />
-          <Route path="/backup"       element={<Guard adminOnly><Backup /></Guard>} />
-          <Route path="/share/:token" element={<ShareBug />} />
-          <Route path="*"             element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      {/* Rota pública — sem login */}
+      <Route path="/share/:token" element={<ShareBug />} />
+
+      {/* Rotas autenticadas */}
+      {user ? (
+        <Route path="/*" element={
+          <div className="app">
+            <RedirectHandler />
+            <Sidebar />
+            <main className="main">
+              <Routes>
+                <Route path="/"           element={<Guard><Dashboard /></Guard>} />
+                <Route path="/modules"    element={<Guard><Modules /></Guard>} />
+                <Route path="/test-cases" element={<Guard><TestCases /></Guard>} />
+                <Route path="/cycles"     element={<Guard><Cycles /></Guard>} />
+                <Route path="/bugs"       element={<Guard><Bugs /></Guard>} />
+                <Route path="/bugs/:id"   element={<Guard><BugDetail /></Guard>} />
+                <Route path="/projects"   element={<Guard managerOk><Projects /></Guard>} />
+                <Route path="/users"      element={<Guard managerOk><Users /></Guard>} />
+                <Route path="/backup"     element={<Guard adminOnly><Backup /></Guard>} />
+                <Route path="*"           element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+          </div>
+        } />
+      ) : (
+        <Route path="*" element={<Login />} />
+      )}
+    </Routes>
   );
 }
