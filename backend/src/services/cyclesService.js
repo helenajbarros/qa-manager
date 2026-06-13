@@ -84,7 +84,7 @@ async function updateCycle(id, { name, description, version, test_types, start_d
   // Ao arquivar: fecha automaticamente os bugs vinculados às execuções do ciclo
   if (status === "archived" && prev && prev.status !== "archived") {
     try {
-      const result = await execute(
+      await execute(
         `UPDATE bugs SET status='closed', closed_by_archive=true
          WHERE id IN (
            SELECT DISTINCT bug_id FROM test_executions
@@ -92,7 +92,16 @@ async function updateCycle(id, { name, description, version, test_types, start_d
          ) AND status NOT IN ('closed')`,
         [id]
       );
-      const count = result?.rowCount || 0;
+      // Conta quantos bugs foram fechados após o UPDATE
+      const countRows = await query(
+        `SELECT COUNT(*) AS total FROM bugs
+         WHERE closed_by_archive=true AND id IN (
+           SELECT DISTINCT bug_id FROM test_executions
+           WHERE cycle_id=$1 AND bug_id IS NOT NULL
+         )`,
+        [id]
+      );
+      const count = parseInt(countRows[0]?.total || 0);
       await logActivity(id, userId, "arquivou o ciclo", `${count} bug(s) fechado(s) automaticamente`);
     } catch(err) {
       console.error("[cyclesService] erro ao fechar bugs ao arquivar:", err.message);

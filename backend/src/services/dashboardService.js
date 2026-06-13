@@ -4,7 +4,7 @@ function cast(col) {
   return USE_PG ? `${col}::int` : `CAST(${col} AS INTEGER)`;
 }
 
-async function getDashboard({ project_id, cycle_id } = {}) {
+async function getDashboard({ project_id, cycle_id, date_from, date_to } = {}) {
   const num = v => parseInt(v || 0);
   const pid  = project_id ? parseInt(project_id) : null;
   const cid  = cycle_id   ? parseInt(cycle_id)   : null;
@@ -12,6 +12,12 @@ async function getDashboard({ project_id, cycle_id } = {}) {
   const pWhere  = pid ? `AND c.project_id = ${pid}` : "";
   const pWhereM = pid ? `AND m.project_id = ${pid}` : "";
   const pWhereB = pid ? `AND b.project_id = ${pid}` : "";
+
+  // Filtro de data nas execuções (via data de início/fim do ciclo)
+  const dWhereE = (!cid && date_from && date_to)
+    ? `AND c.start_date >= '${date_from}' AND c.end_date <= '${date_to}'`
+    : (!cid && date_from ? `AND c.start_date >= '${date_from}'`
+    : (!cid && date_to   ? `AND c.end_date <= '${date_to}'` : ""));
 
   // Quando ciclo específico: filtra execuções, módulos e bugs pelo ciclo
   const cWhereE  = cid ? `AND e.cycle_id = ${cid}` : "";
@@ -27,7 +33,7 @@ async function getDashboard({ project_id, cycle_id } = {}) {
       SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
     FROM test_executions e
     JOIN test_cycles c ON c.id = e.cycle_id
-    WHERE 1=1 ${pWhere} ${cWhereE}
+    WHERE 1=1 ${pWhere} ${cWhereE} ${dWhereE}
   `);
   const exec = execRows[0] || {};
 

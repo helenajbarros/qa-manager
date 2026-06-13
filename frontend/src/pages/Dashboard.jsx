@@ -478,11 +478,13 @@ export default function Dashboard() {
     () => {
       const params = pid ? { project_id: pid } : {};
       // Quando ciclo específico selecionado, passa cycle_id para o backend
-      // Isso filtra execuções, módulos e bugs pelo ciclo no servidor
       if (filters.cycle_id) params.cycle_id = filters.cycle_id;
+      // Passa filtros de data para o backend filtrar execuções no servidor
+      if (filters.date_from) params.date_from = filters.date_from;
+      if (filters.date_to)   params.date_to   = filters.date_to;
       return dashboardApi.get(params);
     },
-    [pid, filters.cycle_id]
+    [pid, filters.cycle_id, filters.date_from, filters.date_to]
   );
 
   // Busca ciclos para o filtro de ciclo no seletor
@@ -606,15 +608,7 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={execPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
-                  labelLine={false}
-                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                    if (percent < 0.05) return null;
-                    const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 1.35;
-                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                    return <text x={x} y={y} fill="#333" textAnchor="middle" dominantBaseline="central" fontSize={12}>{`${(percent*100).toFixed(0)}%`}</text>;
-                  }}>
+                  label={({percent}) => `${(percent*100).toFixed(0)}%`}>
                   {execPie.map((d,i) => <Cell key={i} fill={EXEC_COLORS[d.name] || PIE_COLORS[i]} />)}
                 </Pie>
                 <Tooltip /><Legend />
@@ -628,15 +622,7 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={bugPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
-                  labelLine={false}
-                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                    if (percent < 0.05) return null;
-                    const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 1.35;
-                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                    return <text x={x} y={y} fill="#333" textAnchor="middle" dominantBaseline="central" fontSize={12}>{`${(percent*100).toFixed(0)}%`}</text>;
-                  }}>
+                  label={({percent}) => `${(percent*100).toFixed(0)}%`}>
                   {bugPie.map((d,i) => <Cell key={i} fill={BUG_COLORS[d.name] || PIE_COLORS[i]} />)}
                 </Pie>
                 <Tooltip /><Legend />

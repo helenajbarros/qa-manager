@@ -318,7 +318,7 @@ export default function Bugs() {
           {key:"ativos",      label:"Ativos",      count:countAtivos},
           {key:"finalizados", label:"Finalizados",  count:countFinalizados},
         ].map(({key,label,count}) => (
-          <button key={key} onClick={()=>{ setActiveTab(key); setFilterSt(""); setPage(1); setShowArchived(false); }}
+          <button key={key} onClick={()=>{ setActiveTab(key); setFilterSt(""); setSearch(""); setPage(1); setShowArchived(false); }}
             style={{padding:"8px 20px",border:"none",background:"none",cursor:"pointer",
               fontSize:14,fontWeight:activeTab===key?600:400,
               color:activeTab===key?"var(--accent)":"var(--text-muted)",

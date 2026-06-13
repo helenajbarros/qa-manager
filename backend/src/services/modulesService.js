@@ -28,6 +28,14 @@ async function update(id, { name, description }) {
 }
 
 async function remove(id) {
+  // Verifica se há casos de teste vinculados antes de excluir
+  const cases = await query("SELECT COUNT(*) AS total FROM test_cases WHERE module_id=$1", [id]);
+  const total = parseInt(cases[0]?.total || 0);
+  if (total > 0) {
+    const err = new Error(`Módulo possui ${total} caso(s) de teste vinculado(s). Remova os casos antes de excluir o módulo.`);
+    err.status = 400;
+    throw err;
+  }
   return execute("DELETE FROM modules WHERE id=$1", [id]);
 }
 

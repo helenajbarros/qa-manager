@@ -90,7 +90,7 @@ export default function Modules() {
 
   async function handleDelete(id) {
     try { await modulesApi.delete(id); setConfirm(null); refetch(); }
-    catch(e) { setErr(e.message); }
+    catch(e) { setConfirm(null); alert(e.message || "Não foi possível excluir o módulo."); }
   }
 
   return (
@@ -143,7 +143,7 @@ export default function Modules() {
         </Modal>
       )}
       {confirm && (
-        <ConfirmModal message={`Excluir "${confirm.name}"? Os casos de teste serão removidos.`}
+        <ConfirmModal message={`Excluir "${confirm.name}"? Esta ação não pode ser desfeita. Módulos com casos de teste vinculados não podem ser excluídos.`}
           onConfirm={()=>handleDelete(confirm.id)} onCancel={()=>setConfirm(null)} />
       )}
     </div>
