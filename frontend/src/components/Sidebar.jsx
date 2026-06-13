@@ -6,7 +6,7 @@ const links = [
   { section: "Visão Geral" },
   { to: "/",           icon: "📊", label: "Dashboard" },
   { section: "Cadastros" },
-  { to: "/modules",    icon: "🗂",  label: "Módulos" },
+  { to: "/modules",    icon: "🧩", label: "Módulos" },
   { to: "/test-cases", icon: "📋", label: "Casos de Teste" },
   { section: "Execução" },
   { to: "/cycles",     icon: "🔁", label: "Ciclos de Teste" },
@@ -99,10 +99,11 @@ export default function Sidebar() {
           </button>
           <div style={{ fontSize:10, color:"var(--text-muted)", textAlign:"center",
             marginTop:8, opacity:0.5 }}>
-            v1.2.0
+            v1.3.0
           </div>
         </div>
       )}
     </aside>
   );
 }
+
