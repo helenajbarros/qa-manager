@@ -5,6 +5,10 @@
 function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
   console.error(`[ERROR] ${req.method} ${req.path}`, err.message);
 
+  // Erros de validação com status explícito (ex: módulo com casos vinculados)
+  if (err.status === 400)
+    return res.status(400).json({ success: false, error: err.message });
+
   if (err.message?.includes("UNIQUE constraint"))
     return res.status(409).json({ success: false, error: "Registro duplicado." });
 
