@@ -8,7 +8,7 @@ import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, ExecBadge
 
 const CYCLE_STATUS = [{value:"active",label:"Ativo"},{value:"completed",label:"Concluído"},{value:"archived",label:"Arquivado"}];
 const EXEC_STATUS  = [{value:"not_executed",label:"Não executado"},{value:"passed",label:"Passou"},{value:"failed",label:"Falhou"},{value:"blocked",label:"Bloqueado"}];
-const TEST_TYPES   = ["Funcional","Regressão","Integração","Performance","Segurança","Usabilidade","Smoke","Sanidade","Exploratório","Aceitação"];
+const TEST_TYPES   = ["Funcional","Regressão","Integração","Performance","Segurança","Usabilidade","Smoke","Sanidade","Exploratório","Aceitação","API","Automação"];
 const PAGE_SIZE    = 10;
 
 function Pagination({ page, totalPages, total, onChange, label="item(s)" }) {

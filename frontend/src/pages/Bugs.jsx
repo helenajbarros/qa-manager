@@ -186,6 +186,8 @@ export default function Bugs() {
   const [err,            setErr]            = useState(null);
   const [deepLinkOpened, setDeepLinkOpened] = useState(false);
   const [page, setPage] = useState(1);
+  const [activeTab,      setActiveTab]      = useState("ativos");
+  const [showArchived,   setShowArchived]   = useState(false);
 
   // Busca IDs de bugs do ciclo selecionado via useEffect (deve ficar ANTES dos early returns)
   const [cycleBugIdsSet, setCycleBugIdsSet] = useState(null);
@@ -218,37 +220,38 @@ export default function Bugs() {
     : null;
 
   const filtered = (bugs || []).filter(b => {
+    // Filtro por aba
+    if (activeTab === "ativos"      && !["open","in_progress"].includes(b.status)) return false;
+    if (activeTab === "finalizados" && !["fixed","closed"].includes(b.status))     return false;
+    // Oculta bugs de ciclos arquivados na aba Finalizados (toggle)
+    if (activeTab === "finalizados" && !showArchived && b.cycle_status === "archived") return false;
     if (filterSev && b.severity !== filterSev)          return false;
     if (filterSt  && b.status   !== filterSt)           return false;
     if (filterMod && String(b.module_id) !== filterMod) return false;
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
-    // BUG 8 CORRIGIDO: usava created_at do bug — impreciso porque o bug pode ter sido
-    // criado fora do ciclo mas executado dentro. Agora aceita bugs cujo created_at
-    // está no período OU que tenham execution_date dentro do período (se disponível).
-    // Filtro por ciclo específico: usa bug_ids das execuções do ciclo
     if (filterCycle && filterCycle !== "none") {
-      if (!cycleBugIdsSet) return true; // aguardando carregamento
+      if (!cycleBugIdsSet) return true;
       return cycleBugIdsSet.has(Number(b.id));
     }
-    // Filtro "Sem vínculo": não tem TC e não aparece em nenhuma execução de ciclo
     if (filterCycle === "none") {
       if (b.test_case_id) return false;
-      // Se não tiver bug_id em nenhuma execução — verificamos pelo test_case_id como proxy
-      // (bug verdadeiramente exploratório não tem TC vinculado)
       return true;
     }
     return true;
   });
 
-  const counts      = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
+  const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
+  const countAtivos      = (bugs || []).filter(b => ["open","in_progress"].includes(b.status)).length;
+  const countFinalizados = (bugs || []).filter(b => ["fixed","closed"].includes(b.status)).length;
   const totalPages  = Math.ceil(filtered.length / PAGE_SIZE);
   const paged       = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
-  const cycleOptions = (cycles || []).map(c => ({
-    value: String(c.id),
-    label: c.version ? `${c.name} (v${c.version})` : c.name,
-  }));
+  const activeCycles   = (cycles || []).filter(c => c.status === "active");
+  const closedCycles   = (cycles || [])
+    .filter(c => c.status !== "active")
+    .sort((a, b) => new Date(b.start_date||0) - new Date(a.start_date||0))
+    .slice(0, 5);
   const hasFilters = filterSev || filterSt || filterMod || filterCycle || search;
 
   async function handleSave(form) {
@@ -309,6 +312,41 @@ export default function Bugs() {
       </div>
       {err && <ErrorMsg msg={err} />}
 
+      {/* Abas Ativos / Finalizados */}
+      <div style={{display:"flex",gap:0,marginBottom:16,borderBottom:"2px solid var(--border)"}}>
+        {[
+          {key:"ativos",      label:"Ativos",      count:countAtivos},
+          {key:"finalizados", label:"Finalizados",  count:countFinalizados},
+        ].map(({key,label,count}) => (
+          <button key={key} onClick={()=>{ setActiveTab(key); setFilterSt(""); setPage(1); setShowArchived(false); }}
+            style={{padding:"8px 20px",border:"none",background:"none",cursor:"pointer",
+              fontSize:14,fontWeight:activeTab===key?600:400,
+              color:activeTab===key?"var(--accent)":"var(--text-muted)",
+              borderBottom:activeTab===key?"2px solid var(--accent)":"2px solid transparent",
+              marginBottom:-2}}>
+            {label} <span style={{fontSize:12,background:"var(--accent-bg)",color:"var(--accent)",
+              borderRadius:10,padding:"1px 7px",marginLeft:4}}>{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Toggle mostrar arquivados — só aparece na aba Finalizados */}
+      {activeTab === "finalizados" && (
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+          <label style={{fontSize:13,color:"var(--text-muted)",cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+            <input type="checkbox" checked={showArchived} onChange={e=>{ setShowArchived(e.target.checked); setPage(1); }}
+              style={{cursor:"pointer"}} />
+            Mostrar bugs de ciclos arquivados
+          </label>
+          {showArchived && (
+            <span style={{fontSize:11,background:"var(--accent-bg)",color:"var(--accent)",
+              borderRadius:10,padding:"2px 8px"}}>
+              Incluindo arquivados
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Cards de status */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"open",      label:"Abertos",      color:"var(--danger)"},
@@ -335,7 +373,12 @@ export default function Bugs() {
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:160}}>
           <option value="">🔁 Todos os ciclos</option>
           <option value="none">🔍 Sem vínculo com ciclo</option>
-          {cycleOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+          {activeCycles.length > 0 && <optgroup label="── Ativos ──">
+            {activeCycles.map(c=><option key={c.id} value={String(c.id)}>{c.name}{c.version?` (v${c.version})`:""}</option>)}
+          </optgroup>}
+          {closedCycles.length > 0 && <optgroup label="── Encerrados (últimos 5) ──">
+            {closedCycles.map(c=><option key={c.id} value={String(c.id)}>{c.name}{c.version?` (v${c.version})`:""}</option>)}
+          </optgroup>}
         </select>
         <select value={filterSev} onChange={e=>{ setFilterSev(e.target.value); setPage(1); }}
           style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}}>
@@ -395,7 +438,13 @@ export default function Bugs() {
                     </td>
                     <td>{b.module_name ? <span className="badge badge-active">{b.module_name}</span> : "—"}</td>
                     <td><Severity v={b.severity} /></td>
-                    <td><BugStatus v={b.status} /></td>
+                    <td>
+                      <BugStatus v={b.status} />
+                      {b.closed_by_archive && (
+                        <span title="Fechado automaticamente ao arquivar ciclo"
+                          style={{marginLeft:4,fontSize:12}}>🔒</span>
+                      )}
+                    </td>
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>
                       {b.assigned_to_name || b.created_by_name || "—"}
                     </td>

@@ -12,12 +12,16 @@ const BASE = `
     m.name  AS module_name,
     u.name  AS created_by_name,
     a.name  AS assigned_to_name,
-    tc.title AS test_case_title
+    tc.title AS test_case_title,
+    (SELECT cyc.status FROM test_executions tex
+     JOIN test_cycles cyc ON cyc.id = tex.cycle_id
+     WHERE tex.bug_id = b.id
+     ORDER BY cyc.created_at DESC LIMIT 1) AS cycle_status
   FROM bugs b
-  LEFT JOIN modules    m  ON m.id  = b.module_id
-  LEFT JOIN users      u  ON u.id  = b.created_by_id
-  LEFT JOIN users      a  ON a.id  = b.assigned_to_id
-  LEFT JOIN test_cases tc ON tc.id = b.test_case_id
+  LEFT JOIN modules    m   ON m.id   = b.module_id
+  LEFT JOIN users      u   ON u.id   = b.created_by_id
+  LEFT JOIN users      a   ON a.id   = b.assigned_to_id
+  LEFT JOIN test_cases tc  ON tc.id  = b.test_case_id
 `;
 
 async function getFiles(bug_id) {
@@ -103,11 +107,11 @@ async function create({ title, description, comment, tracker_url, severity, stat
   const mod = module_id || await extractModuleId(title);
   const rows = await query(
     `INSERT INTO bugs (title,description,comment,tracker_url,severity,status,module_id,
-      test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+      test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", status||"open", mod||null, test_case_id||null,
-     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null]
+     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false]
   );
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);

@@ -288,11 +288,21 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
             style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
               fontSize:13, background:"var(--surface)", width:"100%" }}>
             <option value="">Todos os ciclos</option>
-            {cycles.map(c => {
-              const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
-              const label = `${c.name}${c.version?" (v"+c.version+")":""}${date?" — "+date:""}`;
-              return <option key={c.id} value={c.id}>{label}</option>;
-            })}
+            {cycles.filter(c=>c.status==="active").length > 0 && <optgroup label="── Ativos ──">
+              {cycles.filter(c=>c.status==="active").map(c => {
+                const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
+                return <option key={c.id} value={c.id}>{c.name}{c.version?` (v${c.version})`:""}{ date ? " — "+date : ""}</option>;
+              })}
+            </optgroup>}
+            {cycles.filter(c=>c.status!=="active").length > 0 && <optgroup label="── Encerrados (últimos 5) ──">
+              {cycles.filter(c=>c.status!=="active")
+                .sort((a,b)=>new Date(b.start_date||0)-new Date(a.start_date||0))
+                .slice(0,5)
+                .map(c => {
+                  const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
+                  return <option key={c.id} value={c.id}>{c.name}{c.version?` (v${c.version})`:""}{ date ? " — "+date : ""}</option>;
+                })}
+            </optgroup>}
           </select>
         </div>
         <div style={{ flex:"1 1 180px" }}>

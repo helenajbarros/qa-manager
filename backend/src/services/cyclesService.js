@@ -81,6 +81,23 @@ async function updateCycle(id, { name, description, version, test_types, start_d
     if ((prev.status||"active") !== (status||"active")) await logActivity(id, userId, "alterou o status", `${prev.status} → ${status}`);
     if ((prev.version||"") !== (version||"")) await logActivity(id, userId, "alterou a versão", `${prev.version||"-"} → ${version||"-"}`);
   }
+  // Ao arquivar: fecha automaticamente os bugs vinculados às execuções do ciclo
+  if (status === "archived" && prev && prev.status !== "archived") {
+    try {
+      const result = await execute(
+        `UPDATE bugs SET status='closed', closed_by_archive=true
+         WHERE id IN (
+           SELECT DISTINCT bug_id FROM test_executions
+           WHERE cycle_id=$1 AND bug_id IS NOT NULL
+         ) AND status NOT IN ('closed')`,
+        [id]
+      );
+      const count = result?.rowCount || 0;
+      await logActivity(id, userId, "arquivou o ciclo", `${count} bug(s) fechado(s) automaticamente`);
+    } catch(err) {
+      console.error("[cyclesService] erro ao fechar bugs ao arquivar:", err.message);
+    }
+  }
   return findCycleById(id);
 }
 
