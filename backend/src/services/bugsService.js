@@ -102,32 +102,38 @@ async function getActivity(bug_id) {
   `, [bug_id]);
 }
 
-async function create({ title, description, comment, tracker_url, severity, status, module_id,
-  test_case_id, created_by_id, project_id, assigned_to_id, pr_url, steps }) {
+async function create({ title, description, comment, tracker_url, severity, priority, status,
+  module_id, test_case_id, created_by_id, project_id, assigned_to_id, pr_url, steps,
+  environment, actual_result, expected_result }) {
   const mod = module_id || await extractModuleId(title);
   const rows = await query(
-    `INSERT INTO bugs (title,description,comment,tracker_url,severity,status,module_id,
-      test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+    `INSERT INTO bugs (title,description,comment,tracker_url,severity,priority,status,module_id,
+      test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive,
+      environment,actual_result,expected_result)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
     [title.trim(), description||null, comment||null, tracker_url||null,
-     severity||"medium", status||"open", mod||null, test_case_id||null,
-     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false]
+     severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null,
+     created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false,
+     environment||"production", actual_result||null, expected_result||null]
   );
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
   return bug;
 }
 
-async function update(id, { title, description, comment, tracker_url, severity, status,
-  module_id, test_case_id, assigned_to_id, pr_url, steps, test_type }, userId) {
+async function update(id, { title, description, comment, tracker_url, severity, priority, status,
+  module_id, test_case_id, assigned_to_id, pr_url, steps, test_type,
+  environment, actual_result, expected_result }, userId) {
   const prev = await findById(id);
   const mod  = module_id || await extractModuleId(title);
   await execute(
-    `UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,
-      status=$6,module_id=$7,test_case_id=$8,assigned_to_id=$9,pr_url=$10,steps=$11,test_type=$12 WHERE id=$13`,
+    `UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,
+      status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,
+      environment=$14,actual_result=$15,expected_result=$16 WHERE id=$17`,
     [title.trim(), description||null, comment||null, tracker_url||null,
-     severity||"medium", status||"open", mod||null, test_case_id||null,
-     assigned_to_id||null, pr_url||null, steps||null, test_type||null, id]
+     severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null,
+     assigned_to_id||null, pr_url||null, steps||null, test_type||null,
+     environment||"production", actual_result||null, expected_result||null, id]
   );
   // Log de atividades
   if (prev && prev.status !== status) {

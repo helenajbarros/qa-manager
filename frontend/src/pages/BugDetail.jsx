@@ -12,6 +12,8 @@ const TEST_TYPES = [
 ];
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
+const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
+const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"development",label:"Desenvolvimento"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 const ACT_ICONS   = {"criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤","editou o bug":"✏","adicionou passo":"➕","removeu passo":"➖"};
 
@@ -540,12 +542,16 @@ export default function BugDetail() {
       tracker_url:    bug.tracker_url    || "",
       pr_url:         bug.pr_url         || "",
       severity:       bug.severity       || "medium",
+      priority:       bug.priority       || "medium",
       status:         bug.status         || "open",
       module_id:      bug.module_id      || "",
       test_case_id:   bug.test_case_id   || "",
       assigned_to_id: bug.assigned_to_id || "",
       steps:          bug.steps          || "",
       test_type:      bug.test_type      || "",
+      environment:    bug.environment    || "production",
+      actual_result:  bug.actual_result  || "",
+      expected_result: bug.expected_result || "",
     });
   }
 
@@ -667,6 +673,8 @@ export default function BugDetail() {
           <>
             <Select value={form.status}   onChange={v=>setForm(f=>({...f,status:v}))}   options={STATUS_OPTS} />
             <Select value={form.severity} onChange={v=>setForm(f=>({...f,severity:v}))} options={SEV_OPTS} />
+            <Field label="Prioridade"><Select value={form.priority} onChange={v=>setForm(f=>({...f,priority:v}))} options={PRIO_OPTS} /></Field>
+            <Field label="Ambiente"><Select value={form.environment} onChange={v=>setForm(f=>({...f,environment:v}))} options={ENV_OPTS} /></Field>
             <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
               style={{padding:"5px 10px",borderRadius:6,border:"1px solid var(--border)",
                 fontSize:12,background:"var(--surface)",color:"var(--text)"}}>
@@ -678,6 +686,8 @@ export default function BugDetail() {
           <>
             <BugStatus v={bug.status} />
             <Severity  v={bug.severity} />
+            {bug.priority && <><span style={{color:"var(--text-muted)",fontSize:12}}>Prioridade:</span> <strong>{bug.priority === "low" ? "Baixa" : bug.priority === "medium" ? "Média" : bug.priority === "high" ? "Alta" : "Crítica"}</strong></>}
+            {bug.environment && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : "Desenvolvimento"}</strong></>}
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
             {bug.test_type && (
               <span style={{fontSize:11,padding:"2px 10px",borderRadius:10,
@@ -767,7 +777,39 @@ export default function BugDetail() {
             </div>
           </Accordion>
 
+          {/* Resultado Obtido */}
+          <Accordion title="Resultado obtido" defaultOpen={true}>
+            <div style={{padding:"12px 16px"}}>
+              {isEditing ? (
+                <textarea value={form.actual_result||""} onChange={set("actual_result")}
+                  rows={3} placeholder="O que aconteceu de fato? Ex: Sistema retornou erro 500."
+                  style={{width:"100%",padding:"10px",borderRadius:8,
+                    border:"1px solid var(--border)",fontSize:13,lineHeight:1.7,
+                    resize:"vertical",background:"var(--bg)",fontFamily:"inherit",outline:"none"}} />
+              ) : bug.actual_result ? (
+                <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",paddingLeft:4}}>{bug.actual_result}</p>
+              ) : (
+                <p style={{color:"var(--text-muted)",fontStyle:"italic",fontSize:13}}>Não informado.</p>
+              )}
+            </div>
+          </Accordion>
 
+          {/* Resultado Esperado */}
+          <Accordion title="Resultado esperado" defaultOpen={true}>
+            <div style={{padding:"12px 16px"}}>
+              {isEditing ? (
+                <textarea value={form.expected_result||""} onChange={set("expected_result")}
+                  rows={3} placeholder="O que deveria acontecer? Ex: Sistema exibe mensagem de sucesso."
+                  style={{width:"100%",padding:"10px",borderRadius:8,
+                    border:"1px solid var(--border)",fontSize:13,lineHeight:1.7,
+                    resize:"vertical",background:"var(--bg)",fontFamily:"inherit",outline:"none"}} />
+              ) : bug.expected_result ? (
+                <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",paddingLeft:4}}>{bug.expected_result}</p>
+              ) : (
+                <p style={{color:"var(--text-muted)",fontStyle:"italic",fontSize:13}}>Não informado.</p>
+              )}
+            </div>
+          </Accordion>
 
           {/* Comentários */}
           <Accordion title="Comentários" defaultOpen={true} badge={(bug.activity||[]).filter(a=>a.action==="adicionou comentário").length||undefined}>

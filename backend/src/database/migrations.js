@@ -53,6 +53,13 @@ async function runMigrations() {
       `);
 
     } finally { client.release(); }
+
+    // Novos campos v1.4.0 — após release do client para evitar conflito de conexão
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS environment TEXT DEFAULT 'production'"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS actual_result TEXT"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS expected_result TEXT"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS closed_by_archive BOOLEAN DEFAULT false"); } catch(_) {}
   } else {
     // SQLite
     const tables = [

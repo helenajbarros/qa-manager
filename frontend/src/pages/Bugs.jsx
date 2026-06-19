@@ -46,6 +46,8 @@ function StepsSectionBug({ steps, onChange }) {
 const PAGE_SIZE = 10;
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
+const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
+const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"development",label:"Desenvolvimento"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 
 function Pagination({ page, totalPages, total, onChange }) {
@@ -85,10 +87,14 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     tracker_url:    initial.tracker_url    || "",
     pr_url:         initial.pr_url         || "",
     severity:       initial.severity       || "medium",
+    priority:       initial.priority       || "medium",
     status:         initial.status         || "open",
     module_id:      initial.module_id      || "",
     test_case_id:   initial.test_case_id   || "",
     assigned_to_id: initial.assigned_to_id || "",
+    environment:    initial.environment    || "production",
+    actual_result:  initial.actual_result  || "",
+    expected_result: initial.expected_result || "",
   });
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
 
@@ -105,8 +111,16 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
         <Field label="Severidade">
           <Select value={form.severity} onChange={v=>setForm(f=>({...f,severity:v}))} options={SEV_OPTS} />
         </Field>
+        <Field label="Prioridade">
+          <Select value={form.priority} onChange={v=>setForm(f=>({...f,priority:v}))} options={PRIO_OPTS} />
+        </Field>
+      </div>
+      <div className="form-row">
         <Field label="Status">
           <Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={STATUS_OPTS} />
+        </Field>
+        <Field label="Ambiente">
+          <Select value={form.environment} onChange={v=>setForm(f=>({...f,environment:v}))} options={ENV_OPTS} />
         </Field>
       </div>
       <div className="form-row">
@@ -132,11 +146,19 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
         <input value={form.tracker_url} onChange={set("tracker_url")}
           placeholder="https://app.clickup.com/t/..." />
       </Field>
+      <Field label="Descrição">
+        <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />
+      </Field>
       <Field label="Passos para reproduzir">
         <StepsSectionBug steps={form.steps} onChange={v => setForm(f=>({...f, steps:v}))} />
       </Field>
-      <Field label="Descrição">
-        <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />
+      <Field label="Resultado obtido">
+        <textarea value={form.actual_result} onChange={set("actual_result")}
+          placeholder="O que aconteceu de fato? Ex: Sistema retornou erro 500." />
+      </Field>
+      <Field label="Resultado esperado">
+        <textarea value={form.expected_result} onChange={set("expected_result")}
+          placeholder="O que deveria acontecer? Ex: Sistema exibe mensagem de sucesso." />
       </Field>
       {bugId ? (
         <Field label="Arquivos / Evidências">

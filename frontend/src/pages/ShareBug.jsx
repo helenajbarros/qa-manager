@@ -144,9 +144,19 @@ export default function ShareBug() {
                 <span className="share-pill" style={{background:sev.bg,color:sev.color}}>
                   {SEV_LABEL[bug.severity]||bug.severity}
                 </span>
+                {bug.priority && (
+                  <span className="share-pill" style={{background:"#F3F4F6",color:"#374151"}}>
+                    Prioridade: {bug.priority === "low" ? "Baixa" : bug.priority === "medium" ? "Média" : bug.priority === "high" ? "Alta" : "Crítica"}
+                  </span>
+                )}
                 {bug.module_name && (
                   <span className="share-pill" style={{background:"#EFF6FF",color:"#1E40AF"}}>
                     {bug.module_name}
+                  </span>
+                )}
+                {bug.environment && (
+                  <span className="share-pill" style={{background:"#F0FDF4",color:"#166534"}}>
+                    {bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : "Desenvolvimento"}
                   </span>
                 )}
               </div>
@@ -190,6 +200,26 @@ export default function ShareBug() {
                         <div style={{fontSize:13,lineHeight:1.6,flex:1,padding:"4px 0"}}>{step}</div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Resultado Obtido */}
+              {bug.actual_result && (
+                <div className="share-card">
+                  <div className="share-card-header">Resultado obtido</div>
+                  <div className="share-card-body">
+                    <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",margin:0}}>{bug.actual_result}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Resultado Esperado */}
+              {bug.expected_result && (
+                <div className="share-card">
+                  <div className="share-card-header">Resultado esperado</div>
+                  <div className="share-card-body">
+                    <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",margin:0}}>{bug.expected_result}</p>
                   </div>
                 </div>
               )}

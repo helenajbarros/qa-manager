@@ -30,6 +30,12 @@ const show    = async (req,res,next) => {
 const store   = async (req,res,next) => {
   try {
     if(!req.body.title?.trim()) return r.badRequest(res,"title obrigatório");
+    console.log("[BUG CREATE] body:", JSON.stringify({
+      actual_result: req.body.actual_result,
+      expected_result: req.body.expected_result,
+      environment: req.body.environment,
+      priority: req.body.priority
+    }));
     r.created(res, await svc.create(req.body));
   } catch(e){next(e);}
 };
