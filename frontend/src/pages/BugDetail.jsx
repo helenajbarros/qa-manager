@@ -409,37 +409,66 @@ function ActivitySection({ activity }) {
     return dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
   };
   const dotColors = {
-    "criou o bug":"var(--text-muted)","alterou o status":"var(--success)",
-    "alterou o responsável":"var(--accent)","editou o bug":"var(--warning)",
+    "criou o bug":       "#6B7280",
+    "alterou o status":  "#16A34A",
+    "alterou o responsável": "#2563EB",
+    "editou o bug":      "#D97706",
+    "adicionou comentário": "#7C3AED",
+    "adicionou passo":   "#0891B2",
+    "removeu passo":     "#DC2626",
+    "arquivou o ciclo":  "#6B7280",
+  };
+  const icons = {
+    "criou o bug":       "🐛",
+    "alterou o status":  "🔄",
+    "alterou o responsável": "👤",
+    "editou o bug":      "✏️",
+    "adicionou comentário": "💬",
+    "adicionou passo":   "➕",
+    "removeu passo":     "➖",
+    "arquivou o ciclo":  "📦",
   };
   return (
-    <div>
-      <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",
-        letterSpacing:".05em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>
-        HISTÓRICO DE ATIVIDADES
-        <span style={{background:"var(--border)",color:"var(--text-muted)",borderRadius:12,
-          padding:"1px 8px",fontSize:10}}>{activity.length}</span>
-      </div>
-      {activity.map((a,i) => (
-        <div key={a.id||i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:12,
-          paddingBottom:12,borderBottom:i<activity.length-1?"1px solid var(--border)":"none"}}>
-          <div style={{width:10,height:10,borderRadius:"50%",flexShrink:0,marginTop:4,
-            background:dotColors[a.action]||"var(--text-muted)"}} />
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,lineHeight:1.5}}>
-              <span style={{fontWeight:500}}>{a.user_name||"Sistema"}</span>
-              <span style={{color:"var(--text-muted)",marginLeft:6}}>{a.action}</span>
-              {a.detail && (
-                <span style={{fontSize:11,color:"var(--accent)",marginLeft:6,
-                  background:"var(--accent-bg)",padding:"1px 8px",borderRadius:10}}>
-                  {a.detail}
-                </span>
-              )}
+    <div style={{position:"relative",paddingLeft:28}}>
+      {/* Linha vertical da timeline */}
+      <div style={{position:"absolute",left:9,top:6,bottom:6,width:2,
+        background:"var(--border)",borderRadius:2}} />
+
+      {activity.map((a,i) => {
+        const color = dotColors[a.action] || "#6B7280";
+        const icon  = icons[a.action] || "📋";
+        return (
+          <div key={a.id||i} style={{position:"relative",marginBottom:i<activity.length-1?20:0}}>
+            {/* Bolinha na linha do tempo */}
+            <div style={{position:"absolute",left:-28,top:2,width:20,height:20,
+              borderRadius:"50%",background:color,display:"flex",alignItems:"center",
+              justifyContent:"center",fontSize:10,flexShrink:0,
+              boxShadow:"0 0 0 3px var(--bg)"}}>
+              <span>{icon}</span>
             </div>
-            <div style={{fontSize:11,color:"var(--text-muted)",marginTop:2}}>{fmtDate(a.created_at)}</div>
+
+            {/* Conteúdo */}
+            <div style={{background:"var(--card)",border:"1px solid var(--border)",
+              borderRadius:8,padding:"10px 14px",marginLeft:4}}>
+              <div style={{fontSize:13,lineHeight:1.5,display:"flex",flexWrap:"wrap",
+                alignItems:"center",gap:4}}>
+                <span style={{fontWeight:600,color:"var(--text)"}}>{a.user_name||"Sistema"}</span>
+                <span style={{color:"var(--text-muted)"}}>{a.action}</span>
+                {a.detail && (
+                  <span style={{fontSize:11,color:color,
+                    background:color+"15",padding:"2px 8px",borderRadius:10,fontWeight:500}}>
+                    {a.detail}
+                  </span>
+                )}
+              </div>
+              <div style={{fontSize:11,color:"var(--text-muted)",marginTop:4,
+                display:"flex",alignItems:"center",gap:4}}>
+                🕐 {fmtDate(a.created_at)}
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
