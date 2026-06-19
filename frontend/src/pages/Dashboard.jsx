@@ -612,7 +612,7 @@ export default function Dashboard() {
                   label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
                     if (percent < 0.05) return null;
                     const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 1.45;
+                    const radius = innerRadius + (outerRadius - innerRadius) * 1.65;
                     const x = cx + radius * Math.cos(-midAngle * RADIAN);
                     const y = cy + radius * Math.sin(-midAngle * RADIAN);
                     return <text x={x} y={y} fill="#333" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="500">{`${(percent*100).toFixed(0)}%`}</text>;
@@ -634,7 +634,7 @@ export default function Dashboard() {
                   label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
                     if (percent < 0.05) return null;
                     const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 1.45;
+                    const radius = innerRadius + (outerRadius - innerRadius) * 1.65;
                     const x = cx + radius * Math.cos(-midAngle * RADIAN);
                     const y = cy + radius * Math.sin(-midAngle * RADIAN);
                     return <text x={x} y={y} fill="#333" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="500">{`${(percent*100).toFixed(0)}%`}</text>;
@@ -743,4 +743,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
