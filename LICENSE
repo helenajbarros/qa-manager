@@ -29,8 +29,7 @@ Versão atual: 1.4.0
 
 Este software foi concebido, projetado e desenvolvido por Helena Barros como
 solução para gestão de qualidade de software. A motivação inicial foi a
-necessidade de substituir planilhas utilizadas no projeto PTHI (Plataforma
-Tecnológica de Habitação e Inovação) por um sistema web estruturado, centralizado
+necessidade de substituir planilhas utilizadas no projeto Parque Tecnológico Horizontes de Inovação (PTHI) por um sistema web estruturado, centralizado
 e rastreável — capaz de gerenciar casos de teste, ciclos de execução, bugs e
 métricas de qualidade em tempo real.
 
