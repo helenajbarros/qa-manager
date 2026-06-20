@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAsync }    from "../hooks/useAsync.js";
 import { bugsApi, modulesApi, testCasesApi, cyclesApi, usersApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.jsx";
@@ -187,8 +187,9 @@ export default function Bugs() {
   const pid      = currentProject?.id;
   const isViewer = user?.role === "viewer";
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid, location.state?.refresh]);
   const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
@@ -245,8 +246,8 @@ export default function Bugs() {
     // Filtro por aba
     if (activeTab === "ativos"      && !["open","in_progress"].includes(b.status)) return false;
     if (activeTab === "finalizados" && !["fixed","closed"].includes(b.status))     return false;
-    // Oculta bugs de ciclos arquivados na aba Finalizados (toggle)
-    if (activeTab === "finalizados" && !showArchived && b.cycle_status === "archived") return false;
+    // Oculta bugs arquivados na aba Finalizados (toggle)
+    if (activeTab === "finalizados" && !showArchived && (b.cycle_status === "archived" || b.closed_by_archive)) return false;
     if (filterSev && b.severity !== filterSev)          return false;
     if (filterSt  && b.status   !== filterSt)           return false;
     if (filterMod && String(b.module_id) !== filterMod) return false;
@@ -266,7 +267,12 @@ export default function Bugs() {
 
   const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
   const countAtivos      = (bugs || []).filter(b => ["open","in_progress"].includes(b.status)).length;
-  const countFinalizados = (bugs || []).filter(b => ["fixed","closed"].includes(b.status)).length;
+  const countFinalizados = (bugs || []).filter(b =>
+    ["fixed","closed"].includes(b.status) && !b.closed_by_archive
+  ).length;
+  const countArquivados = (bugs || []).filter(b =>
+    ["fixed","closed"].includes(b.status) && b.closed_by_archive
+  ).length;
   const totalPages  = Math.ceil(filtered.length / PAGE_SIZE);
   const paged       = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const activeCycles   = (cycles || []).filter(c => c.status === "active");
@@ -338,7 +344,7 @@ export default function Bugs() {
       <div style={{display:"flex",gap:0,marginBottom:16,borderBottom:"2px solid var(--border)"}}>
         {[
           {key:"ativos",      label:"Ativos",      count:countAtivos},
-          {key:"finalizados", label:"Finalizados",  count:countFinalizados},
+          {key:"finalizados", label:"Finalizados",  count:showArchived ? countFinalizados + countArquivados : countFinalizados},
         ].map(({key,label,count}) => (
           <button key={key} onClick={()=>{ setActiveTab(key); setFilterSt(""); setSearch(""); setPage(1); setShowArchived(false); }}
             style={{padding:"8px 20px",border:"none",background:"none",cursor:"pointer",

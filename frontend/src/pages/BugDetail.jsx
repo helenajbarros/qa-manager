@@ -441,9 +441,9 @@ function ActivitySection({ activity }) {
           <div key={a.id||i} style={{position:"relative",marginBottom:i<activity.length-1?20:0}}>
             {/* Bolinha na linha do tempo */}
             <div style={{position:"absolute",left:-28,top:2,width:20,height:20,
-              borderRadius:"50%",background:color+"20",border:"1.5px solid "+color+"60",
-              display:"flex",alignItems:"center",
-              justifyContent:"center",fontSize:10,flexShrink:0}}>
+              borderRadius:"50%",background:color,display:"flex",alignItems:"center",
+              justifyContent:"center",fontSize:10,flexShrink:0,
+              boxShadow:"0 0 0 3px var(--bg)"}}>
               <span>{icon}</span>
             </div>
 
@@ -637,6 +637,56 @@ export default function BugDetail() {
     catch(e) { setErr(e.message); }
   }
 
+  async function handleArchive() {
+    if (!window.confirm("Arquivar este bug? Ele ficará oculto na aba Finalizados e só será visível ao marcar 'Mostrar bugs de ciclos arquivados'.")) return;
+    try {
+      await bugsApi.update(bug.id, {
+        title: bug.title,
+        description: bug.description || "",
+        comment: bug.comment || "",
+        tracker_url: bug.tracker_url || "",
+        pr_url: bug.pr_url || "",
+        severity: bug.severity || "medium",
+        priority: bug.priority || "medium",
+        status: "closed",
+        module_id: bug.module_id || "",
+        test_case_id: bug.test_case_id || "",
+        assigned_to_id: bug.assigned_to_id || "",
+        steps: bug.steps || "",
+        environment: bug.environment || "production",
+        actual_result: bug.actual_result || "",
+        expected_result: bug.expected_result || "",
+        closed_by_archive: true,
+      });
+      navigate("/bugs", { state: { refresh: Date.now() } });
+    } catch(e) { setErr(e.message); }
+  }
+
+  async function handleUnarchive() {
+    if (!window.confirm("Desarquivar este bug? Ele voltará a aparecer normalmente na aba Finalizados.")) return;
+    try {
+      await bugsApi.update(bug.id, {
+        title: bug.title,
+        description: bug.description || "",
+        comment: bug.comment || "",
+        tracker_url: bug.tracker_url || "",
+        pr_url: bug.pr_url || "",
+        severity: bug.severity || "medium",
+        priority: bug.priority || "medium",
+        status: bug.status || "closed",
+        module_id: bug.module_id || "",
+        test_case_id: bug.test_case_id || "",
+        assigned_to_id: bug.assigned_to_id || "",
+        steps: bug.steps || "",
+        environment: bug.environment || "production",
+        actual_result: bug.actual_result || "",
+        expected_result: bug.expected_result || "",
+        closed_by_archive: false,
+      });
+      navigate("/bugs", { state: { refresh: Date.now() } });
+    } catch(e) { setErr(e.message); }
+  }
+
   async function handleShare() {
     setShareLoading(true);
     try {
@@ -687,6 +737,20 @@ export default function BugDetail() {
                 {shareLoading ? "Gerando..." : "🔗 Link público"}
               </button>
               <button className="btn" onClick={startEdit}>✏ Editar</button>
+              {["fixed","closed"].includes(bug.status) && !bug.closed_by_archive && (
+                <button className="btn" onClick={handleArchive}
+                  title="Arquivar bug — oculta da listagem padrão"
+                  style={{color:"var(--text-muted)",borderColor:"var(--border)"}}>
+                  📦 Arquivar
+                </button>
+              )}
+              {bug.closed_by_archive && (
+                <button className="btn" onClick={handleUnarchive}
+                  title="Desarquivar bug — volta a aparecer na listagem"
+                  style={{color:"var(--accent)",borderColor:"var(--accent)"}}>
+                  🔓 Desarquivar
+                </button>
+              )}
               <button className="btn btn-danger" onClick={()=>setConfirm(true)}>🗑 Excluir</button>
             </>
           )}

@@ -294,33 +294,65 @@ function ActivityTimeline({ activity }) {
     return dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
   };
   const dotColors = {
-    "criou o ciclo":"var(--text-muted)",
-    "alterou o status":"var(--success)",
-    "editou o nome":"var(--warning)",
-    "alterou a versão":"var(--accent)",
+    "criou o ciclo":     "#9CA3AF",
+    "alterou o status":  "#16A34A",
+    "editou o nome":     "#D97706",
+    "alterou a versão":  "#2563EB",
+    "arquivou o ciclo":  "#6B7280",
   };
+  const icons = {
+    "criou o ciclo":     "📋",
+    "alterou o status":  "🔄",
+    "editou o nome":     "✏️",
+    "alterou a versão":  "🏷️",
+    "arquivou o ciclo":  "📦",
+  };
+  const translateDetail = d => d ? d
+    .replace(/open/g,"Aberto")
+    .replace(/in_progress/g,"Em andamento")
+    .replace(/fixed/g,"Corrigido")
+    .replace(/closed/g,"Fechado")
+    .replace(/active/g,"Ativo")
+    .replace(/completed/g,"Concluído")
+    .replace(/archived/g,"Arquivado") : null;
+
   return (
-    <div style={{padding:"8px 0"}}>
-      {activity.map((a,i) => (
-        <div key={a.id||i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:12,
-          paddingBottom:12,borderBottom:i<activity.length-1?"1px solid var(--border)":"none"}}>
-          <div style={{width:10,height:10,borderRadius:"50%",flexShrink:0,marginTop:4,
-            background:dotColors[a.action]||"var(--text-muted)"}} />
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,lineHeight:1.5}}>
-              <span style={{fontWeight:500}}>{a.user_name||"Sistema"}</span>
-              <span style={{color:"var(--text-muted)",marginLeft:6}}>{a.action}</span>
-              {a.detail && (
-                <span style={{fontSize:11,color:"var(--accent)",marginLeft:6,
-                  background:"var(--accent-bg)",padding:"1px 8px",borderRadius:10}}>
-                  {a.detail}
-                </span>
-              )}
+    <div style={{position:"relative",paddingLeft:28,padding:"8px 0 8px 28px"}}>
+      {/* Linha vertical */}
+      <div style={{position:"absolute",left:9,top:6,bottom:6,width:2,
+        background:"var(--border)",borderRadius:2}} />
+      {activity.map((a,i) => {
+        const color = dotColors[a.action] || "#9CA3AF";
+        const icon  = icons[a.action] || "📋";
+        return (
+          <div key={a.id||i} style={{position:"relative",marginBottom:i<activity.length-1?16:0}}>
+            {/* Bolinha */}
+            <div style={{position:"absolute",left:-28,top:2,width:20,height:20,
+              borderRadius:"50%",background:color+"20",border:"1.5px solid "+color+"60",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>
+              {icon}
             </div>
-            <div style={{fontSize:11,color:"var(--text-muted)",marginTop:2}}>{fmtDate(a.created_at)}</div>
+            {/* Card */}
+            <div style={{background:"var(--card)",border:"1px solid var(--border)",
+              borderRadius:8,padding:"10px 14px",marginLeft:4}}>
+              <div style={{fontSize:13,lineHeight:1.5,display:"flex",flexWrap:"wrap",
+                alignItems:"center",gap:4}}>
+                <span style={{fontWeight:600}}>{a.user_name||"Sistema"}</span>
+                <span style={{color:"var(--text-muted)"}}>{a.action}</span>
+                {translateDetail(a.detail) && (
+                  <span style={{fontSize:11,color:color,background:color+"15",
+                    padding:"2px 8px",borderRadius:10,fontWeight:500}}>
+                    {translateDetail(a.detail)}
+                  </span>
+                )}
+              </div>
+              <div style={{fontSize:11,color:"var(--text-muted)",marginTop:4}}>
+                🕐 {fmtDate(a.created_at)}
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
