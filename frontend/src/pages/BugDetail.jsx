@@ -441,9 +441,9 @@ function ActivitySection({ activity }) {
           <div key={a.id||i} style={{position:"relative",marginBottom:i<activity.length-1?20:0}}>
             {/* Bolinha na linha do tempo */}
             <div style={{position:"absolute",left:-28,top:2,width:20,height:20,
-              borderRadius:"50%",background:color,display:"flex",alignItems:"center",
-              justifyContent:"center",fontSize:10,flexShrink:0,
-              boxShadow:"0 0 0 3px var(--bg)"}}>
+              borderRadius:"50%",background:color+"20",border:"1.5px solid "+color+"60",
+              display:"flex",alignItems:"center",
+              justifyContent:"center",fontSize:10,flexShrink:0}}>
               <span>{icon}</span>
             </div>
 

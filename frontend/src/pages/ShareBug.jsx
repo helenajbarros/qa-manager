@@ -235,24 +235,57 @@ export default function ShareBug() {
                     </span>
                   </div>
                   <div className="share-card-body">
-                    {bug.activity.map((a,i) => (
-                      <div key={a.id||i} className="share-act-item">
-                        <div style={{fontSize:16,flexShrink:0}}>{ACT_ICONS[a.action]||"📋"}</div>
-                        <div>
-                          <div style={{fontSize:13}}>
-                            <span style={{fontWeight:500}}>{a.user_name||"Sistema"}</span>
-                            <span style={{color:"#6B7280",marginLeft:6}}>{a.action}</span>
-                            {a.detail && (
-                              <span style={{fontSize:11,color:"#1E40AF",marginLeft:6,
-                                background:"#EFF6FF",padding:"1px 8px",borderRadius:10}}>
-                                {a.detail}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>{fmtDateTime(a.created_at)}</div>
+                    {(() => {
+                      const dotColors = {
+                        "criou o bug":"#9CA3AF","alterou o status":"#16A34A",
+                        "alterou o responsável":"#2563EB","editou o bug":"#D97706",
+                        "adicionou comentário":"#7C3AED","adicionou passo":"#0891B2","removeu passo":"#DC2626",
+                      };
+                      const icons = {
+                        "criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤",
+                        "editou o bug":"✏️","adicionou comentário":"💬","adicionou passo":"➕","removeu passo":"➖",
+                      };
+                      const translateDetail = d => d ? d
+                        .replace(/open/g,"Aberto").replace(/in_progress/g,"Em andamento")
+                        .replace(/fixed/g,"Corrigido").replace(/closed/g,"Fechado")
+                        .replace(/active/g,"Ativo").replace(/completed/g,"Concluído")
+                        .replace(/archived/g,"Arquivado") : null;
+                      return (
+                        <div style={{position:"relative",paddingLeft:28}}>
+                          <div style={{position:"absolute",left:9,top:6,bottom:6,width:2,
+                            background:"#E5E7EB",borderRadius:2}} />
+                          {bug.activity.map((a,i) => {
+                            const color = dotColors[a.action] || "#9CA3AF";
+                            const icon  = icons[a.action] || "📋";
+                            return (
+                              <div key={a.id||i} style={{position:"relative",marginBottom:i<bug.activity.length-1?16:0}}>
+                                <div style={{position:"absolute",left:-28,top:2,width:20,height:20,
+                                  borderRadius:"50%",background:color+"20",border:"1.5px solid "+color+"50",
+                                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>
+                                  {icon}
+                                </div>
+                                <div style={{background:"#F9FAFB",border:"1px solid #E5E7EB",
+                                  borderRadius:8,padding:"8px 12px",marginLeft:4}}>
+                                  <div style={{fontSize:13,display:"flex",flexWrap:"wrap",alignItems:"center",gap:4}}>
+                                    <span style={{fontWeight:600,color:"#111827"}}>{a.user_name||"Sistema"}</span>
+                                    <span style={{color:"#6B7280"}}>{a.action}</span>
+                                    {translateDetail(a.detail) && (
+                                      <span style={{fontSize:11,color:color,background:color+"15",
+                                        padding:"2px 8px",borderRadius:10,fontWeight:500}}>
+                                        {translateDetail(a.detail)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{fontSize:11,color:"#9CA3AF",marginTop:4}}>
+                                    🕐 {fmtDateTime(a.created_at)}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })()}
                   </div>
                 </div>
               )}
