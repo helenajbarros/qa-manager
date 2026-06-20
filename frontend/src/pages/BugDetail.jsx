@@ -457,7 +457,14 @@ function ActivitySection({ activity }) {
                 {a.detail && (
                   <span style={{fontSize:11,color:color,
                     background:color+"15",padding:"2px 8px",borderRadius:10,fontWeight:500}}>
-                    {a.detail}
+                    {a.detail
+                      .replace(/open/g,"Aberto")
+                      .replace(/in_progress/g,"Em andamento")
+                      .replace(/fixed/g,"Corrigido")
+                      .replace(/closed/g,"Fechado")
+                      .replace(/active/g,"Ativo")
+                      .replace(/completed/g,"Concluído")
+                      .replace(/archived/g,"Arquivado")}
                   </span>
                 )}
               </div>
