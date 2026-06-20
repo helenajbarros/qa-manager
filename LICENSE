@@ -1,54 +1,17 @@
-Copyright (c) 2026 Helena Barros. Todos os direitos reservados.
+QA Manager — Sistema de Gerenciamento de Qualidade de Software
+Desenvolvido por Helena Barros (2026)
 
-LICENÇA DE USO — SOFTWARE PROPRIETÁRIO COM AUTORIZAÇÃO INSTITUCIONAL
+Este projeto nasceu da necessidade de substituir planilhas utilizadas no
+projeto PTHI por um sistema web completo de gestão de qualidade de software,
+com dashboard, ciclos de teste, gestão de bugs, relatórios e muito mais.
 
-Este software e todo o seu código fonte, documentação, design e demais
-componentes são propriedade exclusiva de Helena Barros e estão protegidos
-pelas leis de direitos autorais do Brasil e tratados internacionais.
+O desenvolvimento foi realizado com o auxílio da inteligência artificial
+Claude (Anthropic), que atuou como parceira técnica ao longo de todo o
+processo — ajudando na escrita do código, revisão, correção de bugs e
+geração da documentação. Todas as decisões de produto, requisitos e direção do projeto são de autoria de Helena Barros.
 
-USO AUTORIZADO
-O uso institucional interno deste software é expressamente autorizado ao
-LAVID (Laboratório de Aplicações de Vídeo Digital) e ao projeto Parque Tecnológico Horizontes de Inovação (PTHI), exclusivamente para
-fins internos, sem fins comerciais e sem redistribuição a terceiros.
-
-É EXPRESSAMENTE PROIBIDO a qualquer pessoa ou organização, exceto as
-mencionadas acima:
-
-  - Copiar, reproduzir ou distribuir este software ou qualquer parte dele
-  - Modificar, adaptar ou criar obras derivadas
-  - Sublicenciar, vender, alugar ou transferir o software a terceiros
-  - Usar o código fonte para desenvolver produtos concorrentes
-  - Remover ou alterar este aviso de direitos autorais
-
-É EXPRESSAMENTE PROIBIDO a qualquer pessoa ou organização, incluindo
-as mencionadas acima:
-
-  - Comercializar este software ou cobrá-lo de terceiros
-  - Redistribuir o código fonte sem autorização prévia e por escrito da autora
-  - Apresentar o software como desenvolvimento próprio sem crédito à autora
-  - Remover ou ocultar a autoria original do sistema
-
-CRÉDITO OBRIGATÓRIO
-Qualquer uso, apresentação, publicação ou demonstração deste software
-deve incluir crédito explícito à autora: "Desenvolvido por Helena Barros".
-
-ORIGEM DO PROJETO
-Este software foi desenvolvido por Helena Barros a partir de 06 de maio
-de 2026, motivado pela necessidade de substituir planilhas utilizadas no
-projeto PTHI por um sistema web estruturado de gerenciamento de qualidade
-de software.
-
-O desenvolvimento contou com o auxílio da inteligência artificial Claude
-(Anthropic) como ferramenta de apoio à escrita de código, revisão técnica
-e geração de documentação — de forma similar ao uso de qualquer outra
-ferramenta de desenvolvimento de software. Todas as decisões de produto,
-arquitetura, requisitos, testes e implantação são de responsabilidade
-exclusiva da autora.
-
-OUTROS USOS
-Para licenciamento comercial, parcerias ou uso por outras organizações,
-entre em contato diretamente com a autora.
+O uso institucional pelo LAVID e pelo projeto PTHI é autorizado.
+Para outros usos, entre em contato com a autora.
 
 Repositório: https://github.com/helenajbarros/qa-manager
 Sistema em produção: https://helenajbarros.github.io/qa-manager
-API: https://qa-manager-api.onrender.com
