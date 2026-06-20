@@ -146,6 +146,14 @@ async function update(id, { title, description, comment, tracker_url, severity, 
   if (prev && prev.title !== title) {
     await logActivity(id, userId, "editou o bug", null);
   }
+  // Log de arquivamento/desarquivamento
+  if (prev && prev.closed_by_archive !== archiveVal) {
+    if (archiveVal) {
+      await logActivity(id, userId, "arquivou o bug", null);
+    } else {
+      await logActivity(id, userId, "desarquivou o bug", null);
+    }
+  }
   return findById(id);
 }
 

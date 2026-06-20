@@ -121,6 +121,7 @@ const EXEC_BASE = `
     tc.steps, tc.expected_result, tc.preconditions,
     m.name AS module_name, m.id AS module_id,
     b.title AS bug_title,
+    b.severity AS bug_severity,
     eu.name AS executed_by_name,
     au.name AS assigned_to_name
   FROM test_executions e

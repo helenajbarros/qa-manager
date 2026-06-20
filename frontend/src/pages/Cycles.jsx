@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAsync } from "../hooks/useAsync.js";
 import { cyclesApi, testCasesApi, bugsApi, usersApi } from "../services/resources.js";
 import { useAuth }    from "../context/AuthContext.jsx";
@@ -360,8 +361,16 @@ function ActivityTimeline({ activity }) {
 function CycleDetail({ cycle, onBack, onRefresh }) {
   const { user }    = useAuth();
   const isViewer    = user?.role === "viewer";
+  const navigate    = useNavigate();
   const { data: execs, loading, error, refetch } = useAsync(()=>cyclesApi.listExecutions(cycle.id), [cycle.id]);
   const { data: activity } = useAsync(()=>cyclesApi.getActivity(cycle.id), [cycle.id]);
+  // Bugs arquivados vinculados às execuções deste ciclo
+  const archivedBugs = (execs||[])
+    .filter(e => e.bug_id)
+    .reduce((acc, e) => {
+      if (!acc.find(x => x.bug_id === e.bug_id)) acc.push(e);
+      return acc;
+    }, []);
   const [addModal,  setAddModal]  = useState(false);
   const [execModal, setExecModal] = useState(null);
   const [tcModal,   setTcModal]   = useState(null);
@@ -441,6 +450,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
                 {activity.length}
               </span>
             )}
+
           </button>
         ))}
       </div>
@@ -458,6 +468,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
           <ActivityTimeline activity={activity||[]} />
         </div>
       )}
+
 
       {activeTab === "execucoes" && (
       <div className="card">

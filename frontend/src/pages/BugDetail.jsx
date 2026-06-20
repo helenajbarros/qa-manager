@@ -417,6 +417,8 @@ function ActivitySection({ activity }) {
     "adicionou passo":   "#0891B2",
     "removeu passo":     "#DC2626",
     "arquivou o ciclo":  "#6B7280",
+    "arquivou o bug":    "#6B7280",
+    "desarquivou o bug": "#2563EB",
   };
   const icons = {
     "criou o bug":       "🐛",
@@ -427,6 +429,8 @@ function ActivitySection({ activity }) {
     "adicionou passo":   "➕",
     "removeu passo":     "➖",
     "arquivou o ciclo":  "📦",
+    "arquivou o bug":    "📦",
+    "desarquivou o bug": "🔓",
   };
   return (
     <div style={{position:"relative",paddingLeft:28}}>
@@ -441,9 +445,9 @@ function ActivitySection({ activity }) {
           <div key={a.id||i} style={{position:"relative",marginBottom:i<activity.length-1?20:0}}>
             {/* Bolinha na linha do tempo */}
             <div style={{position:"absolute",left:-28,top:2,width:20,height:20,
-              borderRadius:"50%",background:color,display:"flex",alignItems:"center",
-              justifyContent:"center",fontSize:10,flexShrink:0,
-              boxShadow:"0 0 0 3px var(--bg)"}}>
+              borderRadius:"50%",background:color+"20",border:"1.5px solid "+color+"60",
+              display:"flex",alignItems:"center",
+              justifyContent:"center",fontSize:10,flexShrink:0}}>
               <span>{icon}</span>
             </div>
 
@@ -700,6 +704,7 @@ export default function BugDetail() {
       const url  = `${base}/share/${token}`;
       setShareUrl(url);
       navigator.clipboard.writeText(url).catch(()=>{});
+      setTimeout(() => setShareUrl(null), 5000);
     } catch(e) { setErr("Erro ao gerar link"); }
     finally { setShareLoading(false); }
   }
