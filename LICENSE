@@ -1,0 +1,45 @@
+MIT License
+
+Copyright (c) 2026 Helena Barros
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+QA Manager — Sistema de Gerenciamento de Qualidade de Software
+Desenvolvido por: Helena Barros
+Início do desenvolvimento: 06 de maio de 2026
+Versão atual: 1.4.0
+
+Este software foi concebido, projetado e desenvolvido por Helena Barros como
+solução para gestão de qualidade de software. A motivação inicial foi a
+necessidade de substituir planilhas utilizadas no projeto PTHI (Plataforma
+Tecnológica de Habitação e Inovação) por um sistema web estruturado, centralizado
+e rastreável — capaz de gerenciar casos de teste, ciclos de execução, bugs e
+métricas de qualidade em tempo real.
+
+A autora é responsável por todas as decisões de produto, arquitetura, requisitos,
+testes e implantação do sistema. O desenvolvimento contou com o auxílio da
+inteligência artificial Claude (Anthropic) como ferramenta de apoio à escrita
+de código, revisão técnica e geração de documentação — de forma similar ao uso
+de qualquer outra ferramenta de desenvolvimento de software.
+
+Repositório: https://github.com/helenajbarros/qa-manager
+Sistema em produção: https://helenajbarros.github.io/qa-manager
+API: https://qa-manager-api.onrender.com
