@@ -1,43 +1,54 @@
-MIT License
+Copyright (c) 2026 Helena Barros. Todos os direitos reservados.
 
-Copyright (c) 2026 Helena Barros
+LICENÇA DE USO — SOFTWARE PROPRIETÁRIO COM AUTORIZAÇÃO INSTITUCIONAL
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Este software e todo o seu código fonte, documentação, design e demais
+componentes são propriedade exclusiva de Helena Barros e estão protegidos
+pelas leis de direitos autorais do Brasil e tratados internacionais.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+USO AUTORIZADO
+O uso institucional interno deste software é expressamente autorizado ao
+LAVID (Laboratório de Aplicações de Vídeo Digital) e ao projeto PTHI
+(Plataforma Tecnológica de Habitação e Inovação), exclusivamente para
+fins internos, sem fins comerciais e sem redistribuição a terceiros.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+É EXPRESSAMENTE PROIBIDO a qualquer pessoa ou organização, exceto as
+mencionadas acima:
 
----
+  - Copiar, reproduzir ou distribuir este software ou qualquer parte dele
+  - Modificar, adaptar ou criar obras derivadas
+  - Sublicenciar, vender, alugar ou transferir o software a terceiros
+  - Usar o código fonte para desenvolver produtos concorrentes
+  - Remover ou alterar este aviso de direitos autorais
 
-QA Manager — Sistema de Gerenciamento de Qualidade de Software
-Desenvolvido por: Helena Barros
-Início do desenvolvimento: 06 de maio de 2026
-Versão atual: 1.4.0
+É EXPRESSAMENTE PROIBIDO a qualquer pessoa ou organização, incluindo
+as mencionadas acima:
 
-Este software foi concebido, projetado e desenvolvido por Helena Barros como
-solução para gestão de qualidade de software. A motivação inicial foi a
-necessidade de substituir planilhas utilizadas no projeto Parque Tecnológico Horizontes de Inovação (PTHI) por um sistema web estruturado, centralizado
-e rastreável — capaz de gerenciar casos de teste, ciclos de execução, bugs e
-métricas de qualidade em tempo real.
+  - Comercializar este software ou cobrá-lo de terceiros
+  - Redistribuir o código fonte sem autorização prévia e por escrito da autora
+  - Apresentar o software como desenvolvimento próprio sem crédito à autora
+  - Remover ou ocultar a autoria original do sistema
 
-A autora é responsável por todas as decisões de produto, arquitetura, requisitos,
-testes e implantação do sistema. O desenvolvimento contou com o auxílio da
-inteligência artificial Claude (Anthropic) como ferramenta de apoio à escrita
-de código, revisão técnica e geração de documentação — de forma similar ao uso
-de qualquer outra ferramenta de desenvolvimento de software.
+CRÉDITO OBRIGATÓRIO
+Qualquer uso, apresentação, publicação ou demonstração deste software
+deve incluir crédito explícito à autora: "Desenvolvido por Helena Barros".
+
+ORIGEM DO PROJETO
+Este software foi desenvolvido por Helena Barros a partir de 06 de maio
+de 2026, motivado pela necessidade de substituir planilhas utilizadas no
+projeto PTHI por um sistema web estruturado de gerenciamento de qualidade
+de software.
+
+O desenvolvimento contou com o auxílio da inteligência artificial Claude
+(Anthropic) como ferramenta de apoio à escrita de código, revisão técnica
+e geração de documentação — de forma similar ao uso de qualquer outra
+ferramenta de desenvolvimento de software. Todas as decisões de produto,
+arquitetura, requisitos, testes e implantação são de responsabilidade
+exclusiva da autora.
+
+OUTROS USOS
+Para licenciamento comercial, parcerias ou uso por outras organizações,
+entre em contato diretamente com a autora.
 
 Repositório: https://github.com/helenajbarros/qa-manager
 Sistema em produção: https://helenajbarros.github.io/qa-manager
