@@ -19,22 +19,19 @@ async function create(bugId, userId, text) {
 
   // Notificar usuarios mencionados com @nome
   try {
-    const mentions = text.match(/@(\w+)/g) || [];
-    if (mentions.length > 0) {
-      const names = mentions.map(m => m.slice(1).toLowerCase());
-      const users = await query(
-        `SELECT id, name FROM users WHERE LOWER(name) = ANY($1::text[])`,
-        [names]
-      );
-      for (const u of users) {
-        if (u.id !== userId) {
-          await notif.create({
-            user_id: u.id,
-            type: "mention",
-            message: `Voce foi mencionado em um comentario no bug #${bugId}`,
-            link: `/bugs/${bugId}`
-          });
-        }
+    // Buscar todos os usuarios e verificar se algum foi mencionado
+    const allUsers = await query("SELECT id, name FROM users", []);
+    for (const u of allUsers) {
+      if (u.id === userId) continue;
+      // Verifica se o nome aparece apos @ no texto (case insensitive)
+      const mentioned = text.toLowerCase().includes(`@${u.name.toLowerCase()}`);
+      if (mentioned) {
+        await notif.create({
+          user_id: u.id,
+          type: "mention",
+          message: `Voce foi mencionado em um comentario no bug #${bugId}`,
+          link: `/bugs/${bugId}`
+        });
       }
     }
   } catch(e) { console.error("[NOTIF] erro ao notificar mencao:", e.message); }

@@ -176,13 +176,22 @@ function StepsSection({ steps, onChange, isViewer }) {
 // ── Comentários ───────────────────────────────────────────────
 function renderWithMentions(text) {
   if (!text) return text;
-  const parts = text.split(/(@\w+)/g);
-  return parts.map((part, i) =>
-    /^@\w+$/.test(part)
-      ? <span key={i} style={{background:"#EFF6FF",color:"#2563EB",
-          borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>
-      : part
-  );
+  const regex = /(@[A-Za-zÀ-ÿ\s]+?)(?=\s{2}|\n|$|@)/g;
+  const result = [];
+  let last = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) result.push(text.slice(last, match.index));
+    result.push(
+      <span key={match.index} style={{background:"#EFF6FF",color:"#2563EB",
+        borderRadius:4,padding:"1px 6px",fontWeight:500}}>
+        {match[1].trim()}
+      </span>
+    );
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) result.push(text.slice(last));
+  return result.length > 0 ? result : text;
 }
 
 function CommentsSection({ bugId, currentUser, allUsers }) {
@@ -213,7 +222,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
     const at  = txt.lastIndexOf("@");
     if (at >= 0) {
       const q = txt.slice(at+1);
-      if (!q.includes(" ") || q === "") { setMentionQ(q); setShowMention(true); return; }
+      setMentionQ(q.trimStart()); setShowMention(true); return;
     }
     setShowMention(false);
   }
@@ -221,17 +230,17 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
   function insertMention(name) {
     const el = editorRef.current;
     if (!el) return;
-    const txt  = el.innerText;
-    const at   = txt.lastIndexOf("@");
+    const txt    = el.innerText;
+    const at     = txt.lastIndexOf("@");
     const before = txt.slice(0, at);
-    const chip = document.createElement("span");
-    chip.style.cssText = "background:var(--accent-bg);color:var(--accent);border-radius:4px;padding:1px 6px;font-weight:500";
+    const chip   = document.createElement("span");
+    chip.style.cssText = "background:#EFF6FF;color:#2563EB;border-radius:4px;padding:1px 6px;font-weight:500";
     chip.textContent   = `@${name}`;
     chip.contentEditable = "false";
     el.innerHTML = "";
     el.appendChild(document.createTextNode(before));
     el.appendChild(chip);
-    el.appendChild(document.createTextNode(" "));
+    el.appendChild(document.createTextNode("  "));
     setShowMention(false);
     el.focus();
     const range = document.createRange();
