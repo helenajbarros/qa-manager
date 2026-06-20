@@ -16,6 +16,7 @@ const { addDefaultProjectColumn } = require("./database/migrations_default_proje
 const { addProjectsCreatorColumn }= require("./database/migrations_projects_creator");
 const { addActivityTables }        = require("./database/migrations_activity");
 const { addBugTestType }           = require("./database/migrations_bug_test_type");
+const { addNotificationsTable }    = require("./database/migrations_notifications");
 const { runSeed }       = require("./database/seed");
 const requestLogger     = require("./middlewares/requestLogger");
 const errorHandler      = require("./middlewares/errorHandler");
@@ -69,6 +70,7 @@ app.use("/api/bugs",                  require("./routes/bugs"));
 app.use("/api/dashboard",             authenticate, require("./routes/dashboard"));
 app.use("/api/export",                authenticate, require("./routes/export"));
 app.use("/api/backup",                require("./routes/backup"));
+app.use("/api/notifications",         require("./routes/notifications"));
 
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })
@@ -86,6 +88,7 @@ async function start() {
   await addProjectsCreatorColumn();
   await addActivityTables();
   await addBugTestType();
+  await addNotificationsTable();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);

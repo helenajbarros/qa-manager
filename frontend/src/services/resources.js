@@ -66,8 +66,6 @@ export const cyclesApi = {
 };
 
 export const bugsApi = {
-  // Suporta paginação: list({ project_id, page, limit, status, severity, search })
-  // Retorna { data, meta: { total, page, pages } } quando paginado
   list:           (p)           => api.get(`/bugs${qs(p)}`),
   get:            (id)          => api.get(`/bugs/${id}`),
   create:         (d)           => api.post("/bugs", d),
@@ -79,4 +77,22 @@ export const bugsApi = {
 
 export const dashboardApi = {
   get: (p) => api.get(`/dashboard${qs(p)}`),
+};
+
+export const notificationsApi = {
+  list:        () => api.get("/notifications"),
+  markRead:    (id) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put("/notifications/read-all"),
+};
+
+export const backupApi = {
+  download: () => api.get("/backup/download"),
+  restore:  (file) => {
+    const fd = new FormData(); fd.append("backup", file);
+    const token = localStorage.getItem("qa_token");
+    return fetch(`${getApiBase()}/backup/restore`, {
+      method: "POST", body: fd,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(r => r.json()).then(j => j.data ?? j);
+  },
 };

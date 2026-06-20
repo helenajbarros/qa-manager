@@ -1,6 +1,8 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import { useAuth }    from "../context/AuthContext.jsx";
 import { useProject } from "../context/ProjectContext.jsx";
+import { notificationsApi } from "../services/resources.js";
 
 const links = [
   { section: "Visão Geral" },
@@ -16,6 +18,123 @@ const links = [
 
 const ROLE_LABEL = { admin:"Admin", manager:"Gerente", editor:"Colaborador / Tester", viewer:"Visualizador" };
 const ROLE_COLOR = { admin:"#DC2626", manager:"#7C3AED", editor:"#2563EB", viewer:"#6B7280" };
+
+function NotificationBell() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen]     = useState(false);
+  const [notifs, setNotifs] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const ref = useRef(null);
+
+  const load = async () => {
+    try {
+      const res = await notificationsApi.list();
+      setNotifs(res.data?.items || []);
+      setUnread(res.data?.unread || 0);
+    } catch(_) {}
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleClick = async (n) => {
+    if (!n.read) await notificationsApi.markRead(n.id);
+    setOpen(false);
+    if (n.link) navigate(n.link);
+    load();
+  };
+
+  const handleMarkAll = async () => {
+    await notificationsApi.markAllRead();
+    load();
+  };
+
+  const fmtDate = d => {
+    if (!d) return "";
+    const dt = new Date(d);
+    const now = new Date();
+    const diff = Math.floor((now - dt) / 60000);
+    if (diff < 1) return "agora";
+    if (diff < 60) return `${diff}min atrás`;
+    if (diff < 1440) return `${Math.floor(diff/60)}h atrás`;
+    return dt.toLocaleDateString("pt-BR");
+  };
+
+  return (
+    <div ref={ref} style={{position:"relative"}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{background:"none",border:"none",cursor:"pointer",padding:"4px 8px",
+          borderRadius:6,position:"relative",fontSize:18,color:"var(--text-muted)",
+          transition:"color .2s"}}
+        title="Notificações">
+        🔔
+        {unread > 0 && (
+          <span style={{position:"absolute",top:-2,right:-2,background:"#DC2626",
+            color:"white",borderRadius:"50%",width:16,height:16,fontSize:10,
+            display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{position:"fixed",top:60,right:16,width:340,maxHeight:480,
+          background:"#ffffff",border:"1px solid #E5E7EB",borderRadius:12,
+          boxShadow:"0 8px 24px rgba(0,0,0,.15)",zIndex:1000,overflowY:"auto"}}>
+          <div style={{padding:"12px 16px",borderBottom:"1px solid #E5E7EB",
+            display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontWeight:600,fontSize:14,color:"#111827"}}>Notificações</span>
+            {unread > 0 && (
+              <button onClick={handleMarkAll}
+                style={{background:"none",border:"none",cursor:"pointer",
+                  fontSize:12,color:"#2563EB"}}>
+                Marcar todas como lidas
+              </button>
+            )}
+          </div>
+          {!notifs.length ? (
+            <div style={{padding:"24px",textAlign:"center",color:"#6B7280",fontSize:13}}>
+              Nenhuma notificação
+            </div>
+          ) : notifs.map(n => (
+            <div key={n.id} onClick={()=>handleClick(n)}
+              style={{padding:"12px 16px",borderBottom:"1px solid #E5E7EB",
+                cursor:"pointer",background:n.read?"#ffffff":"#EFF6FF",
+                transition:"background .2s",display:"flex",gap:10,alignItems:"flex-start"}}>
+              <span style={{fontSize:18,flexShrink:0}}>
+                {n.type === "assigned" ? "👤" : n.type === "mention" ? "💬" : "🔔"}
+              </span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,lineHeight:1.5,color:"#111827",
+                  fontWeight:n.read?400:500}}>
+                  {n.message}
+                </div>
+                <div style={{fontSize:11,color:"#6B7280",marginTop:3}}>
+                  {fmtDate(n.created_at)}
+                </div>
+              </div>
+              {!n.read && (
+                <div style={{width:8,height:8,borderRadius:"50%",
+                  background:"#2563EB",flexShrink:0,marginTop:4}} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const { user, logout, isAdmin, isManager } = useAuth();
@@ -88,7 +207,10 @@ export default function Sidebar() {
 
       {user && (
         <div style={{ padding:"12px 14px", borderTop:"1px solid var(--border)" }}>
-          <div style={{ fontSize:13, fontWeight:500, marginBottom:2 }}>{user.name}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:2}}>
+            <div style={{ fontSize:13, fontWeight:500 }}>{user.name}</div>
+            <NotificationBell />
+          </div>
           <div style={{ fontSize:11, color:ROLE_COLOR[user.role]||"#6B7280", marginBottom:8 }}>
             {ROLE_LABEL[user.role]||user.role}
           </div>
@@ -99,7 +221,7 @@ export default function Sidebar() {
           </button>
           <div style={{ fontSize:10, color:"var(--text-muted)", textAlign:"center",
             marginTop:8, opacity:0.5 }}>
-            v1.3.0
+            v1.4.0
           </div>
         </div>
       )}

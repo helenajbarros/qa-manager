@@ -174,6 +174,17 @@ function StepsSection({ steps, onChange, isViewer }) {
 }
 
 // ── Comentários ───────────────────────────────────────────────
+function renderWithMentions(text) {
+  if (!text) return text;
+  const parts = text.split(/(@\w+)/g);
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part)
+      ? <span key={i} style={{background:"#EFF6FF",color:"#2563EB",
+          borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>
+      : part
+  );
+}
+
 function CommentsSection({ bugId, currentUser, allUsers }) {
   const { data: comments, refetch } = useAsync(async () => {
     const res = await fetch(`${getBase()}/bugs/${bugId}/comments`,{
@@ -233,6 +244,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
   const filteredUsers = (allUsers||[]).filter(u =>
     u.name.toLowerCase().includes(mentionQ.toLowerCase())
   );
+
 
   async function handleAdd() {
     const html = editorRef.current?.innerHTML?.trim();
@@ -325,7 +337,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
                 </div>
               ) : (
                 <div style={{fontSize:13,whiteSpace:"pre-line",lineHeight:1.6,
-                  background:"var(--bg)",padding:"10px 14px",borderRadius:8}}>{c.text}</div>
+                  background:"var(--bg)",padding:"10px 14px",borderRadius:8}}>{renderWithMentions(c.text)}</div>
               )}
             </div>
           </div>
@@ -351,17 +363,24 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
 
           {/* Dropdown de menções */}
           {showMention && filteredUsers.length > 0 && (
-            <div style={{position:"absolute",top:"100%",left:0,background:"var(--surface)",
-              border:"1px solid var(--border)",borderRadius:8,zIndex:200,
-              minWidth:180,maxHeight:160,overflowY:"auto",boxShadow:"0 4px 12px rgba(0,0,0,.1)"}}>
+            <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,
+              background:"#ffffff",border:"1px solid #E5E7EB",borderRadius:8,
+              zIndex:9999,maxHeight:200,overflowY:"auto",
+              boxShadow:"0 8px 24px rgba(0,0,0,.15)"}}>
+              <div style={{padding:"6px 10px",fontSize:11,color:"#6B7280",
+                borderBottom:"1px solid #E5E7EB"}}>
+                Mencionar membro
+              </div>
               {filteredUsers.map(u => (
-                <div key={u.id} onClick={()=>insertMention(u.name)}
+                <div key={u.id}
+                  onMouseDown={(e)=>{ e.preventDefault(); insertMention(u.name); }}
                   style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
-                    cursor:"pointer",fontSize:13}}
-                  onMouseEnter={e=>e.currentTarget.style.background="var(--bg)"}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <Avatar name={u.name} size={22} />
-                  {u.name}
+                    cursor:"pointer",fontSize:13,transition:"background .15s",
+                    background:"#ffffff",color:"#111827"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#F3F4F6"}
+                  onMouseLeave={e=>e.currentTarget.style.background="#ffffff"}>
+                  <Avatar name={u.name} size={24} />
+                  <span style={{fontWeight:500}}>{u.name}</span>
                 </div>
               ))}
             </div>

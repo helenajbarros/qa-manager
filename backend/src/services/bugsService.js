@@ -1,4 +1,5 @@
 const { query, execute } = require("../database/connection");
+const notif = require("./notificationsService");
 
 async function extractModuleId(title) {
   const match = title.match(/^\[(.+?)\]/);
@@ -142,6 +143,16 @@ async function update(id, { title, description, comment, tracker_url, severity, 
   }
   if (prev && prev.assigned_to_id !== (assigned_to_id||null)) {
     await logActivity(id, userId, "alterou o responsável", null);
+    // Notificar novo responsável
+    if (assigned_to_id && assigned_to_id !== userId) {
+      const bug = await findById(id);
+      await notif.create({
+        user_id: assigned_to_id,
+        type: "assigned",
+        message: `Você foi atribuído como responsável pelo bug #${id}: "${bug?.title}"`,
+        link: `/bugs/${id}`
+      });
+    }
   }
   if (prev && prev.title !== title) {
     await logActivity(id, userId, "editou o bug", null);

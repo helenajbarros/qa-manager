@@ -1,4 +1,5 @@
 const { query, execute } = require("../database/connection");
+const notif = require("./notificationsService");
 
 const BASE = `
   SELECT bc.*, u.name AS user_name
@@ -15,25 +16,44 @@ async function create(bugId, userId, text) {
     "INSERT INTO bug_comments (bug_id, user_id, text) VALUES ($1, $2, $3) RETURNING id",
     [bugId, userId, text.trim()]
   );
-  const result = await query(`${BASE} WHERE bc.id = $1`, [rows[0].id]);
-  return result[0];
+
+  // Notificar usuarios mencionados com @nome
+  try {
+    const mentions = text.match(/@(\w+)/g) || [];
+    if (mentions.length > 0) {
+      const names = mentions.map(m => m.slice(1).toLowerCase());
+      const users = await query(
+        `SELECT id, name FROM users WHERE LOWER(name) = ANY($1::text[])`,
+        [names]
+      );
+      for (const u of users) {
+        if (u.id !== userId) {
+          await notif.create({
+            user_id: u.id,
+            type: "mention",
+            message: `Voce foi mencionado em um comentario no bug #${bugId}`,
+            link: `/bugs/${bugId}`
+          });
+        }
+      }
+    }
+  } catch(e) { console.error("[NOTIF] erro ao notificar mencao:", e.message); }
+
+  const all = await findByBug(bugId);
+  return { id: rows[0].id, comments: all };
 }
 
-async function update(id, userId, text) {
+async function update(bugId, commentId, text) {
   await execute(
-    "UPDATE bug_comments SET text=$1, updated_at=NOW() WHERE id=$2 AND user_id=$3",
-    [text.trim(), id, userId]
+    "UPDATE bug_comments SET text=$1 WHERE id=$2 AND bug_id=$3",
+    [text.trim(), commentId, bugId]
   );
-  const result = await query(`${BASE} WHERE bc.id = $1`, [id]);
-  return result[0];
+  return findByBug(bugId);
 }
 
-async function remove(id, userId, role) {
-  if (role === "admin") {
-    await execute("DELETE FROM bug_comments WHERE id=$1", [id]);
-  } else {
-    await execute("DELETE FROM bug_comments WHERE id=$1 AND user_id=$2", [id, userId]);
-  }
+async function remove(bugId, commentId) {
+  await execute("DELETE FROM bug_comments WHERE id=$1 AND bug_id=$2", [commentId, bugId]);
+  return findByBug(bugId);
 }
 
 module.exports = { findByBug, create, update, remove };
