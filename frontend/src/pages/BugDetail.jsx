@@ -207,7 +207,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
   const [saving,    setSaving]    = useState(false);
   const [editId,    setEditId]    = useState(null);
   const [editText,  setEditText]  = useState("");
-  const [confirmDel,setConfirmDel]= useState(null);
+
   const [showMention,setShowMention]=useState(false);
   const [mentionQ,  setMentionQ]  = useState("");
 
@@ -239,8 +239,9 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
     chip.contentEditable = "false";
     el.innerHTML = "";
     el.appendChild(document.createTextNode(before));
+    el.appendChild(document.createTextNode(" "));
     el.appendChild(chip);
-    el.appendChild(document.createTextNode("  "));
+    el.appendChild(document.createTextNode(" "));
     setShowMention(false);
     el.focus();
     const range = document.createRange();
@@ -327,7 +328,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
                       style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"var(--text-muted)"}}>✏</button>
                   )}
                   {(isOwn||isAdmin) && (
-                    <button onClick={()=>setConfirmDel(c)}
+                    <button onClick={()=>{ if(window.confirm("Excluir este comentário?")) handleDelete(c.id); }}
                       style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:"var(--danger)"}}>🗑</button>
                   )}
                 </div>
@@ -420,10 +421,6 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
         </div>
       </div>
 
-      {confirmDel && (
-        <ConfirmModal message="Excluir este comentário?"
-          onConfirm={()=>handleDelete(confirmDel.id)} onCancel={()=>setConfirmDel(null)} />
-      )}
     </div>
   );
 }
