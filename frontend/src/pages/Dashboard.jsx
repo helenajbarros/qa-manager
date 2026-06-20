@@ -84,18 +84,34 @@ function CycleCard({ cycle, activeStatus }) {
           ))}
         </div>
       )}
-      <StackBar passed={displayCycle.passed} failed={displayCycle.failed} blocked={displayCycle.blocked} not_executed={displayCycle.not_executed} />
-      <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:12 }}>
-        <div style={{ display:"flex", gap:12 }}>
-          <span style={{ color:"#16A34A" }}>✓ {displayCycle.passed||0}</span>
-          <span style={{ color:"#DC2626" }}>✗ {displayCycle.failed||0}</span>
-          <span style={{ color:"#7C3AED" }}>⊘ {displayCycle.blocked||0}</span>
-          <span style={{ color:"var(--text-muted)" }}>— {displayCycle.not_executed||0}</span>
-        </div>
-        <span style={{ fontWeight:600, color: pct>=70?"#16A34A":pct>=40?"#D97706":"#DC2626" }}>
-          {pct}%
-        </span>
-      </div>
+      {(() => {
+        const barColor   = pct >= 70 ? "#16A34A" : pct >= 40 ? "#D97706" : executed > 0 ? "#DC2626" : "var(--border)";
+        const tooltipMsg = executed === 0
+          ? "Nenhum caso executado ainda."
+          : pct >= 70
+          ? `✅ Boa qualidade — ${pct}% dos casos executados passaram.`
+          : pct >= 40
+          ? `⚠ Atenção — ${pct}% passaram. Taxa entre 40% e 69%.`
+          : `🔴 Crítico — apenas ${pct}% passaram. Taxa abaixo de 40%.`;
+        const notExec = displayCycle.not_executed||0;
+        const fullMsg = `${tooltipMsg}${notExec > 0 ? ` (${notExec} ainda não executado${notExec>1?"s":""})` : ""}`;
+        return (
+          <div title={fullMsg} style={{cursor:"help"}}>
+            <StackBar passed={displayCycle.passed} failed={displayCycle.failed} blocked={displayCycle.blocked} not_executed={displayCycle.not_executed} />
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:12 }}>
+              <div style={{ display:"flex", gap:12 }}>
+                <span style={{ color:"#16A34A" }}>✓ {displayCycle.passed||0}</span>
+                <span style={{ color:"#DC2626" }}>✗ {displayCycle.failed||0}</span>
+                <span style={{ color:"#7C3AED" }}>⊘ {displayCycle.blocked||0}</span>
+                <span style={{ color:"var(--text-muted)" }}>— {displayCycle.not_executed||0}</span>
+              </div>
+              <span style={{ fontWeight:600, color: barColor }}>
+                {pct}%
+              </span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

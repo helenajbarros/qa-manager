@@ -672,15 +672,34 @@ export default function Cycles() {
                         </td>
                         <td><CycleBadge v={c.status} /></td>
                         <td style={{minWidth:120}}>
-                          <div style={{display:"flex",alignItems:"center",gap:6}}>
-                            <div className="progress" style={{flex:1}}>
-                              <div className="progress-fill" style={{width:`${pct}%`,background:"var(--success)"}} />
-                            </div>
-                            <span style={{fontSize:11,color:"var(--text-muted)",minWidth:28}}>{pct}%</span>
-                          </div>
-                          <div style={{fontSize:10,color:"var(--text-muted)",marginTop:2}}>
-                            {c.passed||0}✓ {c.failed||0}✗ {exec} total
-                          </div>
+                          {(() => {
+                            const barColor = pct >= 70 ? "#16A34A" : pct >= 40 ? "#D97706" : exec > 0 ? "#DC2626" : "var(--border)";
+                            const tooltipMsg = exec === 0
+                              ? "Nenhum caso executado ainda."
+                              : pct >= 70
+                              ? `✅ Boa qualidade — ${pct}% dos casos executados passaram.`
+                              : pct >= 40
+                              ? `⚠ Atenção — ${pct}% passaram. Taxa entre 40% e 69%.`
+                              : `🔴 Crítico — apenas ${pct}% passaram. Taxa abaixo de 40%.`;
+                            const notExec = c.not_executed||0;
+                            const fullMsg = `${tooltipMsg}${notExec > 0 ? ` (${notExec} ainda não executado${notExec>1?"s":""})` : ""}`;
+                            return (
+                              <div title={fullMsg} style={{cursor:"help"}}>
+                                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                  <div className="progress" style={{flex:1}}>
+                                    <div className="progress-fill" style={{width:`${pct}%`,background:barColor}} />
+                                  </div>
+                                  <span style={{fontSize:11,color:barColor,minWidth:28,fontWeight:pct>0?600:400}}>{pct}%</span>
+                                </div>
+                                <div style={{fontSize:10,color:"var(--text-muted)",marginTop:2}}>
+                                  <span style={{color:"var(--success)"}}>{c.passed||0}✓</span>{" "}
+                                  <span style={{color:"var(--danger)"}}>{c.failed||0}✗</span>{" "}
+                                  {c.blocked||0 > 0 && <span style={{color:"var(--warning)"}}>{c.blocked}⊘{" "}</span>}
+                                  — {exec} total
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td>
                           <div className="actions">
