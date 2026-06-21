@@ -588,8 +588,15 @@ export default function BugDetail() {
   const { data: bug,        loading: l1, error: e1, refetch } = useAsync(() => bugsApi.get(id), [id]);
   const { data: modules }   = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: testCases } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: users }     = useAsync(() => usersApi.mentions().catch(() => usersApi.list()), []);
+  const { data: users, refetch: refetchUsers } = useAsync(() => usersApi.mentions().catch(() => usersApi.list()), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
+
+  useEffect(() => {
+    if (!users || users.length === 0) {
+      const t = setTimeout(() => refetchUsers(), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [users]);
 
   const [form,       setForm]       = useState(null);
   const [confirm,    setConfirm]    = useState(false);
@@ -1156,6 +1163,5 @@ export default function BugDetail() {
     </div>
   );
 }
-
 
 
