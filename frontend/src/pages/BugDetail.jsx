@@ -174,23 +174,28 @@ function StepsSection({ steps, onChange, isViewer }) {
 }
 
 // ── Comentários ───────────────────────────────────────────────
-function renderWithMentions(text) {
+function renderWithMentions(text, allUsers) {
   if (!text) return text;
-  const regex = /(@[A-Za-zÀ-ÿ\s]+?)(?=\s{2}|\n|$|@)/g;
+  // Só destaca se o nome do usuário existir de fato
+  if (!allUsers?.length) return text;
   const result = [];
-  let last = 0;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > last) result.push(text.slice(last, match.index));
-    result.push(
-      <span key={match.index} style={{background:"#EFF6FF",color:"#2563EB",
-        borderRadius:4,padding:"1px 6px",fontWeight:500}}>
-        {match[1].trim()}
-      </span>
-    );
-    last = match.index + match[0].length;
+  let remaining = text;
+  let key = 0;
+  for (const u of allUsers) {
+    const mention = `@${u.name}`;
+    if (remaining.toLowerCase().includes(mention.toLowerCase())) {
+      const parts = remaining.split(new RegExp(`(${mention.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")})`, "gi"));
+      remaining = "";
+      for (const part of parts) {
+        if (part.toLowerCase() === mention.toLowerCase()) {
+          result.push(<span key={key++} style={{background:"#EFF6FF",color:"#2563EB",
+            borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>);
+        } else {
+          result.push(part);
+        }
+      }
+    }
   }
-  if (last < text.length) result.push(text.slice(last));
   return result.length > 0 ? result : text;
 }
 
@@ -347,7 +352,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
                 </div>
               ) : (
                 <div style={{fontSize:13,whiteSpace:"pre-line",lineHeight:1.6,
-                  background:"var(--bg)",padding:"10px 14px",borderRadius:8}}>{renderWithMentions(c.text)}</div>
+                  background:"var(--bg)",padding:"10px 14px",borderRadius:8}}>{renderWithMentions(c.text, allUsers)}</div>
               )}
             </div>
           </div>
