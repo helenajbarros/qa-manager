@@ -289,7 +289,7 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
     await fetch(`${getBase()}/bugs/${bugId}/comments/${id}`,{
       method:"DELETE",headers:{Authorization:`Bearer ${getToken()}`}
     });
-    setConfirmDel(null); refetch();
+    refetch();
   }
 
   const isAdmin = currentUser?.role === "admin";
