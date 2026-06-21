@@ -106,4 +106,4 @@ async function mentions(req, res, next) {
   } catch(e) { next(e); }
 }
 
-module.exports = { login, me, index, show, store, update, destroy };
+module.exports = { login, me, mentions, index, show, store, update, destroy };
