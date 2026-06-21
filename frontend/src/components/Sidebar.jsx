@@ -30,8 +30,8 @@ function NotificationBell() {
   const load = async () => {
     try {
       const res = await notificationsApi.list();
-      setNotifs(res.data?.items || []);
-      setUnread(res.data?.unread || 0);
+      setNotifs(res?.items || []);
+      setUnread(res?.unread || 0);
     } catch(_) {}
   };
 
