@@ -107,3 +107,4 @@ async function mentions(req, res, next) {
 }
 
 module.exports = { login, me, mentions, index, show, store, update, destroy };
+
