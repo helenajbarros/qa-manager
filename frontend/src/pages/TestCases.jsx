@@ -101,7 +101,7 @@ export default function TestCases() {
 
   const { data: casesRaw,  loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: usersRaw }                                  = useAsync(() => usersApi.list());
+  const { data: usersRaw }                                  = useAsync(() => usersApi.mentions());
   const cases = casesRaw?.data ?? casesRaw;
   const users = usersRaw?.data ?? usersRaw;
 

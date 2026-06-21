@@ -165,7 +165,7 @@ function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
 function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
   const { user: currentUser } = useAuth();
   const { data: bugs  } = useAsync(() => bugsApi.list());
-  const { data: users } = useAsync(() => usersApi.list());
+  const { data: users } = useAsync(() => usersApi.mentions());
   const [form, setForm] = useState({
     status:         execution.status         || "not_executed",
     evidence_url:   execution.evidence_url   || "",

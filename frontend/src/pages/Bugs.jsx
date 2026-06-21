@@ -193,7 +193,7 @@ export default function Bugs() {
   const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: users }                                       = useAsync(() => usersApi.list(), []);
+  const { data: users }                                       = useAsync(() => usersApi.mentions(), []);
 
   const openId    = getOpenIdFromUrl();
   const bugToOpen = openId && bugs ? bugs.find(b => String(b.id) === String(openId)) : null;
