@@ -175,28 +175,21 @@ function StepsSection({ steps, onChange, isViewer }) {
 
 // ── Comentários ───────────────────────────────────────────────
 function renderWithMentions(text, allUsers) {
-  if (!text) return text;
-  // Só destaca se o nome do usuário existir de fato
-  if (!allUsers?.length) return text;
-  const result = [];
-  let remaining = text;
-  let key = 0;
-  for (const u of allUsers) {
-    const mention = `@${u.name}`;
-    if (remaining.toLowerCase().includes(mention.toLowerCase())) {
-      const parts = remaining.split(new RegExp(`(${mention.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")})`, "gi"));
-      remaining = "";
-      for (const part of parts) {
-        if (part.toLowerCase() === mention.toLowerCase()) {
-          result.push(<span key={key++} style={{background:"#EFF6FF",color:"#2563EB",
-            borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>);
-        } else {
-          result.push(part);
-        }
-      }
-    }
-  }
-  return result.length > 0 ? result : text;
+  if (!text || !allUsers?.length) return text;
+  // Constrói regex com todos os nomes de uma vez
+  const escaped = allUsers
+    .map(u => `@${u.name}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  const parts = text.split(regex);
+  if (parts.length <= 1) return text;
+  return parts.map((part, i) => {
+    const isMatch = allUsers.some(u => part.toLowerCase() === `@${u.name}`.toLowerCase());
+    return isMatch
+      ? <span key={i} style={{background:"#EFF6FF",color:"#2563EB",
+          borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>
+      : part;
+  });
 }
 
 function CommentsSection({ bugId, currentUser, allUsers }) {
