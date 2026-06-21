@@ -25,14 +25,14 @@ router.put("/:id", authenticate, async (req, res, next) => {
   try {
     const { text } = req.body;
     if (!text?.trim()) return r.badRequest(res, "Texto obrigatório");
-    const data = await svc.update(req.params.id, req.user.id, text);
+    const data = await svc.update(req.params.bugId, req.params.id, text);
     r.ok(res, data);
   } catch(e) { next(e); }
 });
 
 router.delete("/:id", authenticate, async (req, res, next) => {
   try {
-    await svc.remove(req.params.id, req.user.id, req.user.role);
+    await svc.remove(req.params.bugId, req.params.id);
     r.ok(res, { deleted: true });
   } catch(e) { next(e); }
 });

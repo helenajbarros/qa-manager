@@ -19,11 +19,9 @@ async function create(bugId, userId, text) {
 
   // Notificar usuarios mencionados com @nome
   try {
-    // Buscar todos os usuarios e verificar se algum foi mencionado
     const allUsers = await query("SELECT id, name FROM users", []);
     for (const u of allUsers) {
       if (u.id === userId) continue;
-      // Verifica se o nome aparece apos @ no texto (case insensitive)
       const mentioned = text.toLowerCase().includes(`@${u.name.toLowerCase()}`);
       if (mentioned) {
         await notif.create({
@@ -36,8 +34,7 @@ async function create(bugId, userId, text) {
     }
   } catch(e) { console.error("[NOTIF] erro ao notificar mencao:", e.message); }
 
-  const all = await findByBug(bugId);
-  return { id: rows[0].id, comments: all };
+  return findByBug(bugId);
 }
 
 async function update(bugId, commentId, text) {
