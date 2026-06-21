@@ -89,9 +89,10 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div style={{position:"fixed",top:60,right:16,width:340,maxHeight:480,
+        <div style={{position:"fixed",top:60,right:16,width:340,maxHeight:420,
           background:"#ffffff",border:"1px solid #E5E7EB",borderRadius:12,
-          boxShadow:"0 8px 24px rgba(0,0,0,.15)",zIndex:1000,overflowY:"auto"}}>
+          boxShadow:"0 8px 24px rgba(0,0,0,.15)",zIndex:1000,
+          overflowY:"auto",overflowX:"hidden"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid #E5E7EB",
             display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontWeight:600,fontSize:14,color:"#111827"}}>Notificações</span>

@@ -176,15 +176,16 @@ function StepsSection({ steps, onChange, isViewer }) {
 // ── Comentários ───────────────────────────────────────────────
 function renderWithMentions(text, allUsers) {
   if (!text || !allUsers?.length) return text;
-  // Constrói regex com todos os nomes de uma vez
-  const escaped = allUsers
-    .map(u => `@${u.name}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  const validUsers = allUsers.filter(u => u.name && u.name.trim().length > 0);
+  if (!validUsers.length) return text;
+  const escaped = validUsers
+    .map(u => `@${u.name.trim()}`.replace(/[-.*+?^${}()|[\]/\\]/g, "\\$&"))
     .join("|");
   const regex = new RegExp(`(${escaped})`, "gi");
   const parts = text.split(regex);
   if (parts.length <= 1) return text;
   return parts.map((part, i) => {
-    const isMatch = allUsers.some(u => part.toLowerCase() === `@${u.name}`.toLowerCase());
+    const isMatch = validUsers.some(u => part.toLowerCase() === `@${u.name.trim()}`.toLowerCase());
     return isMatch
       ? <span key={i} style={{background:"#EFF6FF",color:"#2563EB",
           borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>
@@ -581,7 +582,7 @@ export default function BugDetail() {
   const { data: bug,        loading: l1, error: e1, refetch } = useAsync(() => bugsApi.get(id), [id]);
   const { data: modules }   = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: testCases } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: users }     = useAsync(() => usersApi.list(), []);
+  const { data: users }     = useAsync(() => usersApi.mentions(), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
 
   const [form,       setForm]       = useState(null);

@@ -98,4 +98,12 @@ const destroy = async (req,res,next) => {
   } catch(e){next(e);}
 };
 
+async function mentions(req, res, next) {
+  try {
+    const { query } = require("../database/connection");
+    const rows = await query("SELECT id, name FROM users WHERE active=true ORDER BY name", []);
+    res.json({ success: true, data: rows });
+  } catch(e) { next(e); }
+}
+
 module.exports = { login, me, index, show, store, update, destroy };

@@ -8,6 +8,7 @@ export const authApi = {
 
 export const usersApi = {
   list:   ()         => api.get("/users"),
+  mentions: ()       => api.get("/users/mentions"),
   create: (d)        => api.post("/users", d),
   update: (id, d)    => api.put(`/users/${id}`, d),
   delete: (id)       => api.delete(`/users/${id}`),
