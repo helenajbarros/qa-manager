@@ -199,7 +199,7 @@ function renderWithMentions(text, allUsers) {
   return result.length > 0 ? result : text;
 }
 
-function CommentsSection({ bugId, currentUser, allUsers }) {
+function CommentsSection({ bugId, currentUser, allUsers: allUsersProp }) {
   const { data: comments, refetch } = useAsync(async () => {
     const res = await fetch(`${getBase()}/bugs/${bugId}/comments`,{
       headers:{Authorization:`Bearer ${getToken()}`}
@@ -207,6 +207,32 @@ function CommentsSection({ bugId, currentUser, allUsers }) {
     const j = await res.json();
     return j.data ?? j ?? [];
   }, [bugId]);
+
+  const [allUsers, setAllUsers] = useState(allUsersProp || []);
+
+  useEffect(() => {
+    if (allUsers.length > 0) return;
+    let cancelled = false;
+    async function fetchUsers() {
+      try {
+        const res = await fetch(`${getBase()}/users/mentions`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        });
+        const j = await res.json();
+        const data = j.data ?? j ?? [];
+        if (!cancelled && Array.isArray(data) && data.length > 0) setAllUsers(data);
+        else if (!cancelled) setTimeout(fetchUsers, 3000);
+      } catch(e) {
+        if (!cancelled) setTimeout(fetchUsers, 3000);
+      }
+    }
+    fetchUsers();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (allUsersProp && allUsersProp.length > 0) setAllUsers(allUsersProp);
+  }, [allUsersProp]);
 
   const editorRef   = useRef(null);
   const [saving,    setSaving]    = useState(false);
