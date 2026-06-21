@@ -94,4 +94,8 @@ async function remove(id) {
   return execute("DELETE FROM users WHERE id=$1", [id]);
 }
 
-module.exports = { findAll, findById, findByEmail, findByCreator, login, create, update, remove, verifyToken };
+async function findAllForMentions() {
+  return query("SELECT id, name FROM users ORDER BY name");
+}
+
+module.exports = { findAll, findById, findByEmail, findByCreator, findAllForMentions, login, create, update, remove, verifyToken };

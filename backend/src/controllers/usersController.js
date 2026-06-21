@@ -100,8 +100,7 @@ const destroy = async (req,res,next) => {
 
 async function mentions(req, res, next) {
   try {
-    const { query } = require("../database/connection");
-    const rows = await query("SELECT id, name FROM users WHERE active IS NOT FALSE ORDER BY name", []);
+    const rows = await svc.findAllForMentions();
     res.json({ success: true, data: rows });
   } catch(e) { next(e); }
 }
