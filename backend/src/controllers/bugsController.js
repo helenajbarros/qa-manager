@@ -85,3 +85,5 @@ const removeRelation = async (req,res,next) => {
 
 module.exports = { index, show, store, update, destroy, uploadFile, deleteFile,
   addRelation, removeRelation };
+
+  
