@@ -175,22 +175,28 @@ function StepsSection({ steps, onChange, isViewer }) {
 
 // ── Comentários ───────────────────────────────────────────────
 function renderWithMentions(text, allUsers) {
-  if (!text || !allUsers?.length) return text;
-  const validUsers = allUsers.filter(u => u.name && u.name.trim().length > 0);
+  if (!text || !allUsers || !allUsers.length) return text;
+  const validUsers = allUsers.filter(function(u) { return u.name && u.name.trim().length > 0; });
   if (!validUsers.length) return text;
-  const escaped = validUsers
-    .map(u => `@${u.name.trim()}`.replace(/[-.*+?^${}()|[\]/\\]/g, "\\$&"))
-    .join("|");
-  const regex = new RegExp(`(${escaped})`, "gi");
-  const parts = text.split(regex);
-  if (parts.length <= 1) return text;
-  return parts.map((part, i) => {
-    const isMatch = validUsers.some(u => part.toLowerCase() === `@${u.name.trim()}`.toLowerCase());
-    return isMatch
-      ? <span key={i} style={{background:"#EFF6FF",color:"#2563EB",
-          borderRadius:4,padding:"1px 6px",fontWeight:500}}>{part}</span>
-      : part;
+  const result = [];
+  let remaining = text;
+  let key = 0;
+  validUsers.forEach(function(u) {
+    const mention = "@" + u.name.trim();
+    const idx2 = remaining.toLowerCase().indexOf(mention.toLowerCase());
+    if (idx2 >= 0) {
+      if (idx2 > 0) result.push(remaining.slice(0, idx2));
+      result.push(
+        <span key={key++} style={{background:"#EFF6FF",color:"#2563EB",
+          borderRadius:4,padding:"1px 6px",fontWeight:500}}>
+          {remaining.slice(idx2, idx2 + mention.length)}
+        </span>
+      );
+      remaining = remaining.slice(idx2 + mention.length);
+    }
   });
+  if (remaining) result.push(remaining);
+  return result.length > 0 ? result : text;
 }
 
 function CommentsSection({ bugId, currentUser, allUsers }) {
