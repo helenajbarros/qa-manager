@@ -361,6 +361,7 @@ function ActivityTimeline({ activity }) {
 function CycleDetail({ cycle, onBack, onRefresh }) {
   const { user }    = useAuth();
   const isViewer    = user?.role === "viewer";
+  const canManage   = user?.role === "admin" || user?.role === "manager";
   const navigate    = useNavigate();
   const { data: execs, loading, error, refetch } = useAsync(()=>cyclesApi.listExecutions(cycle.id), [cycle.id]);
   const { data: activity } = useAsync(()=>cyclesApi.getActivity(cycle.id), [cycle.id]);
@@ -509,7 +510,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
                       <td>
                         <div className="actions">
                           <button className="btn btn-sm" onClick={()=>setExecModal(e)}>▶</button>
-                          {!isViewer && (
+                          {canManage && (
                             <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(e)}>🗑</button>
                           )}
                         </div>
@@ -538,7 +539,8 @@ export default function Cycles() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
   const pid      = currentProject?.id;
-  const isViewer = user?.role === "viewer";
+  const isViewer  = user?.role === "viewer";
+  const canManage = user?.role === "admin" || user?.role === "manager";
 
   const { data: cycles, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
   const [modal,   setModal]   = useState(null);
@@ -705,10 +707,10 @@ export default function Cycles() {
                           <div className="actions">
                             <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
                             {!isViewer && (
-                              <>
-                                <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
-                                <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(c)}>🗑</button>
-                              </>
+                              <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
+                            )}
+                            {canManage && (
+                              <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(c)}>🗑</button>
                             )}
                           </div>
                         </td>
