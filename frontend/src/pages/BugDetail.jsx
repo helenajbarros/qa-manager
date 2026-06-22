@@ -609,7 +609,8 @@ export default function BugDetail() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
   const pid      = currentProject?.id;
-  const isViewer = user?.role === "viewer";
+  const isViewer  = user?.role === "viewer";
+  const canManage = user?.role === "admin" || user?.role === "manager";
 
   const { data: bug,        loading: l1, error: e1, refetch } = useAsync(() => bugsApi.get(id), [id]);
   const { data: modules }   = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
@@ -819,7 +820,9 @@ export default function BugDetail() {
                   🔓 Desarquivar
                 </button>
               )}
-              <button className="btn btn-danger" onClick={()=>setConfirm(true)}>🗑 Excluir</button>
+              {canManage && (
+                <button className="btn btn-danger" onClick={()=>setConfirm(true)}>🗑 Excluir</button>
+              )}
             </>
           )}
           {isEditing && (
