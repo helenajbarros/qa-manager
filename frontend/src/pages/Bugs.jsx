@@ -185,7 +185,8 @@ export default function Bugs() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
   const pid      = currentProject?.id;
-  const isViewer = user?.role === "viewer";
+  const isViewer  = user?.role === "viewer";
+  const canManage = user?.role === "admin" || user?.role === "manager";
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -490,10 +491,10 @@ export default function Bugs() {
                         <button className="btn btn-sm" title="Copiar link"
                           onClick={() => copyLink(b.id)} style={{fontSize:11}}>🔗</button>
                         {!isViewer && (
-                          <>
-                            <button className="btn btn-sm" onClick={() => navigate("/bugs/" + b.id)}>▶</button>
-                            <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
-                          </>
+                          <button className="btn btn-sm" onClick={() => navigate("/bugs/" + b.id)}>▶</button>
+                        )}
+                        {canManage && (
+                          <button className="btn btn-sm btn-danger" onClick={() => setConfirm(b)}>🗑</button>
                         )}
                       </div>
                     </td>
