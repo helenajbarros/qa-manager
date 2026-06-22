@@ -61,7 +61,7 @@ app.use("/api/users/login",           loginLimiter);
 app.use("/api/users",                 require("./routes/users"));
 app.use("/api/projects",              require("./routes/projects"));
 app.use("/api/modules",               require("./routes/modules"));
-app.use("/api/test-cases",            require("./routes/testCases"));
+app.use("/api/test-cases",            authenticate, require("./routes/testCases"));
 app.use("/api/cycles",                require("./routes/cycles"));
 app.use("/api/bugs/:bugId/comments",  require("./routes/bugComments"));
 const shareRouter = require("./routes/shareRoutes");

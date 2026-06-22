@@ -68,6 +68,8 @@ async function create({ module_id, title, description, preconditions, steps, exp
   return tc;
 }
 
+const PRI_LABEL = { low:"Baixa", medium:"Média", high:"Alta", critical:"Crítica" };
+
 async function update(id, { module_id, title, description, preconditions, steps, expected_result, priority, assigned_to_id }, userId) {
   const prev = await findById(id);
   await execute(
@@ -77,7 +79,11 @@ async function update(id, { module_id, title, description, preconditions, steps,
   if (prev) {
     if (prev.title !== title.trim()) await logActivity(id, userId, "editou o título", `"${prev.title}" → "${title.trim()}"`);
     if (String(prev.module_id) !== String(module_id)) await logActivity(id, userId, "alterou o módulo", null);
-    if (prev.priority !== (priority||"medium")) await logActivity(id, userId, "alterou a prioridade", `${prev.priority} → ${priority||"medium"}`);
+    if (prev.priority !== (priority||"medium")) {
+      const de = PRI_LABEL[prev.priority] || prev.priority;
+      const para = PRI_LABEL[priority||"medium"] || priority;
+      await logActivity(id, userId, "alterou a prioridade", `${de} → ${para}`);
+    }
     if (String(prev.assigned_to_id||"") !== String(assigned_to_id||"")) await logActivity(id, userId, "alterou o responsável", null);
   }
   return findById(id);
