@@ -56,7 +56,8 @@ export default function Modules() {
   const { currentProject } = useProject();
   const { user }           = useAuth();
   const pid      = currentProject?.id;
-  const isViewer = user?.role === "viewer";
+  const isViewer  = user?.role === "viewer";
+  const canManage = user?.role === "admin" || user?.role === "manager";
 
   const { data: modules, loading, error, refetch } = useAsync(
     () => modulesApi.list(pid ? { project_id: pid } : {}), [pid]
@@ -124,7 +125,9 @@ export default function Modules() {
                         {!isViewer && (
                           <div className="actions">
                             <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:m})}>✏ Editar</button>
-                            <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(m)}>🗑</button>
+                            {canManage && (
+                              <button className="btn btn-sm btn-danger" onClick={()=>setConfirm(m)}>🗑</button>
+                            )}
                           </div>
                         )}
                       </td>
