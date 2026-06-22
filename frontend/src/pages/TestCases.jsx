@@ -97,7 +97,8 @@ export default function TestCases() {
   const { currentProject } = useProject();
   const { user }           = useAuth();
   const pid      = currentProject?.id;
-  const isViewer = user?.role === "viewer";
+  const isViewer  = user?.role === "viewer";
+  const canManage = user?.role === "admin" || user?.role === "manager";
 
   const { data: casesRaw,  loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
@@ -108,6 +109,9 @@ export default function TestCases() {
   const [modal,     setModal]     = useState(null);
   const [confirm,   setConfirm]   = useState(null);
   const [detail,    setDetail]    = useState(null);
+  const [detailTab, setDetailTab] = useState("info");
+  const [activity,  setActivity]  = useState([]);
+  const [actLoading,setActLoading]= useState(false);
   const [search,    setSearch]    = useState("");
   const [filterMod, setFilterMod] = useState("");
   const [filterPri, setFilterPri] = useState("");
@@ -149,6 +153,18 @@ export default function TestCases() {
     catch(e) { setErr(e.message); }
   }
 
+  async function openDetail(tc) {
+    setDetail(tc);
+    setDetailTab("info");
+    setActivity([]);
+    setActLoading(true);
+    try {
+      const rows = await testCasesApi.getActivity(tc.id);
+      setActivity(Array.isArray(rows) ? rows : rows?.data ?? []);
+    } catch(_) {}
+    finally { setActLoading(false); }
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -188,14 +204,14 @@ export default function TestCases() {
                   {paged.map(c => (
                     <tr key={c.id}>
                       <td>
-                        <button onClick={() => setDetail(c)}
+                        <button onClick={() => openDetail(c)}
                           style={{background:"none",border:"none",cursor:"pointer",
                             color:"var(--accent)",fontWeight:700,fontSize:13,padding:0}}>
                           {c.id}
                         </button>
                       </td>
                       <td style={{fontWeight:500,maxWidth:280}}>
-                        <button onClick={() => setDetail(c)}
+                        <button onClick={() => openDetail(c)}
                           style={{background:"none",border:"none",cursor:"pointer",
                             color:"var(--text)",textAlign:"left",fontSize:13,padding:0}}>
                           {c.title}
@@ -209,7 +225,9 @@ export default function TestCases() {
                         {!isViewer && (
                           <div className="actions">
                             <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:c})}>✏</button>
-                            <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
+                            {canManage && (
+                              <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -225,8 +243,8 @@ export default function TestCases() {
 
       {detail && (
         <div className="modal-overlay" onClick={e => e.target===e.currentTarget && setDetail(null)}>
-          <div className="modal" style={{maxWidth:600}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+          <div className="modal" style={{maxWidth:620}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
               <div>
                 <div style={{fontSize:12,color:"var(--accent)",fontWeight:600,marginBottom:4}}>
                   ID #{detail.id} — {detail.module_name}
@@ -235,25 +253,78 @@ export default function TestCases() {
               </div>
               <Priority v={detail.priority} />
             </div>
-            {detail.assigned_to_name && (
-              <div style={{background:"var(--accent-bg)",borderRadius:6,padding:"6px 12px",
-                fontSize:12,color:"var(--accent)",marginBottom:12}}>
-                👤 Responsável: <strong>{detail.assigned_to_name}</strong>
+
+            {/* Abas */}
+            <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:"1px solid var(--border)",paddingBottom:0}}>
+              {["info","historico"].map(tab => (
+                <button key={tab} onClick={() => setDetailTab(tab)}
+                  style={{padding:"6px 16px",border:"none",background:"none",cursor:"pointer",
+                    fontSize:13,fontWeight:detailTab===tab?600:400,
+                    color:detailTab===tab?"var(--accent)":"var(--text-muted)",
+                    borderBottom:detailTab===tab?"2px solid var(--accent)":"2px solid transparent",
+                    marginBottom:-1}}>
+                  {tab==="info" ? "📋 Informações" : "📜 Histórico"}
+                </button>
+              ))}
+            </div>
+
+            {detailTab === "info" && (
+              <>
+                {detail.assigned_to_name && (
+                  <div style={{background:"var(--accent-bg)",borderRadius:6,padding:"6px 12px",
+                    fontSize:12,color:"var(--accent)",marginBottom:12}}>
+                    👤 Responsável: <strong>{detail.assigned_to_name}</strong>
+                  </div>
+                )}
+                {[
+                  {label:"Descrição",value:detail.description},
+                  {label:"Pré-condições",value:detail.preconditions},
+                  {label:"Passos",value:detail.steps},
+                  {label:"Resultado esperado",value:detail.expected_result},
+                ].map(({label,value}) => value ? (
+                  <div key={label} style={{marginBottom:14}}>
+                    <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",
+                      textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>{label}</div>
+                    <div style={{fontSize:13,whiteSpace:"pre-line",background:"var(--bg)",
+                      padding:"8px 12px",borderRadius:6}}>{value}</div>
+                  </div>
+                ) : null)}
+              </>
+            )}
+
+            {detailTab === "historico" && (
+              <div style={{minHeight:120}}>
+                {actLoading ? (
+                  <div style={{textAlign:"center",padding:24,color:"var(--text-muted)",fontSize:13}}>Carregando...</div>
+                ) : activity.length === 0 ? (
+                  <div style={{textAlign:"center",padding:24,color:"var(--text-muted)",fontSize:13}}>Nenhuma atividade registrada.</div>
+                ) : (
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {activity.map((a,i) => (
+                      <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",
+                        padding:"8px 10px",borderRadius:6,background:"var(--bg)"}}>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:"var(--accent)",
+                          color:"white",display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:11,fontWeight:700,flexShrink:0}}>
+                          {(a.user_name||"?").charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13}}>
+                            <strong>{a.user_name||"Sistema"}</strong>{" "}
+                            <span style={{color:"var(--text-muted)"}}>{a.action}</span>
+                            {a.detail && <span style={{fontSize:12,color:"var(--text-muted)"}}>{" — "}{a.detail}</span>}
+                          </div>
+                          <div style={{fontSize:11,color:"var(--text-muted)",marginTop:2}}>
+                            {new Date(a.created_at).toLocaleString("pt-BR")}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-            {[
-              {label:"Descrição",value:detail.description},
-              {label:"Pré-condições",value:detail.preconditions},
-              {label:"Passos",value:detail.steps},
-              {label:"Resultado esperado",value:detail.expected_result},
-            ].map(({label,value}) => value ? (
-              <div key={label} style={{marginBottom:14}}>
-                <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",
-                  textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>{label}</div>
-                <div style={{fontSize:13,whiteSpace:"pre-line",background:"var(--bg)",
-                  padding:"8px 12px",borderRadius:6}}>{value}</div>
-              </div>
-            ) : null)}
+
             <div className="modal-footer">
               <button className="btn" onClick={() => setDetail(null)}>Fechar</button>
               {!isViewer && (

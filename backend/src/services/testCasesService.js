@@ -58,13 +58,13 @@ async function findById(id) {
   return rows[0];
 }
 
-async function create({ module_id, title, description, preconditions, steps, expected_result, priority, assigned_to_id }) {
+async function create({ module_id, title, description, preconditions, steps, expected_result, priority, assigned_to_id }, userId) {
   const rows = await query(
     "INSERT INTO test_cases (module_id,title,description,preconditions,steps,expected_result,priority,assigned_to_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
     [module_id||null, title.trim(), description||null, preconditions||null, steps||null, expected_result||null, priority||"medium", assigned_to_id||null]
   );
   const tc = await findById(rows[0].id);
-  await logActivity(rows[0].id, null, "criou o caso de teste", null);
+  await logActivity(rows[0].id, userId || null, "criou o caso de teste", null);
   return tc;
 }
 
