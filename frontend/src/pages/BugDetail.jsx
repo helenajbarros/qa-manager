@@ -14,6 +14,27 @@ const TEST_TYPES = [
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"development",label:"Desenvolvimento"}];
+const OS_OPTS     = [{value:"",label:"—"},{value:"Windows",label:"Windows"},{value:"macOS",label:"macOS"},{value:"Linux",label:"Linux"},{value:"Android",label:"Android"},{value:"iOS",label:"iOS"}];
+const BROWSER_OPTS= [{value:"",label:"—"},{value:"Chrome",label:"Chrome"},{value:"Firefox",label:"Firefox"},{value:"Safari",label:"Safari"},{value:"Edge",label:"Edge"},{value:"Opera",label:"Opera"}];
+
+function detectOS() {
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Win/i.test(ua)) return "Windows";
+  if (/Mac/i.test(ua)) return "macOS";
+  if (/Linux/i.test(ua)) return "Linux";
+  return "";
+}
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (/Edg/i.test(ua)) return "Edge";
+  if (/OPR|Opera/i.test(ua)) return "Opera";
+  if (/Chrome/i.test(ua)) return "Chrome";
+  if (/Firefox/i.test(ua)) return "Firefox";
+  if (/Safari/i.test(ua)) return "Safari";
+  return "";
+}
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 const ACT_ICONS   = {"criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤","editou o bug":"✏","adicionou passo":"➕","removeu passo":"➖"};
 
@@ -654,6 +675,9 @@ export default function BugDetail() {
       steps:          bug.steps          || "",
       test_type:      bug.test_type      || "",
       environment:    bug.environment    || "production",
+      os:             bug.os             || "",
+      browser:        bug.browser        || "",
+      impact:         bug.impact         || "",
       actual_result:  bug.actual_result  || "",
       expected_result: bug.expected_result || "",
     });
@@ -859,6 +883,8 @@ export default function BugDetail() {
             <Severity  v={bug.severity} />
             {bug.priority && <><span style={{color:"var(--text-muted)",fontSize:12}}>Prioridade:</span> <strong>{bug.priority === "low" ? "Baixa" : bug.priority === "medium" ? "Média" : bug.priority === "high" ? "Alta" : "Crítica"}</strong></>}
             {bug.environment && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : "Desenvolvimento"}</strong></>}
+            {bug.os && <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"var(--border)",color:"var(--text-muted)"}}>💻 {bug.os}</span>}
+            {bug.browser && <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"var(--border)",color:"var(--text-muted)"}}>🌐 {bug.browser}</span>}
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
             {bug.test_type && (
               <span style={{fontSize:11,padding:"2px 10px",borderRadius:10,
@@ -982,6 +1008,23 @@ export default function BugDetail() {
             </div>
           </Accordion>
 
+          {/* Impacto */}
+          <Accordion title="Impacto no negócio" defaultOpen={true}>
+            <div style={{padding:"12px 16px"}}>
+              {isEditing ? (
+                <textarea value={form.impact||""} onChange={set("impact")}
+                  rows={2} placeholder="Ex: Novos clientes não podem ser cadastrados, impactando o processo comercial."
+                  style={{width:"100%",padding:"10px",borderRadius:8,
+                    border:"1px solid var(--border)",fontSize:13,lineHeight:1.7,
+                    resize:"vertical",background:"var(--bg)",fontFamily:"inherit",outline:"none"}} />
+              ) : bug.impact ? (
+                <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",paddingLeft:4}}>{bug.impact}</p>
+              ) : (
+                <p style={{color:"var(--text-muted)",fontStyle:"italic",fontSize:13}}>Não informado.</p>
+              )}
+            </div>
+          </Accordion>
+
           {/* Comentários */}
           <Accordion title="Comentários" defaultOpen={true} badge={(bug.activity||[]).filter(a=>a.action==="adicionou comentário").length||undefined}>
             <div style={{padding:"14px 16px"}}>
@@ -1061,6 +1104,24 @@ export default function BugDetail() {
                         </span>
                       </div>
                     : <span style={{fontSize:13,color:"var(--text-muted)"}}>—</span>}
+              </div>
+              {/* SO */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                borderBottom:"1px solid var(--border)",paddingBottom:8,gap:8}}>
+                <span style={{fontSize:11,color:"var(--text-muted)",flexShrink:0}}>SO</span>
+                {isEditing
+                  ? <Select value={form.os||""} onChange={v=>setForm(f=>({...f,os:v}))}
+                      options={OS_OPTS} placeholder="—" />
+                  : <span style={{fontSize:13}}>{bug.os||"—"}</span>}
+              </div>
+              {/* Navegador */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                borderBottom:"1px solid var(--border)",paddingBottom:8,gap:8}}>
+                <span style={{fontSize:11,color:"var(--text-muted)",flexShrink:0}}>Navegador</span>
+                {isEditing
+                  ? <Select value={form.browser||""} onChange={v=>setForm(f=>({...f,browser:v}))}
+                      options={BROWSER_OPTS} placeholder="—" />
+                  : <span style={{fontSize:13}}>{bug.browser||"—"}</span>}
               </div>
               {/* PR */}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>

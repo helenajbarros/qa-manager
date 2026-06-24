@@ -124,18 +124,21 @@ async function create({ title, description, comment, tracker_url, severity, prio
 
 async function update(id, { title, description, comment, tracker_url, severity, priority, status,
   module_id, test_case_id, assigned_to_id, pr_url, steps, test_type,
-  environment, actual_result, expected_result, closed_by_archive }, userId) {
+  environment, actual_result, expected_result, closed_by_archive,
+  os, browser, impact }, userId) {
   const prev = await findById(id);
   const mod  = module_id || await extractModuleId(title);
   const archiveVal = closed_by_archive === true ? true : closed_by_archive === false ? false : prev?.closed_by_archive || false;
   await execute(
     `UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,
       status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,
-      environment=$14,actual_result=$15,expected_result=$16,closed_by_archive=$17 WHERE id=$18`,
+      environment=$14,actual_result=$15,expected_result=$16,closed_by_archive=$17,
+      os=$18,browser=$19,impact=$20 WHERE id=$21`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null,
      assigned_to_id||null, pr_url||null, steps||null, test_type||null,
-     environment||"production", actual_result||null, expected_result||null, archiveVal, id]
+     environment||"production", actual_result||null, expected_result||null, archiveVal,
+     os||null, browser||null, impact||null, id]
   );
   // Log de atividades
   if (prev && prev.status !== status) {

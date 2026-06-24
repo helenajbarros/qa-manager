@@ -60,6 +60,9 @@ async function runMigrations() {
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS actual_result TEXT"); } catch(_) {}
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS expected_result TEXT"); } catch(_) {}
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS closed_by_archive BOOLEAN DEFAULT false"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS os TEXT"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS browser TEXT"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS impact TEXT"); } catch(_) {}
   } else {
     // SQLite
     const tables = [

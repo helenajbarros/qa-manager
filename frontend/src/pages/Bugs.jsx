@@ -7,6 +7,25 @@ import { useProject }  from "../context/ProjectContext.jsx";
 import { FileUpload }  from "../components/FileUpload.jsx";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.jsx";
 
+function detectOS() {
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Win/i.test(ua)) return "Windows";
+  if (/Mac/i.test(ua)) return "macOS";
+  if (/Linux/i.test(ua)) return "Linux";
+  return "";
+}
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (/Edg/i.test(ua)) return "Edge";
+  if (/OPR|Opera/i.test(ua)) return "Opera";
+  if (/Chrome/i.test(ua)) return "Chrome";
+  if (/Firefox/i.test(ua)) return "Firefox";
+  if (/Safari/i.test(ua)) return "Safari";
+  return "";
+}
+
 const TEST_TYPES_BUG = [
   "Funcional","Regressão","Integração","Performance","Segurança",
   "Usabilidade","Smoke","Sanidade","Exploratório","Aceitação","API","Automação"
@@ -93,6 +112,9 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     test_case_id:   initial.test_case_id   || "",
     assigned_to_id: initial.assigned_to_id || "",
     environment:    initial.environment    || "production",
+    os:             initial.os             || detectOS(),
+    browser:        initial.browser        || detectBrowser(),
+    impact:         initial.impact         || "",
     actual_result:  initial.actual_result  || "",
     expected_result: initial.expected_result || "",
   });

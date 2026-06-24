@@ -159,6 +159,16 @@ export default function ShareBug() {
                     {bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : "Desenvolvimento"}
                   </span>
                 )}
+                {bug.os && (
+                  <span className="share-pill" style={{background:"#F3F4F6",color:"#374151"}}>
+                    💻 {bug.os}
+                  </span>
+                )}
+                {bug.browser && (
+                  <span className="share-pill" style={{background:"#F3F4F6",color:"#374151"}}>
+                    🌐 {bug.browser}
+                  </span>
+                )}
               </div>
             </div>
             <div className="share-readonly">
@@ -220,6 +230,16 @@ export default function ShareBug() {
                   <div className="share-card-header">Resultado esperado</div>
                   <div className="share-card-body">
                     <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",margin:0}}>{bug.expected_result}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Impacto */}
+              {bug.impact && (
+                <div className="share-card">
+                  <div className="share-card-header">Impacto no negócio</div>
+                  <div className="share-card-body">
+                    <p style={{fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",margin:0}}>{bug.impact}</p>
                   </div>
                 </div>
               )}
