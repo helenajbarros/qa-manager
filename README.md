@@ -2,8 +2,6 @@
 
 Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste, execução por ciclos, gestão de bugs, upload de evidências, controle de usuários e dashboard com métricas em tempo real.
 
-> **Este repositório é a versão TypeScript do projeto.** O código JavaScript original está em [helenajbarros/qa-manager](https://github.com/helenajbarros/qa-manager).
-
 ---
 
 ## 🌐 Links
