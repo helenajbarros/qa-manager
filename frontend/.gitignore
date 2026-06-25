@@ -1,3 +1,6 @@
+# .gitignore no frontend
+@"
 node_modules/
-.env
+dist/
 .env.local
+"@ | Out-File -FilePath "C:\Users\Helena\Documents\qa-manager\frontend\.gitignore" -Encoding utf8

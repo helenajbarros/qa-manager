@@ -2,13 +2,15 @@
 
 Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste, execução por ciclos, gestão de bugs, upload de evidências, controle de usuários e dashboard com métricas em tempo real.
 
+> **Este repositório é a versão TypeScript do projeto.** O código JavaScript original está em [helenajbarros/qa-manager](https://github.com/helenajbarros/qa-manager).
+
 ---
 
 ## 🌐 Links
 
 | | URL |
 |---|---|
-| **Frontend** | https://helenajbarros.github.io/qa-manager |
+| **Frontend (produção)** | https://helenajbarros.github.io/qa-manager |
 | **Backend API** | https://qa-manager-api.onrender.com |
 | **Health check** | https://qa-manager-api.onrender.com/api/health |
 
@@ -23,11 +25,13 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 ### 🧩 Módulos
 - Organização dos casos de teste por área funcional
 - Vinculação automática de bugs pelo prefixo `[NomeDoMódulo]` no título
+- Exclusão restrita a **Admin e Gerente**
 
 ### 📋 Casos de Teste
 - Campos: título, descrição, pré-condições, passos, resultado esperado
 - Prioridade: Baixa, Média, Alta, Crítica
-- Histórico de alterações com data, hora e usuário
+- **Histórico de alterações** com data, hora e nome do usuário responsável
+- Exclusão restrita a **Admin e Gerente**
 
 ### 🔁 Ciclos de Teste
 - Agrupamento de casos de teste por campanha/sprint/versão
@@ -36,6 +40,7 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 - **Arquivamento automático:** ao arquivar um ciclo, todos os bugs vinculados às execuções são fechados automaticamente e marcados com 🔒
 - Histórico completo do ciclo com linha do tempo de alterações
 - Filtro agrupado por status: Ativos / Encerrados (últimos 5)
+- Exclusão restrita a **Admin e Gerente**
 
 ### 🐛 Bugs
 - Abas **Ativos** (Aberto + Em andamento) e **Finalizados** (Corrigido + Fechado)
@@ -46,6 +51,7 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 - Link do tracker externo (Jira, ClickUp, etc.) e link do PR
 - Link de compartilhamento público sem necessidade de login
 - Histórico de atividades por bug
+- Exclusão restrita a **Admin e Gerente**
 
 ### 📊 Dashboard
 - Métricas em tempo real: taxa de sucesso, falha, bloqueados, não executados
@@ -57,8 +63,8 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 
 ### 👥 Usuários e Permissões
 - **Admin** — acesso total incluindo backup
-- **Gerente** — gerencia projetos e usuários (exceto Admin)
-- **Colaborador** — executa testes e registra bugs
+- **Gerente** — gerencia projetos e usuários (exceto Admin). Pode excluir módulos, casos, ciclos e bugs
+- **Colaborador** — executa testes, registra e edita bugs. Não pode excluir módulos, casos de teste, ciclos ou bugs
 - **Visualizador** — somente leitura e exportação
 
 ### 💾 Backup e Restauração
@@ -78,11 +84,13 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 | **Multer** | Upload de arquivos |
 | **JWT** | Autenticação |
 | **bcryptjs** | Hash de senhas |
+| **TypeScript** | Tipagem estática (migração gradual) |
 
 ### Frontend
 | Tecnologia | Uso |
 |---|---|
 | **React 18** | Interface de usuário |
+| **TypeScript** | Tipagem estática |
 | **Vite** | Build tool e dev server |
 | **React Router v6** | Roteamento SPA |
 | **Recharts** | Gráficos do dashboard |
@@ -93,8 +101,6 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 |---|---|
 | **Render** | Hospedagem do backend (Node.js) |
 | **Render PostgreSQL** | Banco de dados em produção (plano Basic $6/mês) |
-| **GitHub Pages** | Hospedagem do frontend (estático via pasta `docs/`) |
-| **GitHub Actions** | CI/CD — build e deploy automático do frontend |
 
 ---
 
@@ -107,8 +113,8 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 
 ### 1. Clone o repositório
 ```bash
-git clone https://github.com/helenajbarros/qa-manager.git
-cd qa-manager
+git clone https://github.com/helenajbarros/qa-manager-ts.git
+cd qa-manager-ts
 ```
 
 ### 2. Backend
@@ -119,35 +125,41 @@ npm install
 
 Crie o arquivo `.env`:
 ```env
-PORT=3001
-DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/qa_manager
+PORT=3002
+DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/qa_manager_ts
 JWT_SECRET=seu_secret
-FRONTEND_URL=http://localhost:5173
-QA_UPLOAD_DIR=uploads
+NODE_ENV=development
 ```
 
 Crie o banco local:
 ```bash
-psql -U postgres -c "CREATE DATABASE qa_manager;"
+psql -U postgres -c "CREATE DATABASE qa_manager_ts;"
 ```
 
 Inicie o servidor:
 ```bash
-npm run dev
+node src/server.js
 ```
 
-API disponível em: `http://localhost:3001`
+API disponível em: `http://localhost:3002`
 
 ### 3. Frontend
 ```bash
 cd frontend
 npm install
+```
+
+Crie o arquivo `.env.local`:
+```env
+VITE_API_URL=http://localhost:3002
+```
+
+Inicie o servidor de desenvolvimento:
+```bash
 npm run dev
 ```
 
-App disponível em: `http://localhost:5173`
-
-> O frontend já está configurado para usar o backend em `localhost:3001` via proxy do Vite.
+App disponível em: `http://localhost:5173/qa-manager/`
 
 ---
 
@@ -155,19 +167,15 @@ App disponível em: `http://localhost:5173`
 
 ### Backend (`.env`)
 ```env
-PORT=3001
+PORT=3002
 DATABASE_URL=postgresql://usuario:senha@host/banco
 JWT_SECRET=chave_secreta
-FRONTEND_URL=http://localhost:5173
-QA_UPLOAD_DIR=uploads
+NODE_ENV=development
 ```
 
-### Produção (Render — Environment Variables)
+### Frontend (`.env.local`)
 ```env
-DATABASE_URL=postgresql://qamanager:senha@host.render.com/qamanager
-JWT_SECRET=chave_secreta
-FRONTEND_URL=https://helenajbarros.github.io
-NODE_ENV=production
+VITE_API_URL=http://localhost:3002
 ```
 
 ---
@@ -178,7 +186,9 @@ NODE_ENV=production
 qa-manager/
 ├── backend/
 │   ├── src/
-│   │   ├── index.js               # Entrada da aplicação
+│   │   ├── server.js              # Entrada da aplicação
+│   │   ├── types/
+│   │   │   └── index.ts           # Tipos TypeScript do backend
 │   │   ├── database/
 │   │   │   ├── connection.js      # Conexão PostgreSQL (pool)
 │   │   │   └── migrations.js      # Criação/atualização das tabelas
@@ -192,17 +202,20 @@ qa-manager/
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx                # Roteamento principal
-│   │   ├── main.jsx               # Entrada React
-│   │   ├── context/               # AuthContext, ProjectContext
+│   │   ├── App.tsx                # Roteamento principal
+│   │   ├── main.tsx               # Entrada React
+│   │   ├── types/
+│   │   │   └── index.ts           # Tipos TypeScript centrais
+│   │   ├── context/               # AuthContext.tsx, ProjectContext.tsx
 │   │   ├── pages/                 # Dashboard, Bugs, Ciclos, Módulos...
 │   │   ├── components/            # Sidebar, UI, FileUpload...
-│   │   ├── services/              # Chamadas à API
-│   │   └── hooks/                 # useAsync
+│   │   ├── services/
+│   │   │   ├── api.ts             # Cliente HTTP tipado
+│   │   │   └── resources.ts       # Recursos da API tipados
+│   │   └── hooks/
+│   │       └── useAsync.ts        # Hook genérico tipado
+│   ├── tsconfig.json
 │   └── package.json
-│
-├── docs/                          # Build do frontend (GitHub Pages)
-└── .github/workflows/deploy.yml   # CI/CD GitHub Actions
 ```
 
 ---
@@ -213,15 +226,20 @@ qa-manager/
 |---|---|---|
 | POST | `/api/users/login` | Autenticação |
 | GET | `/api/users/me` | Usuário logado |
+| GET | `/api/users/mentions` | Lista usuários para @mentions |
 | GET/POST | `/api/projects` | Projetos |
 | GET/POST | `/api/modules` | Módulos |
+| DELETE | `/api/modules/:id` | Excluir módulo (Admin/Gerente) |
 | GET/POST | `/api/test-cases` | Casos de teste |
+| DELETE | `/api/test-cases/:id` | Excluir caso de teste (Admin/Gerente) |
+| GET | `/api/test-cases/:id/activity` | Histórico de alterações |
 | GET/POST | `/api/cycles` | Ciclos |
+| DELETE | `/api/cycles/:id` | Excluir ciclo (Admin/Gerente) |
 | PUT | `/api/cycles/:id` | Editar ciclo (arquivar fecha bugs vinculados) |
 | POST | `/api/cycles/:id/executions` | Adicionar casos ao ciclo |
 | PUT | `/api/cycles/:id/executions/:execId` | Atualizar execução |
-| POST | `/api/cycles/:id/executions/:execId/evidence` | Upload evidência |
-| GET/POST | `/api/bugs` | Bugs (retorna `cycle_status` e `closed_by_archive`) |
+| GET/POST | `/api/bugs` | Bugs |
+| DELETE | `/api/bugs/:id` | Excluir bug (Admin/Gerente) |
 | POST | `/api/bugs/:id/files` | Upload arquivo bug |
 | GET | `/api/dashboard` | Métricas |
 | GET | `/api/export` | Dados para exportação Excel |
@@ -232,40 +250,13 @@ qa-manager/
 
 ---
 
-## 📦 Deploy
-
-### Backend — Render (Web Service)
-1. Conecte o repositório no [render.com](https://render.com)
-2. Configure:
-   - **Root Directory:** `backend`
-   - **Build Command:** `npm install`
-   - **Start Command:** `node src/index.js`
-3. Adicione as variáveis de ambiente no painel
-4. O banco PostgreSQL está no mesmo workspace do Render — use a **Internal Database URL** para menor latência
-
-### Frontend — GitHub Pages
-O deploy é automático via GitHub Actions a cada push na `main`.
-
-Para deploy manual:
-```bash
-npm run build --prefix frontend
-Remove-Item -Recurse -Force docs   # Windows PowerShell
-mkdir docs
-xcopy frontend\dist\* docs\ /E /I /Y
-git add .
-git commit -m "deploy: build frontend"
-git push origin main
-```
-
----
-
 ## 🔐 Perfis de acesso
 
 | Perfil | Permissões |
 |---|---|
 | **Admin** | Tudo + gerenciar usuários, projetos e backup |
-| **Gerente** | Criar e editar projetos, módulos, casos, ciclos e bugs. Gerenciar usuários (exceto Admin) |
-| **Colaborador** | Executar testes e registrar bugs nos projetos atribuídos |
+| **Gerente** | Criar, editar e excluir projetos, módulos, casos, ciclos e bugs. Gerenciar usuários (exceto Admin) |
+| **Colaborador** | Executar testes, registrar e editar bugs. Não pode excluir módulos, casos de teste, ciclos ou bugs |
 | **Visualizador** | Somente leitura e exportação de relatórios |
 
 ---
@@ -274,18 +265,40 @@ git push origin main
 
 O sistema usa **PostgreSQL** tanto em produção (Render) quanto localmente.
 
-### Backup via sistema
-1. Acesse como **Admin** → menu **Backup**
-2. Clique em **Download do backup** para exportar
-3. Clique em **Restaurar backup** para importar
+O banco local de desenvolvimento (`qa_manager_ts`) é separado do banco de produção, permitindo testar sem risco de afetar dados reais.
 
-### Backup via linha de comando (local → Render)
+### Banco local
 ```bash
-# Exportar do Render (requer pg_dump compatível com PostgreSQL 18)
-# Usar a opção Export no painel Render → Recovery → Create export
+# Criar banco
+psql -U postgres -c "CREATE DATABASE qa_manager_ts;"
 
-# Restaurar localmente
-psql -U postgres -d qa_manager -f backup.sql
+# As migrations rodam automaticamente ao iniciar o servidor
+node src/server.js
 ```
 
+### Banco de produção
+Hospedado no Render PostgreSQL (plano Basic). As migrations rodam automaticamente a cada deploy.
+
 > ⚠️ O Render usa PostgreSQL 18. O pg_dump local precisa ser da mesma versão para exportar diretamente via CLI.
+
+---
+
+## 🔷 TypeScript
+
+Este repositório é a evolução TypeScript do projeto. A migração foi feita de forma gradual:
+
+**Já em TypeScript:**
+- `src/types/index.ts` — todos os tipos da aplicação (User, Bug, Cycle, TestCase, etc.)
+- `services/api.ts` — cliente HTTP com generics `<T>`
+- `services/resources.ts` — recursos da API totalmente tipados
+- `hooks/useAsync.ts` — hook genérico `useAsync<T>`
+- `context/AuthContext.tsx` — contexto tipado
+- `context/ProjectContext.tsx` — contexto tipado
+- `main.tsx` e `App.tsx`
+- Backend: `src/types/index.ts` com tipos de banco e `AuthRequest`
+
+**Ainda em JavaScript (migração gradual):**
+- `pages/*.tsx` — páginas (tipagem `any` enquanto migração avança)
+- Backend `src/**/*.js`
+
+As novas funcionalidades são desenvolvidas diretamente em TypeScript.

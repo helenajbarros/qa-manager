@@ -1,7 +1,8 @@
+# .gitignore na raiz
+@"
 node_modules/
-data/
-*.db
-*.db-shm
-*.db-wal
+dist/
 .env
-
+.env.local
+*.db
+"@ | Out-File -FilePath "C:\Users\Helena\Documents\qa-manager\.gitignore" -Encoding utf8

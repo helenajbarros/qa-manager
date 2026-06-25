@@ -3,8 +3,8 @@ services:
     name: qa-manager-api
     runtime: node
     rootDir: backend
-    buildCommand: npm install --production=false
-    startCommand: node src/server.js
+    buildCommand: npm install --production=false && npm run build
+    startCommand: npm start
     plan: free
     healthCheckPath: /api/health
     disk:
