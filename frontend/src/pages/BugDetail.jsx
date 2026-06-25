@@ -665,6 +665,7 @@ export default function BugDetail() {
       description:    bug.description    || "",
       comment:        bug.comment        || "",
       tracker_url:    bug.tracker_url    || "",
+      evidence_url:   bug.evidence_url   || "",
       pr_url:         bug.pr_url         || "",
       severity:       bug.severity       || "medium",
       priority:       bug.priority       || "medium",
@@ -738,6 +739,7 @@ export default function BugDetail() {
         comment: bug.comment || "",
         tracker_url: bug.tracker_url || "",
         pr_url: bug.pr_url || "",
+        evidence_url: bug.evidence_url || "",
         severity: bug.severity || "medium",
         priority: bug.priority || "medium",
         status: "closed",
@@ -763,6 +765,7 @@ export default function BugDetail() {
         comment: bug.comment || "",
         tracker_url: bug.tracker_url || "",
         pr_url: bug.pr_url || "",
+        evidence_url: bug.evidence_url || "",
         severity: bug.severity || "medium",
         priority: bug.priority || "medium",
         status: bug.status || "closed",
@@ -1155,6 +1158,21 @@ export default function BugDetail() {
                     🔗 {bug.tracker_url.replace(/^https?:\/\//,"")}
                   </a>
                 : <p style={{color:"var(--text-muted)",fontSize:12,fontStyle:"italic"}}>Nenhum tracker.</p>}
+          </SidebarAccordion>
+
+          {/* Link de Evidência */}
+          <SidebarAccordion title="Link de Evidência" defaultOpen={true}>
+            {isEditing
+              ? <input value={form.evidence_url||""} onChange={set("evidence_url")}
+                  placeholder="https://drive.google.com/... ou Loom, YouTube..."
+                  style={{width:"100%",padding:"6px 10px",borderRadius:6,
+                    border:"1px solid var(--border)",fontSize:12}} />
+              : bug.evidence_url
+                ? <a href={bug.evidence_url} target="_blank" rel="noreferrer"
+                    style={{color:"var(--accent)",fontSize:12,wordBreak:"break-all",textDecoration:"none"}}>
+                    🎥 {bug.evidence_url.replace(/^https?:\/\//,"")}
+                  </a>
+                : <p style={{color:"var(--text-muted)",fontSize:12,fontStyle:"italic"}}>Nenhum link de evidência.</p>}
           </SidebarAccordion>
 
           {/* Anexos */}

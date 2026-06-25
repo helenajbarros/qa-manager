@@ -244,6 +244,19 @@ export default function ShareBug() {
                 </div>
               )}
 
+              {/* Link de Evidência */}
+              {bug.evidence_url && (
+                <div className="share-card">
+                  <div className="share-card-header">Link de evidência</div>
+                  <div className="share-card-body">
+                    <a href={bug.evidence_url} target="_blank" rel="noreferrer"
+                      style={{color:"#1E40AF",textDecoration:"none",wordBreak:"break-all",fontSize:13}}>
+                      🎥 {bug.evidence_url}
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* Histórico */}
               {bug.activity?.length > 0 && (
                 <div className="share-card">

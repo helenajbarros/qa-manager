@@ -59,13 +59,10 @@ async function findAll({ status, severity, module_id, project_id, search, page, 
   if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(b.title) LIKE $${params.length}`); }
 
   const where = conds.join(" AND ");
-
-  // Paginação
   const pageNum  = Math.max(1, parseInt(page)  || 1);
   const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
   const offset   = (pageNum - 1) * pageSize;
 
-  // Total sem paginação
   const countRows = await query(`SELECT COUNT(*) AS total FROM bugs b WHERE ${where}`, params);
   const total = parseInt(countRows[0]?.total || 0);
 
@@ -105,17 +102,18 @@ async function getActivity(bug_id) {
 
 async function create({ title, description, comment, tracker_url, severity, priority, status,
   module_id, test_case_id, created_by_id, project_id, assigned_to_id, pr_url, steps,
-  environment, actual_result, expected_result }) {
+  test_type, environment, actual_result, expected_result, os, browser, impact, evidence_url }) {
   const mod = module_id || await extractModuleId(title);
   const rows = await query(
     `INSERT INTO bugs (title,description,comment,tracker_url,severity,priority,status,module_id,
       test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive,
-      environment,actual_result,expected_result)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
+      environment,actual_result,expected_result,os,browser,impact,evidence_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null,
      created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false,
-     environment||"production", actual_result||null, expected_result||null]
+     environment||"production", actual_result||null, expected_result||null,
+     os||null, browser||null, impact||null, evidence_url||null]
   );
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
@@ -125,7 +123,7 @@ async function create({ title, description, comment, tracker_url, severity, prio
 async function update(id, { title, description, comment, tracker_url, severity, priority, status,
   module_id, test_case_id, assigned_to_id, pr_url, steps, test_type,
   environment, actual_result, expected_result, closed_by_archive,
-  os, browser, impact }, userId) {
+  os, browser, impact, evidence_url }, userId) {
   const prev = await findById(id);
   const mod  = module_id || await extractModuleId(title);
   const archiveVal = closed_by_archive === true ? true : closed_by_archive === false ? false : prev?.closed_by_archive || false;
@@ -133,20 +131,18 @@ async function update(id, { title, description, comment, tracker_url, severity, 
     `UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,
       status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,
       environment=$14,actual_result=$15,expected_result=$16,closed_by_archive=$17,
-      os=$18,browser=$19,impact=$20 WHERE id=$21`,
+      os=$18,browser=$19,impact=$20,evidence_url=$21 WHERE id=$22`,
     [title.trim(), description||null, comment||null, tracker_url||null,
      severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null,
      assigned_to_id||null, pr_url||null, steps||null, test_type||null,
      environment||"production", actual_result||null, expected_result||null, archiveVal,
-     os||null, browser||null, impact||null, id]
+     os||null, browser||null, impact||null, evidence_url||null, id]
   );
-  // Log de atividades
   if (prev && prev.status !== status) {
     await logActivity(id, userId, "alterou o status", `${prev.status} → ${status}`);
   }
   if (prev && prev.assigned_to_id !== (assigned_to_id||null)) {
     await logActivity(id, userId, "alterou o responsável", null);
-    // Notificar novo responsável
     if (assigned_to_id && assigned_to_id !== userId) {
       const bug = await findById(id);
       await notif.create({
@@ -160,7 +156,6 @@ async function update(id, { title, description, comment, tracker_url, severity, 
   if (prev && prev.title !== title) {
     await logActivity(id, userId, "editou o bug", null);
   }
-  // Log de arquivamento/desarquivamento
   if (prev && prev.closed_by_archive !== archiveVal) {
     if (archiveVal) {
       await logActivity(id, userId, "arquivou o bug", null);
@@ -208,3 +203,5 @@ async function remove(id) {
 
 module.exports = { findAll, findById, create, update, remove, addFile, removeFile,
   addRelation, removeRelation, getActivity, logActivity };
+
+  

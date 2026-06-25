@@ -104,6 +104,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     comment:        initial.comment        || "",
     steps:          initial.steps          || "",
     tracker_url:    initial.tracker_url    || "",
+    evidence_url:   initial.evidence_url   || "",
     pr_url:         initial.pr_url         || "",
     severity:       initial.severity       || "medium",
     priority:       initial.priority       || "medium",
@@ -167,6 +168,10 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
       <Field label="Link do tracker (ClickUp, Jira, etc)">
         <input value={form.tracker_url} onChange={set("tracker_url")}
           placeholder="https://app.clickup.com/t/..." />
+      </Field>
+      <Field label="Link de evidência (Drive, Loom, Jam, etc)">
+        <input value={form.evidence_url||""} onChange={set("evidence_url")}
+          placeholder="https://drive.google.com/..." />
       </Field>
       <Field label="Descrição">
         <textarea value={form.description} onChange={set("description")} placeholder="Detalhes adicionais..." />

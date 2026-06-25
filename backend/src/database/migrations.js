@@ -63,6 +63,7 @@ async function runMigrations() {
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS os TEXT"); } catch(_) {}
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS browser TEXT"); } catch(_) {}
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS impact TEXT"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS evidence_url TEXT"); } catch(_) {}
   } else {
     // SQLite
     const tables = [
