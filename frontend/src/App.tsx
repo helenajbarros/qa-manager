@@ -14,16 +14,21 @@ import Users      from "./pages/Users.js";
 import Projects   from "./pages/Projects.js";
 import Backup     from "./pages/Backup.js";
 
-function Guard({ children, adminOnly, managerOk }) {
+interface GuardProps {
+  children: React.ReactNode;
+  adminOnly?: boolean;
+  managerOk?: boolean;
+}
+
+function Guard({ children, adminOnly = false, managerOk = false }: GuardProps) {
   const { user, loading, isAdmin, isManager } = useAuth();
   if (loading) return <div className="loading">Carregando…</div>;
   if (!user)   return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   if (managerOk && !isAdmin && !isManager) return <Navigate to="/" replace />;
-  return children;
+  return <>{children}</>;
 }
 
-// Redireciona após login para rota salva (exceto rotas públicas)
 function RedirectHandler() {
   const navigate = useNavigate();
   useEffect(() => {
@@ -32,7 +37,6 @@ function RedirectHandler() {
       sessionStorage.removeItem("qa_redirect");
       navigate(redirect, { replace: true });
     } else if (redirect) {
-      // Limpa qualquer redirect que não deva ser usado aqui
       sessionStorage.removeItem("qa_redirect");
     }
   }, []);
@@ -44,16 +48,13 @@ export default function App() {
 
   if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
 
-  // Verifica se é uma rota pública /share/
   const savedRedirect = sessionStorage.getItem("qa_redirect") || "";
   const currentPath = window.location.pathname.replace("/qa-manager", "") || "/";
   const isShareRoute = currentPath.startsWith("/share/") || savedRedirect.startsWith("/share/");
 
   if (isShareRoute) {
-    // Limpa o redirect e monta só a rota pública
     if (savedRedirect.startsWith("/share/")) {
       sessionStorage.removeItem("qa_redirect");
-      // Força navegar para a rota do share
       window.history.replaceState(null, "", "/qa-manager" + savedRedirect);
     }
     return (
