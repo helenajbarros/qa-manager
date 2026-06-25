@@ -35,7 +35,7 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 - Agrupamento de casos de teste por campanha/sprint/versão
 - Tipos de teste: Funcional, Regressão, Integração, Performance, Segurança, Usabilidade, Smoke, Sanidade, Exploratório, Aceitação, API, Automação
 - Execução individual com status, comentário, evidências e vínculo com bug
-- **Arquivamento automático:** ao arquivar um ciclo, todos os bugs vinculados às execuções são fechados automaticamente e marcados com 🔒
+- **Arquivamento automático:** ao arquivar um ciclo, todos os bugs vinculados são fechados automaticamente e marcados com 🔒
 - Histórico completo do ciclo com linha do tempo de alterações
 - Filtro agrupado por status: Ativos / Encerrados (últimos 5)
 - Exclusão restrita a **Admin e Gerente**
@@ -46,6 +46,9 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 - Toggle para mostrar/ocultar bugs de ciclos arquivados
 - Filtro de ciclos agrupado por status
 - Vínculo com caso de teste e execução
+- **SO e Navegador** detectados automaticamente via `navigator.userAgent`
+- **Impacto no negócio** — campo livre para descrever o efeito real do bug
+- **Link de evidência** — URL externa (Drive, Loom, YouTube etc.)
 - Link do tracker externo (Jira, ClickUp, etc.) e link do PR
 - Link de compartilhamento público sem necessidade de login
 - Histórico de atividades por bug
@@ -75,20 +78,21 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 ### Backend
 | Tecnologia | Uso |
 |---|---|
-| **Node.js** | Runtime JavaScript |
+| **Node.js** | Runtime |
 | **Express** | Framework HTTP |
+| **TypeScript** | Tipagem estática — 100% tipado |
 | **PostgreSQL** | Banco de dados relacional |
 | **node-postgres (pg)** | Driver PostgreSQL |
 | **Multer** | Upload de arquivos |
 | **JWT** | Autenticação |
 | **bcryptjs** | Hash de senhas |
-| **TypeScript** | Tipagem estática (migração gradual) |
+| **ts-node** | Execução TypeScript em desenvolvimento |
 
 ### Frontend
 | Tecnologia | Uso |
 |---|---|
 | **React 18** | Interface de usuário |
-| **TypeScript** | Tipagem estática |
+| **TypeScript** | Tipagem estática — 100% tipado |
 | **Vite** | Build tool e dev server |
 | **React Router v6** | Roteamento SPA |
 | **Recharts** | Gráficos do dashboard |
@@ -97,8 +101,9 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 ### Infraestrutura
 | Serviço | Uso |
 |---|---|
-| **Render** | Hospedagem do backend (Node.js) |
-| **Render PostgreSQL** | Banco de dados em produção (plano Basic $6/mês) |
+| **Render** | Hospedagem do backend — build `tsc` + `node dist/server.js` |
+| **Render PostgreSQL** | Banco de dados em produção |
+| **GitHub Pages** | Frontend estático — deploy automático via GitHub Actions |
 
 ---
 
@@ -106,13 +111,13 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 
 ### Pré-requisitos
 - Node.js 18+
-- PostgreSQL 15+ instalado localmente
+- PostgreSQL instalado localmente
 - Git
 
 ### 1. Clone o repositório
 ```bash
-git clone https://github.com/helenajbarros/qa-manager-ts.git
-cd qa-manager-ts
+git clone https://github.com/helenajbarros/qa-manager.git
+cd qa-manager
 ```
 
 ### 2. Backend
@@ -124,19 +129,19 @@ npm install
 Crie o arquivo `.env`:
 ```env
 PORT=3002
-DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/qa_manager_ts
+DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/qa_manager
 JWT_SECRET=seu_secret
 NODE_ENV=development
 ```
 
 Crie o banco local:
 ```bash
-psql -U postgres -c "CREATE DATABASE qa_manager_ts;"
+psql -U postgres -c "CREATE DATABASE qa_manager;"
 ```
 
-Inicie o servidor:
+Inicie o servidor em modo desenvolvimento:
 ```bash
-node src/server.js
+npm run dev:ts
 ```
 
 API disponível em: `http://localhost:3002`
@@ -161,6 +166,24 @@ App disponível em: `http://localhost:5173/qa-manager/`
 
 ---
 
+## ⚙ Scripts disponíveis
+
+### Backend
+| Script | Descrição |
+|---|---|
+| `npm run dev:ts` | Desenvolvimento com ts-node (hot reload) |
+| `npm run build` | Compila TypeScript para `dist/` |
+| `npm start` | Roda o build compilado (`dist/server.js`) |
+| `npm run typecheck` | Verifica tipos sem compilar |
+
+### Frontend
+| Script | Descrição |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de produção |
+
+---
+
 ## ⚙ Variáveis de ambiente
 
 ### Backend (`.env`)
@@ -182,20 +205,26 @@ VITE_API_URL=http://localhost:3002
 
 ```
 qa-manager/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml             # CI/CD — build e deploy automático no GitHub Pages
+│
 ├── backend/
 │   ├── src/
-│   │   ├── server.js              # Entrada da aplicação
+│   │   ├── server.ts              # Entrada da aplicação
 │   │   ├── types/
-│   │   │   └── index.ts           # Tipos TypeScript do backend
+│   │   │   └── index.ts           # Tipos TypeScript do backend (AuthRequest, DbUser...)
 │   │   ├── database/
-│   │   │   ├── connection.js      # Conexão PostgreSQL (pool)
-│   │   │   └── migrations.js      # Criação/atualização das tabelas
-│   │   ├── routes/                # Endpoints HTTP
-│   │   ├── controllers/           # Request/Response
-│   │   ├── services/              # Lógica de negócio
-│   │   ├── middlewares/           # Auth, upload, erros
-│   │   └── utils/                 # Helpers de resposta
-│   ├── uploads/                   # Arquivos de evidência
+│   │   │   ├── connection.ts      # Conexão PostgreSQL (pool)
+│   │   │   ├── migrations.ts      # Criação/atualização das tabelas
+│   │   │   └── migrations_*.ts    # Migrations incrementais por versão
+│   │   ├── routes/                # Endpoints HTTP (.ts)
+│   │   ├── controllers/           # Request/Response (.ts)
+│   │   ├── services/              # Lógica de negócio (.ts)
+│   │   ├── middlewares/           # Auth, upload, erros (.ts)
+│   │   └── utils/
+│   │       └── response.ts        # Helpers de resposta HTTP
+│   ├── tsconfig.json
 │   └── package.json
 │
 ├── frontend/
@@ -203,15 +232,15 @@ qa-manager/
 │   │   ├── App.tsx                # Roteamento principal
 │   │   ├── main.tsx               # Entrada React
 │   │   ├── types/
-│   │   │   └── index.ts           # Tipos TypeScript centrais
+│   │   │   └── index.ts           # Tipos TypeScript centrais (Bug, Cycle, User...)
 │   │   ├── context/               # AuthContext.tsx, ProjectContext.tsx
-│   │   ├── pages/                 # Dashboard, Bugs, Ciclos, Módulos...
-│   │   ├── components/            # Sidebar, UI, FileUpload...
+│   │   ├── pages/                 # Dashboard, Bugs, BugDetail, Ciclos, Módulos...
+│   │   ├── components/            # Sidebar, UI, FileUpload, ExportButton
 │   │   ├── services/
-│   │   │   ├── api.ts             # Cliente HTTP tipado
+│   │   │   ├── api.ts             # Cliente HTTP com generics
 │   │   │   └── resources.ts       # Recursos da API tipados
 │   │   └── hooks/
-│   │       └── useAsync.ts        # Hook genérico tipado
+│   │       └── useAsync.ts        # Hook genérico useAsync<T>
 │   ├── tsconfig.json
 │   └── package.json
 ```
@@ -222,7 +251,7 @@ qa-manager/
 
 | Método | Rota | Descrição |
 |---|---|---|
-| POST | `/api/users/login` | Autenticação |
+| POST | `/api/users/login` | Autenticação JWT |
 | GET | `/api/users/me` | Usuário logado |
 | GET | `/api/users/mentions` | Lista usuários para @mentions |
 | GET/POST | `/api/projects` | Projetos |
@@ -244,6 +273,7 @@ qa-manager/
 | GET | `/api/backup/download` | Download do banco |
 | POST | `/api/backup/restore` | Restaurar banco |
 | GET | `/api/health` | Health check |
+| POST | `/api/bugs/:id/share` | Gerar link público |
 | GET | `/api/share/:token` | Bug público sem login |
 
 ---
@@ -261,42 +291,18 @@ qa-manager/
 
 ## 🗄 Banco de dados
 
-O sistema usa **PostgreSQL** tanto em produção (Render) quanto localmente.
+PostgreSQL em produção (Render) e localmente. As migrations rodam automaticamente ao iniciar o servidor.
 
-O banco local de desenvolvimento (`qa_manager_ts`) é separado do banco de produção, permitindo testar sem risco de afetar dados reais.
-
-### Banco local
-```bash
-# Criar banco
-psql -U postgres -c "CREATE DATABASE qa_manager_ts;"
-
-# As migrations rodam automaticamente ao iniciar o servidor
-node src/server.js
-```
-
-### Banco de produção
-Hospedado no Render PostgreSQL (plano Basic). As migrations rodam automaticamente a cada deploy.
-
-> ⚠️ O Render usa PostgreSQL 18. O pg_dump local precisa ser da mesma versão para exportar diretamente via CLI.
+> ⚠️ O Render usa PostgreSQL 18.
 
 ---
 
-## 🔷 TypeScript
+## 🚢 Deploy
 
-Este repositório é a evolução TypeScript do projeto. A migração foi feita de forma gradual:
+### Backend — Render
+- **Root Directory:** `backend`
+- **Build Command:** `npm install && npm run build`
+- **Start Command:** `npm start`
 
-**Já em TypeScript:**
-- `src/types/index.ts` — todos os tipos da aplicação (User, Bug, Cycle, TestCase, etc.)
-- `services/api.ts` — cliente HTTP com generics `<T>`
-- `services/resources.ts` — recursos da API totalmente tipados
-- `hooks/useAsync.ts` — hook genérico `useAsync<T>`
-- `context/AuthContext.tsx` — contexto tipado
-- `context/ProjectContext.tsx` — contexto tipado
-- `main.tsx` e `App.tsx`
-- Backend: `src/types/index.ts` com tipos de banco e `AuthRequest`
-
-**Ainda em JavaScript (migração gradual):**
-- `pages/*.tsx` — páginas (tipagem `any` enquanto migração avança)
-- Backend `src/**/*.js`
-
-As novas funcionalidades são desenvolvidas diretamente em TypeScript.
+### Frontend — GitHub Pages
+Deploy automático via GitHub Actions a cada push na branch `main`. Não requer pasta `docs/` manual.
