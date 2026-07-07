@@ -508,7 +508,7 @@ export default function Bugs() {
           🔁 Ciclo: <strong>{selectedCycle.name}</strong>
           {selectedCycle.version && <span> — v{selectedCycle.version}</span>}
           {selectedCycle.start_date && (
-            <span> | {new Date(selectedCycle.start_date).toLocaleDateString("pt-BR")} → {selectedCycle.end_date ? new Date(selectedCycle.end_date).toLocaleDateString("pt-BR") : "hoje"}</span>
+            <span> | {new Date(selectedCycle.start_date + "T12:00:00").toLocaleDateString("pt-BR")} → {selectedCycle.end_date ? new Date(selectedCycle.end_date + "T12:00:00").toLocaleDateString("pt-BR") : "hoje"}</span>
           )}
         </div>
       )}

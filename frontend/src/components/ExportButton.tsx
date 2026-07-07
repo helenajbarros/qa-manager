@@ -44,8 +44,8 @@ function applyExportFilters(data, dash, filters) {
   const from = date_from ? new Date(date_from) : null;
   const to   = date_to   ? new Date(date_to+"T23:59:59") : null;
   const filteredCycles = (data.cycles || []).filter(c => {
-    const cStart = c.start_date ? new Date(c.start_date) : null;
-    const cEnd   = c.end_date   ? new Date(c.end_date)   : null;
+    const cStart = c.start_date ? new Date(c.start_date + "T12:00:00") : null;
+    const cEnd   = c.end_date   ? new Date(c.end_date   + "T12:00:00") : null;
     if (from && cEnd   && cEnd   < from) return false;
     if (to   && cStart && cStart > to)   return false;
     return true;
@@ -120,7 +120,7 @@ function cStyle(bg="FFFFFF") {
 const SL={passed:"Passou",failed:"Falhou",blocked:"Bloqueado",not_executed:"Não executado",open:"Aberto",in_progress:"Em andamento",fixed:"Corrigido",closed:"Fechado",active:"Ativo",completed:"Concluído",archived:"Arquivado"};
 const SVL={low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
 const PL={low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
-const fd = d => { try { return d?new Date(d).toLocaleDateString("pt-BR"):"—"; } catch{return d||"—";} };
+const fd = d => { try { return d ? new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("pt-BR") : "—"; } catch { return d || "—"; } };
 
 function applyStyles(ws,headers,rows,bg) {
   const XLSX=window.XLSX;

@@ -82,12 +82,12 @@ function CycleCard({ cycle, activeStatus }: CycleCardProps) {
   const executed = exec - (displayCycle.not_executed || 0);
   const pct  = executed > 0 ? Math.round((displayCycle.passed / executed) * 100) : 0;
   const types   = cycle.test_types ? cycle.test_types.split(",").filter(Boolean) : [];
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : null;
+  const fmtDate = (d?: string | null) => d ? new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : null;
   const startD  = fmtDate(cycle.start_date);
   const endD    = fmtDate(cycle.end_date);
   let duration  = null;
   if (cycle.start_date && cycle.end_date) {
-    const days = Math.round((new Date(cycle.end_date!).getTime()-new Date(cycle.start_date!).getTime())/(1000*60*60*24));
+    const days = Math.round((new Date(cycle.end_date! + "T12:00:00").getTime()-new Date(cycle.start_date! + "T12:00:00").getTime())/(1000*60*60*24));
     duration = `${days} dias`;
   }
   return (
