@@ -129,7 +129,7 @@ export default function ShareBug() {
     </>
   );
 
-  const fmtDate = d => d ? new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+  const fmtDate = d => d ? new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
   const fmtDateTime = d => {
     if (!d) return "";
     const dt = new Date(d);
