@@ -437,8 +437,8 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
             <h1>{cycle.name}</h1>
             <div style={{fontSize:12,color:"var(--text-muted)",marginTop:2,display:"flex",gap:12,flexWrap:"wrap"}}>
               {cycle.version    && <span>📦 v{cycle.version}</span>}
-              {cycle.start_date && <span>📅 {new Date(cycle.start_date).toLocaleDateString("pt-BR")}</span>}
-              {cycle.end_date   && <span>🏁 {new Date(cycle.end_date).toLocaleDateString("pt-BR")}</span>}
+              {cycle.start_date && <span>📅 {new Date(cycle.start_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
+              {cycle.end_date   && <span>🏁 {new Date(cycle.end_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
               {types.length>0   && <span>🧪 {types.join(" · ")}</span>}
             </div>
           </div>
@@ -693,8 +693,8 @@ export default function Cycles() {
                         </td>
                         <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.version||"—"}</td>
                         <td style={{fontSize:12,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
-                          {c.start_date?new Date(c.start_date).toLocaleDateString("pt-BR"):"—"}
-                          {c.end_date?` → ${new Date(c.end_date).toLocaleDateString("pt-BR")}` :""}
+                          {c.start_date?new Date(c.start_date + "T12:00:00").toLocaleDateString("pt-BR"):"—"}
+                          {c.end_date?` → ${new Date(c.end_date + "T12:00:00").toLocaleDateString("pt-BR")}` :""}
                         </td>
                         <td>
                           <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
