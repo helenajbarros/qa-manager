@@ -7,7 +7,8 @@ function cast(col: string): string {
 export async function getDashboard({ project_id, cycle_id, date_from, date_to }: any = {}) {
   const num = (v: any) => parseInt(v || 0);
   const pid = project_id ? parseInt(project_id) : null;
-  const cid = cycle_id   ? parseInt(cycle_id)   : null;
+  const noCycle = cycle_id === "no_cycle"; // bugs sem vínculo com ciclo
+  const cid = (!noCycle && cycle_id) ? parseInt(cycle_id) : null;
 
   const pWhere  = pid ? `AND c.project_id = ${pid}` : "";
   const pWhereM = pid ? `AND m.project_id = ${pid}` : "";
@@ -42,6 +43,14 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       SUM(CASE WHEN b.status='closed' THEN 1 ELSE 0 END) AS closed
       FROM test_executions e INNER JOIN bugs b ON b.id = e.bug_id
       WHERE e.cycle_id = ${cid} ${pWhereB}`);
+  } else if (noCycle) {
+    bugRows = await query<any>(`SELECT COUNT(*) AS total,
+      SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open,
+      SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN status='fixed' THEN 1 ELSE 0 END) AS fixed,
+      SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) AS closed
+      FROM bugs b WHERE 1=1 ${pWhereB}
+      AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)`);
   } else {
     bugRows = await query<any>(`SELECT COUNT(*) AS total,
       SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open,
@@ -72,6 +81,14 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed_bugs
       FROM modules m LEFT JOIN bugs b ON b.module_id = m.id
         AND b.id IN (SELECT DISTINCT e2.bug_id FROM test_executions e2 WHERE e2.cycle_id = ${cid} AND e2.bug_id IS NOT NULL)
+      WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
+  } else if (noCycle) {
+    bpmRows = await query<any>(`SELECT m.id, m.name,
+      COUNT(b.id) AS total_bugs,
+      SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open_bugs,
+      SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed_bugs
+      FROM modules m LEFT JOIN bugs b ON b.module_id = m.id
+        AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
   } else {
     bpmRows = await query<any>(`SELECT m.id, m.name,

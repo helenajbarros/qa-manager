@@ -260,6 +260,10 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
       onChange({ ...filters, cycle_id: "", date_from: "", date_to: "", period: "" });
       return;
     }
+    if (cycleId === "no_cycle") {
+      onChange({ ...filters, cycle_id: "no_cycle", date_from: "", date_to: "", period: "" });
+      return;
+    }
     const cycle = cycles.find(c => String(c.id) === String(cycleId));
     onChange({
       ...filters,
@@ -336,6 +340,7 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
             style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
               fontSize:13, background:"var(--surface)", width:"100%" }}>
             <option value="">Todos os ciclos</option>
+            <option value="no_cycle">📋 Bugs sem vínculo com ciclo</option>
             {cycles.filter(c=>c.status==="active").length > 0 && <optgroup label="── Ativos ──">
               {cycles.filter(c=>c.status==="active").map(c => {
                 const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
@@ -391,6 +396,7 @@ function applyFilters(data, filters) {
   if (!data) return data;
   const { date_from, date_to, module_id, status, cycle_id } = filters;
   if (!date_from && !date_to && !module_id && !status && !cycle_id) return data;
+  if (cycle_id === "no_cycle") return { ...data, activeStatus: null }; // tratado pelo backend
   const { summary, bugs, modules, bugs_per_module, cycles } = data;
 
   // BUG 1 CORRIGIDO: datas sem horário são interpretadas como UTC meia-noite,
@@ -526,7 +532,7 @@ export default function Dashboard() {
     () => {
       const params = pid ? { project_id: pid } : {};
       // Quando ciclo específico selecionado, passa cycle_id para o backend
-      if (filters.cycle_id) params.cycle_id = filters.cycle_id;
+      if (filters.cycle_id) params.cycle_id = filters.cycle_id; // inclui "no_cycle"
       // Passa filtros de data para o backend filtrar execuções no servidor
       if (filters.date_from) params.date_from = filters.date_from;
       if (filters.date_to)   params.date_to   = filters.date_to;
@@ -631,7 +637,8 @@ export default function Dashboard() {
           {(filters.date_from || filters.date_to) && filters.period === "custom" && !filters.cycle_id && (
             <span>Período: {filters.date_from ? fmtBR(filters.date_from) : "início"} → {filters.date_to ? fmtBR(filters.date_to) : "hoje"}</span>
           )}
-          {filters.cycle_id  && <span>Ciclo: {filterCycles?.find(c=>String(c.id)===String(filters.cycle_id))?.name}</span>}
+          {filters.cycle_id && filters.cycle_id !== "no_cycle" && <span>Ciclo: {filterCycles?.find(c=>String(c.id)===String(filters.cycle_id))?.name}</span>}
+          {filters.cycle_id === "no_cycle" && <span>Bugs sem vínculo com ciclo</span>}
           {filters.module_id && <span>Módulo: {data?.modules?.find(m=>String(m.id)===String(filters.module_id))?.name}</span>}
           {filters.status    && <span>Status: {filters.status}</span>}
           <span style={{ color:"var(--text-muted)" }}>— {cycles?.length || 0} ciclo(s)</span>
