@@ -46,7 +46,8 @@ function applyExportFilters(data, dash, filters) {
   const from = date_from ? new Date(date_from) : null;
   const to   = date_to   ? new Date(date_to+"T23:59:59") : null;
   const filteredCycles = (data.cycles || []).filter(c => {
-    if (cycle_id) return String(c.id) === String(cycle_id);
+    if (cycle_id && cycle_id !== "no_cycle") return String(c.id) === String(cycle_id);
+    if (cycle_id === "no_cycle") return false; // no_cycle não filtra por ciclo
     const cStart = c.start_date ? new Date(c.start_date + "T12:00:00") : null;
     const cEnd   = c.end_date   ? new Date(c.end_date   + "T12:00:00") : null;
     if (from && cEnd   && cEnd   < from) return false;
@@ -73,9 +74,15 @@ function applyExportFilters(data, dash, filters) {
   const filteredTC   = modName ? data.testCases?.filter(tc => tc.module === modName) : data.testCases;
   const filteredMods = modName ? data.modules?.filter(m => m.name === modName) : data.modules;
 
-  // Filtra bugs: se tem ciclo selecionado, só bugs vinculados às execuções desse ciclo
+  // Filtra bugs conforme o tipo de filtro:
+  // - no_cycle: só bugs exploratórios (sem vínculo com nenhuma execução)
+  // - cycle_id: só bugs vinculados às execuções desse ciclo
+  // - sem filtro: todos os bugs do projeto
   let filteredBugs = data.bugs || [];
-  if (cycle_id) {
+  if (cycle_id === "no_cycle") {
+    const bugIdsInAnyCycle = new Set(data.executions.filter(e => e.bug_id).map(e => e.bug_id));
+    filteredBugs = filteredBugs.filter(b => !bugIdsInAnyCycle.has(b.id));
+  } else if (cycle_id) {
     const bugIdsInCycle = new Set(filteredExec.filter(e => e.bug_id).map(e => e.bug_id));
     filteredBugs = filteredBugs.filter(b => bugIdsInCycle.has(b.id));
   }
