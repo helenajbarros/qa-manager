@@ -18,7 +18,8 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     : (!cid && date_from ? `AND c.start_date >= '${date_from}'`
     : (!cid && date_to   ? `AND c.end_date <= '${date_to}'` : ""));
 
-  const cWhereE  = cid ? `AND e.cycle_id = ${cid}` : "";
+  // Sem filtro de ciclo: considera só ciclos ativos
+  const cWhereE  = cid ? `AND e.cycle_id = ${cid}` : `AND c.status = 'active'`;
 
   const execRows = await query<any>(`SELECT COUNT(*) AS total,
     SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END) AS passed,
@@ -58,7 +59,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END) AS blocked,
     SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed
     FROM modules m LEFT JOIN test_cases tc ON tc.module_id = m.id
-    LEFT JOIN test_executions e ON e.test_case_id = tc.id ${cid ? `AND e.cycle_id = ${cid}` : ""}
+    LEFT JOIN test_executions e ON e.test_case_id = tc.id ${cid ? `AND e.cycle_id = ${cid}` : "AND e.id IN (SELECT e2.id FROM test_executions e2 JOIN test_cycles c2 ON c2.id = e2.cycle_id WHERE c2.status = 'active')"}
     LEFT JOIN test_cycles c ON c.id = e.cycle_id
     WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_executions DESC`);
 
