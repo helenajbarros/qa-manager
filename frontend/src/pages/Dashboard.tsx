@@ -396,7 +396,7 @@ function applyFilters(data, filters) {
   if (!data) return data;
   const { date_from, date_to, module_id, status, cycle_id } = filters;
   if (!date_from && !date_to && !module_id && !status && !cycle_id) return data;
-  if (cycle_id === "no_cycle") return { ...data, activeStatus: null }; // tratado pelo backend
+  // "no_cycle" é tratado pelo backend — o frontend só passa os dados como vieram
   const { summary, bugs, modules, bugs_per_module, cycles } = data;
 
   // BUG 1 CORRIGIDO: datas sem horário são interpretadas como UTC meia-noite,
