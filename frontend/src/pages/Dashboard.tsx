@@ -767,17 +767,26 @@ export default function Dashboard() {
         <ExpandableTable
           title="Métricas por módulo"
           id="table-modules"
-          headers={["Módulo","Casos","Exec.","Resultado"]}
-          rows={modules}
+          headers={filters.cycle_id === "no_cycle" ? ["Módulo","Casos","Bugs","Abertos"] : ["Módulo","Casos","Exec.","Resultado"]}
+          rows={filters.cycle_id === "no_cycle" ? bugs_per_module : modules}
           renderRow={(m,i) => (
-            <tr key={m.id}>
-              <td style={{fontWeight:500}}>{m.name}</td>
-              <td>{m.total_cases}</td>
-              <td>{m.total_executions||0}</td>
-              <td style={{minWidth:120}}>
-                <StackBar passed={m.passed} failed={m.failed} blocked={m.blocked} not_executed={m.not_executed} />
-              </td>
-            </tr>
+            filters.cycle_id === "no_cycle" ? (
+              <tr key={m.id}>
+                <td style={{fontWeight:500}}>{m.name}</td>
+                <td>{m.total_cases||0}</td>
+                <td>{m.total_bugs||0}</td>
+                <td style={{color:m.open_bugs>0?"var(--danger)":undefined}}>{m.open_bugs||0}</td>
+              </tr>
+            ) : (
+              <tr key={m.id}>
+                <td style={{fontWeight:500}}>{m.name}</td>
+                <td>{m.total_cases}</td>
+                <td>{m.total_executions||0}</td>
+                <td style={{minWidth:120}}>
+                  <StackBar passed={m.passed} failed={m.failed} blocked={m.blocked} not_executed={m.not_executed} />
+                </td>
+              </tr>
+            )
           )}
         />
         <ExpandableTable
