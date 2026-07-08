@@ -84,10 +84,13 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
   } else if (noCycle) {
     bpmRows = await query<any>(`SELECT m.id, m.name,
+      COUNT(DISTINCT tc.id) AS total_cases,
       COUNT(b.id) AS total_bugs,
       SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open_bugs,
       SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed_bugs
-      FROM modules m LEFT JOIN bugs b ON b.module_id = m.id
+      FROM modules m
+      LEFT JOIN test_cases tc ON tc.module_id = m.id
+      LEFT JOIN bugs b ON b.module_id = m.id
         AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
   } else {
@@ -134,7 +137,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       success_rate: rate(passed), fail_rate: rate(failed), block_rate: rate(blocked) },
     bugs: { total: num(bugs.total), open: num(bugs.open), in_progress: num(bugs.in_progress), fixed: num(bugs.fixed), closed: num(bugs.closed) },
     modules:         modRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_executions:num(m.total_executions), passed:num(m.passed), failed:num(m.failed), blocked:num(m.blocked), not_executed:num(m.not_executed)})),
-    bugs_per_module: bpmRows.map((m: any) => ({...m, total_bugs:num(m.total_bugs), open_bugs:num(m.open_bugs), fixed_bugs:num(m.fixed_bugs)})),
+    bugs_per_module: bpmRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_bugs:num(m.total_bugs), open_bugs:num(m.open_bugs), fixed_bugs:num(m.fixed_bugs)})),
     cycles: cycleRows.map((c: any) => ({...c, total_executions:num(c.total_executions), passed:num(c.passed), failed:num(c.failed), blocked:num(c.blocked), not_executed:num(c.not_executed), bugs: bugsByCycle[c.id] || {total:0,open:0,in_progress:0,fixed:0,closed:0}})),
   };
 }
