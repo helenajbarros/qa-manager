@@ -38,9 +38,7 @@ async function fetchDashboard(projectId) {
 
 // ── Aplica filtros nos dados exportados ───────────────────────
 function applyExportFilters(data, dash, filters) {
-  if (!filters || !Object.values(filters).some(Boolean)) return { data, dash };
-
-  const { date_from, date_to, module_id, status, cycle_id } = filters;
+  const { date_from, date_to, module_id, status, cycle_id } = filters || {};
 
   // Filtra ciclos por período ou ciclo específico
   const from = date_from ? new Date(date_from) : null;
