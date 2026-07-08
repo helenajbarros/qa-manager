@@ -77,43 +77,53 @@ function applyExportFilters(data, dash, filters) {
   // Filtra bugs conforme o tipo de filtro:
   // - no_cycle: só bugs exploratórios (sem vínculo com nenhuma execução)
   // - cycle_id: só bugs vinculados às execuções desse ciclo
-  // - sem filtro: todos os bugs do projeto
+  // - sem filtro: só bugs vinculados a ciclos (excluir exploratórios)
+  const bugIdsInAnyCycle = new Set(data.executions.filter(e => e.bug_id).map(e => e.bug_id));
   let filteredBugs = data.bugs || [];
   if (cycle_id === "no_cycle") {
-    const bugIdsInAnyCycle = new Set(data.executions.filter(e => e.bug_id).map(e => e.bug_id));
     filteredBugs = filteredBugs.filter(b => !bugIdsInAnyCycle.has(b.id));
   } else if (cycle_id) {
     const bugIdsInCycle = new Set(filteredExec.filter(e => e.bug_id).map(e => e.bug_id));
     filteredBugs = filteredBugs.filter(b => bugIdsInCycle.has(b.id));
+  } else {
+    // Todos os ciclos: só bugs vinculados a algum ciclo
+    filteredBugs = filteredBugs.filter(b => bugIdsInAnyCycle.has(b.id));
   }
   if (modName) {
     filteredBugs = filteredBugs.filter(b => b.module === modName);
   }
 
-  // Recalcula módulos a partir das execuções filtradas
-  // para garantir que métricas reflitam o ciclo/filtro selecionado
+  // Recalcula módulos a partir das execuções E bugs filtrados
   const moduleMap: Record<string, any> = {};
+
+  // Popula a partir das execuções (exceto no_cycle que não tem execuções)
   filteredExec.forEach(e => {
     if (!e.module) return;
     if (!moduleMap[e.module]) {
       moduleMap[e.module] = { name: e.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
     }
     const m = moduleMap[e.module];
-    if (e.status === "passed")       { m.passed++;       m.total_executions++; }
-    else if (e.status === "failed")  { m.failed++;       m.total_executions++; }
-    else if (e.status === "blocked") { m.blocked++;      m.total_executions++; }
+    if (e.status === "passed")            { m.passed++;  m.total_executions++; }
+    else if (e.status === "failed")       { m.failed++;  m.total_executions++; }
+    else if (e.status === "blocked")      { m.blocked++; m.total_executions++; }
     else if (e.status === "not_executed") { m.not_executed++; }
   });
+
+  // Popula bugs por módulo (inclui exploratórios no caso no_cycle)
   filteredBugs.forEach(b => {
     if (!b.module) return;
-    if (!moduleMap[b.module]) moduleMap[b.module] = { name: b.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
+    if (!moduleMap[b.module]) {
+      moduleMap[b.module] = { name: b.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
+    }
     moduleMap[b.module].total_bugs++;
     if (b.status === "open") moduleMap[b.module].open_bugs++;
   });
+
   // total_cases vem dos dados originais de módulo
   (data.modules || []).forEach((m: any) => {
     if (moduleMap[m.name]) moduleMap[m.name].total_cases = m.total_cases || 0;
   });
+
   const recalcMods = Object.values(moduleMap);
   const finalMods = recalcMods.length > 0 ? recalcMods : (filteredMods || []);
 
