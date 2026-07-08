@@ -640,7 +640,7 @@ export default function Dashboard() {
 
       <div className="metrics-grid" id="metrics-grid">
         <MetricCard label="Casos cadastrados"  value={summary.total_cases} />
-        <MetricCard label="Total executado"    value={summary.total_executions} />
+        <MetricCard label="Total executado"    value={summary.total_executions - summary.not_executed} />
         <MetricCard label="Taxa de sucesso"    value={`${summary.success_rate}%`} color="var(--success)" sub={`${summary.passed} passaram`} />
         <MetricCard label="Taxa de falha"      value={`${summary.fail_rate}%`}    color="var(--danger)"  sub={`${summary.failed} falharam`} />
         <MetricCard label="Bloqueados"         value={summary.blocked}            color="var(--purple)" />
