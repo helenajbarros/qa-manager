@@ -53,7 +53,8 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
   const bugs = bugRows[0] || {};
 
   const modRows = await query<any>(`SELECT m.id, m.name,
-    COUNT(DISTINCT tc.id) AS total_cases, COUNT(e.id) AS total_executions,
+    COUNT(DISTINCT tc.id) AS total_cases,
+    SUM(CASE WHEN e.status IN ('passed','failed','blocked') THEN 1 ELSE 0 END) AS total_executions,
     SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END) AS passed,
     SUM(CASE WHEN e.status='failed' THEN 1 ELSE 0 END) AS failed,
     SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END) AS blocked,
