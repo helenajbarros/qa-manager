@@ -766,7 +766,7 @@ export default function Dashboard() {
             <tr key={m.id}>
               <td style={{fontWeight:500}}>{m.name}</td>
               <td>{m.total_cases}</td>
-              <td>{m.total_executions}</td>
+              <td>{(m.total_executions||0) - (m.not_executed||0)}</td>
               <td style={{minWidth:120}}>
                 <StackBar passed={m.passed} failed={m.failed} blocked={m.blocked} not_executed={m.not_executed} />
               </td>
