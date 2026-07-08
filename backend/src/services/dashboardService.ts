@@ -84,12 +84,11 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
   } else if (noCycle) {
     bpmRows = await query<any>(`SELECT m.id, m.name,
-      COUNT(DISTINCT tc.id) AS total_cases,
-      COUNT(b.id) AS total_bugs,
+      (SELECT COUNT(*) FROM test_cases tc WHERE tc.module_id = m.id) AS total_cases,
+      COUNT(DISTINCT b.id) AS total_bugs,
       SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open_bugs,
       SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed_bugs
       FROM modules m
-      LEFT JOIN test_cases tc ON tc.module_id = m.id
       LEFT JOIN bugs b ON b.module_id = m.id
         AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
