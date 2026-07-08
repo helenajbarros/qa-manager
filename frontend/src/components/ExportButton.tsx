@@ -83,6 +83,33 @@ function applyExportFilters(data, dash, filters) {
     filteredBugs = filteredBugs.filter(b => b.module === modName);
   }
 
+  // Recalcula módulos a partir das execuções filtradas
+  // para garantir que métricas reflitam o ciclo/filtro selecionado
+  const moduleMap: Record<string, any> = {};
+  filteredExec.forEach(e => {
+    if (!e.module) return;
+    if (!moduleMap[e.module]) {
+      moduleMap[e.module] = { name: e.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
+    }
+    const m = moduleMap[e.module];
+    if (e.status === "passed")       { m.passed++;       m.total_executions++; }
+    else if (e.status === "failed")  { m.failed++;       m.total_executions++; }
+    else if (e.status === "blocked") { m.blocked++;      m.total_executions++; }
+    else if (e.status === "not_executed") { m.not_executed++; }
+  });
+  filteredBugs.forEach(b => {
+    if (!b.module) return;
+    if (!moduleMap[b.module]) moduleMap[b.module] = { name: b.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
+    moduleMap[b.module].total_bugs++;
+    if (b.status === "open") moduleMap[b.module].open_bugs++;
+  });
+  // total_cases vem dos dados originais de módulo
+  (data.modules || []).forEach((m: any) => {
+    if (moduleMap[m.name]) moduleMap[m.name].total_cases = m.total_cases || 0;
+  });
+  const recalcMods = Object.values(moduleMap);
+  const finalMods = recalcMods.length > 0 ? recalcMods : (filteredMods || []);
+
   // Recalcula summary a partir das execuções filtradas
   const passed   = filteredExec.filter(e=>e.status==="passed").length;
   const failed   = filteredExec.filter(e=>e.status==="failed").length;
@@ -104,7 +131,7 @@ function applyExportFilters(data, dash, filters) {
   };
 
   return {
-    data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: filteredMods||[] },
+    data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: finalMods },
     dash: filteredDash,
   };
 }
