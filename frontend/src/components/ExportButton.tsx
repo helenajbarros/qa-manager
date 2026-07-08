@@ -84,7 +84,7 @@ function applyExportFilters(data, dash, filters) {
     summary: {
       ...(dash.summary||{}),
       passed, failed, blocked, not_executed: notExec,
-      total_executions: total,
+      total_executions: executed,
       success_rate: executed>0?+((passed/executed)*100).toFixed(1):0,
       fail_rate:    executed>0?+((failed/executed)*100).toFixed(1):0,
     },
