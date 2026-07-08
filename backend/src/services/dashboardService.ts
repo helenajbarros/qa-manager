@@ -52,12 +52,16 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       FROM bugs b WHERE 1=1 ${pWhereB}
       AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)`);
   } else {
-    bugRows = await query<any>(`SELECT COUNT(*) AS total,
-      SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open,
-      SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
-      SUM(CASE WHEN status='fixed' THEN 1 ELSE 0 END) AS fixed,
-      SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) AS closed
-      FROM bugs b WHERE 1=1 ${pWhereB}`);
+    // Todos os ciclos: só bugs vinculados a ciclos ativos
+    bugRows = await query<any>(`SELECT COUNT(DISTINCT b.id) AS total,
+      SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open,
+      SUM(CASE WHEN b.status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed,
+      SUM(CASE WHEN b.status='closed' THEN 1 ELSE 0 END) AS closed
+      FROM test_executions e
+      JOIN test_cycles c ON c.id = e.cycle_id AND c.status = 'active'
+      JOIN bugs b ON b.id = e.bug_id
+      WHERE 1=1 ${pWhereB}`);
   }
   const bugs = bugRows[0] || {};
 
@@ -93,11 +97,16 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
         AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
   } else {
+    // Todos os ciclos: só bugs vinculados a ciclos ativos
     bpmRows = await query<any>(`SELECT m.id, m.name,
-      COUNT(b.id) AS total_bugs,
+      COUNT(DISTINCT b.id) AS total_bugs,
       SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open_bugs,
       SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed_bugs
-      FROM modules m LEFT JOIN bugs b ON b.module_id = m.id
+      FROM modules m
+      LEFT JOIN bugs b ON b.module_id = m.id
+        AND b.id IN (SELECT DISTINCT e2.bug_id FROM test_executions e2
+          JOIN test_cycles c2 ON c2.id = e2.cycle_id AND c2.status = 'active'
+          WHERE e2.bug_id IS NOT NULL)
       WHERE 1=1 ${pWhereM} GROUP BY m.id ORDER BY total_bugs DESC`);
   }
 
