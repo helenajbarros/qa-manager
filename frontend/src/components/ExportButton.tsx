@@ -6,6 +6,8 @@ interface ExportFilters {
   date_to?: string;
   module_id?: string | number;
   status?: string;
+  cycle_id?: string | number;
+  period?: string;
 }
 
 interface ExportButtonProps {
@@ -36,14 +38,15 @@ async function fetchDashboard(projectId) {
 
 // ── Aplica filtros nos dados exportados ───────────────────────
 function applyExportFilters(data, dash, filters) {
-  const { date_from, date_to, module_id, status } = filters || {};
-  const hasFilters = filters && Object.values(filters).some(Boolean);
+  if (!filters || !Object.values(filters).some(Boolean)) return { data, dash };
 
-  // Filtra ciclos por período
+  const { date_from, date_to, module_id, status, cycle_id } = filters;
+
+  // Filtra ciclos por período ou ciclo específico
   const from = date_from ? new Date(date_from) : null;
   const to   = date_to   ? new Date(date_to+"T23:59:59") : null;
   const filteredCycles = (data.cycles || []).filter(c => {
-    if (!from && !to) return true;
+    if (cycle_id) return String(c.id) === String(cycle_id);
     const cStart = c.start_date ? new Date(c.start_date + "T12:00:00") : null;
     const cEnd   = c.end_date   ? new Date(c.end_date   + "T12:00:00") : null;
     if (from && cEnd   && cEnd   < from) return false;
@@ -51,11 +54,12 @@ function applyExportFilters(data, dash, filters) {
     return true;
   });
 
-  const cycleNames = (from || to) ? new Set(filteredCycles.map(c => c.name)) : null;
+  // Nomes dos ciclos filtrados
+  const cycleNames = new Set(filteredCycles.map(c => c.name));
 
-  // Filtra execuções
+  // Filtra execuções: por ciclo + status + módulo
   let filteredExec = (data.executions || []).filter(e => {
-    if (cycleNames && !cycleNames.has(e.cycle)) return false;
+    if (cycleNames.size > 0 && !cycleNames.has(e.cycle)) return false;
     if (status && e.status !== status) return false;
     if (module_id) {
       const modName = dash.modules?.find(m => String(m.id) === String(module_id))?.name;
@@ -64,17 +68,28 @@ function applyExportFilters(data, dash, filters) {
     return true;
   });
 
+  // Filtra módulo pelo nome
   const modName = module_id ? dash.modules?.find(m => String(m.id) === String(module_id))?.name : null;
   const filteredTC   = modName ? data.testCases?.filter(tc => tc.module === modName) : data.testCases;
-  const filteredBugs = modName ? data.bugs?.filter(b => b.module === modName) : data.bugs;
   const filteredMods = modName ? data.modules?.filter(m => m.name === modName) : data.modules;
 
-  // Recalcula summary SEMPRE a partir das execuções (com ou sem filtro)
+  // Filtra bugs: se tem ciclo selecionado, só bugs vinculados às execuções desse ciclo
+  let filteredBugs = data.bugs || [];
+  if (cycle_id) {
+    const bugIdsInCycle = new Set(filteredExec.filter(e => e.bug_id).map(e => e.bug_id));
+    filteredBugs = filteredBugs.filter(b => bugIdsInCycle.has(b.id));
+  }
+  if (modName) {
+    filteredBugs = filteredBugs.filter(b => b.module === modName);
+  }
+
+  // Recalcula summary a partir das execuções filtradas
   const passed   = filteredExec.filter(e=>e.status==="passed").length;
   const failed   = filteredExec.filter(e=>e.status==="failed").length;
   const blocked  = filteredExec.filter(e=>e.status==="blocked").length;
   const notExec  = filteredExec.filter(e=>e.status==="not_executed").length;
-  const executed = passed + failed + blocked; // exclui não executados
+  const total    = filteredExec.length;
+  const executed = total - notExec;
 
   const filteredDash = {
     ...dash,
@@ -141,39 +156,45 @@ function filterLabel(filters) {
 async function exportExcel(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
   const rawDash = await fetchDashboard(projectId);
-  const { data, dash } = applyExportFilters(rawData, rawDash, filters);
+  const { data } = applyExportFilters(rawData, rawDash, filters);
 
   const XLSX = await loadXLSX();
   const wb   = XLSX.utils.book_new();
   const now  = new Date().toLocaleDateString("pt-BR",{dateStyle:"full"});
   const fLabel = filterLabel(filters);
 
-  const s = dash.summary || {};
-  const pass = s.passed || 0;
-  const fail = s.failed || 0;
-  const done = s.total_executions || 0;
-  const sr = done>0?((pass/done)*100).toFixed(1)+"%":"0%";
-  const fr = done>0?((fail/done)*100).toFixed(1)+"%":"0%";
+  const pass=data.executions.filter(e=>e.status==="passed").length;
+  const fail=data.executions.filter(e=>e.status==="failed").length;
+  const done=data.executions.filter(e=>e.status!=="not_executed").length;
+  const sr=done>0?((pass/done)*100).toFixed(1)+"%":"0%";
+  const fr=done>0?((fail/done)*100).toFixed(1)+"%":"0%";
 
   const sumRows=[
     ["Projeto",projectName||"—"],["Gerado em",now],
     ...(fLabel ? [["Filtros aplicados", fLabel], [""]] : [[""]]),
     ["RESUMO DE EXECUÇÃO",""],
-    ["Total de casos",s.total_cases||data.testCases.length],
-    ["Total executado",done],
+    ["Total de casos",data.testCases.length],["Total executado",done],
     ["Passou",pass],["Falhou",fail],
-    ["Bloqueado",s.blocked||0],
-    ["Não executado",s.not_executed||0],
+    ["Bloqueado",data.executions.filter(e=>e.status==="blocked").length],
+    ["Não executado",data.executions.filter(e=>e.status==="not_executed").length],
     ["Taxa de sucesso",sr],["Taxa de falha",fr],[""],
     ["RESUMO DE BUGS",""],["Total",data.bugs.length],
     ["Abertos",data.bugs.filter(b=>b.status==="open").length],
     ["Em andamento",data.bugs.filter(b=>b.status==="in_progress").length],
     ["Corrigidos",data.bugs.filter(b=>b.status==="fixed").length],
     ["Fechados",data.bugs.filter(b=>b.status==="closed").length],[""],
+
   ];
   const sumWs=XLSX.utils.aoa_to_sheet(sumRows);
   sumWs["!cols"]=[{wch:24},{wch:44}];
   XLSX.utils.book_append_sheet(wb,sumWs,"Resumo");
+
+  const tcH=["ID","Módulo","Título","Prioridade","Responsável","Pré-condições","Passos","Resultado esperado","Criado em"];
+  // Aba Casos de Teste removida do relatório
+
+  // Aba Ciclos removida do relatório
+
+  // Aba Execuções removida do relatório
 
   const bgH=["#","Título","Módulo","TC","Severidade","Status","Criado por","Comentário","Tracker","Criado em"];
   const bgR=data.bugs.map(b=>[b.id,b.title,b.module||"—",b.tc_id?`#${b.tc_id}`:"—",SVL[b.severity]||b.severity,SL[b.status]||b.status,b.created_by||"—",b.comment||"—",b.tracker_url||"—",fd(b.created_at)]);
@@ -223,6 +244,7 @@ async function exportHTML(projectName, projectId, filters) {
     const total = items.reduce((a,b)=>a+b.value,0);
     if (!total) return `<div class="chart-box"><h3>${title}</h3><p style="color:#999;text-align:center">Sem dados</p></div>`;
     let svgPaths="", legends="";
+    // Caso especial: 1 item = 100% — arco de 360graus e invalido em SVG, usar circulo
     if (items.length === 1) {
       svgPaths = `<circle cx="100" cy="100" r="80" fill="${items[0].color}"/>`;
       legends  = `<div class="legend-item"><span class="legend-dot" style="background:${items[0].color}"></span>${items[0].label}: <b>${items[0].value}</b> (100.0%)</div>`;
@@ -239,6 +261,7 @@ async function exportHTML(projectName, projectId, filters) {
         legends +=`<div class="legend-item"><span class="legend-dot" style="background:${item.color}"></span>${item.label}: <b>${item.value}</b> (${(pct*100).toFixed(1)}%)</div>`;
       });
     }
+    // width/height fixos em px garantem renderizacao correta no print engine do browser
     return `<div class="chart-box"><h3>${title}</h3><div class="pie-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="180" height="180" style="display:block;width:180px;height:180px;flex-shrink:0">${svgPaths}</svg><div class="legends">${legends}</div></div></div>`;
   }
 
@@ -262,10 +285,12 @@ async function exportHTML(projectName, projectId, filters) {
       .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
       .slice(-10);
     if (sorted.length < 2) return "";
+
     const W = 600, H = 200, padL = 40, padR = 20, padT = 20, padB = 50;
     const chartW = W - padL - padR;
     const chartH = H - padT - padB;
     const step = chartW / (sorted.length - 1);
+
     const points = sorted.map((c, i) => {
       const exec = (c.total||0) - (c.not_executed||0);
       const succ = exec > 0 ? +((c.passed/exec)*100).toFixed(1) : 0;
@@ -277,16 +302,23 @@ async function exportHTML(projectName, projectId, filters) {
       const name = (c.name||"").length > 10 ? (c.name||"").slice(0,10)+"…" : (c.name||"");
       return { x, ySucc, yFail, succ, fail, label: `${i+1}º ${name}${date?" ("+date+")":""}` };
     });
+
     const succLine = points.map((p,i) => `${i===0?"M":"L"}${p.x.toFixed(1)},${p.ySucc.toFixed(1)}`).join(" ");
     const failLine = points.map((p,i) => `${i===0?"M":"L"}${p.x.toFixed(1)},${p.yFail.toFixed(1)}`).join(" ");
+
+    // Y axis labels
     const yLabels = [0,25,50,75,100].map(v => {
       const y = padT + chartH - (v/100)*chartH;
       return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E2E8F0" stroke-width="1"/>
               <text x="${padL-4}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#94A3B8">${v}%</text>`;
     }).join("");
+
+    // X axis labels
     const xLabels = points.map(p =>
       `<text x="${p.x.toFixed(1)}" y="${(padT+chartH+16).toFixed(1)}" text-anchor="middle" font-size="9" fill="#64748B">${p.label}</text>`
     ).join("");
+
+    // Dots and value labels
     const succDots = points.map(p =>
       `<circle cx="${p.x.toFixed(1)}" cy="${p.ySucc.toFixed(1)}" r="4" fill="#10B981"/>
        <text x="${p.x.toFixed(1)}" y="${(p.ySucc-8).toFixed(1)}" text-anchor="middle" font-size="10" fill="#10B981" font-weight="bold">${p.succ}%</text>`
@@ -295,6 +327,7 @@ async function exportHTML(projectName, projectId, filters) {
       `<circle cx="${p.x.toFixed(1)}" cy="${p.yFail.toFixed(1)}" r="4" fill="#EF4444"/>
        <text x="${p.x.toFixed(1)}" y="${(p.yFail+16).toFixed(1)}" text-anchor="middle" font-size="10" fill="#EF4444" font-weight="bold">${p.fail}%</text>`
     ).join("");
+
     return `<div class="chart-box wide">
       <h3>Tendência de qualidade por ciclo</h3>
       <div style="font-size:11px;color:#94A3B8;margin-bottom:8px">Taxa de sucesso e falha nos últimos ${sorted.length} ciclos executados</div>
@@ -410,6 +443,8 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
     ${barChart(modData,"Resultados por Módulo")}
     ${trendChart(data.cycles)}
   </div>
+
+
   ${data.bugs.length > 0 ? `<h2>Bugs</h2>
   ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
     data.bugs.map(b=>[b.id,b.title,b.module||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}
@@ -477,3 +512,5 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
     </div>
   );
 }
+
+
