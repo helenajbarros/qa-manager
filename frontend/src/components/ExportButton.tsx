@@ -161,7 +161,7 @@ async function exportExcel(projectName, projectId, filters) {
     ["Projeto",projectName||"—"],["Gerado em",now],
     ...(fLabel ? [["Filtros aplicados", fLabel], [""]] : [[""]]),
     ["RESUMO DE EXECUÇÃO",""],
-    ["Total de casos",data.testCases.length],["Total de execuções",data.executions.length],
+    ["Total de casos",data.testCases.length],["Total executado",done],
     ["Passou",pass],["Falhou",fail],
     ["Bloqueado",data.executions.filter(e=>e.status==="blocked").length],
     ["Não executado",data.executions.filter(e=>e.status==="not_executed").length],
