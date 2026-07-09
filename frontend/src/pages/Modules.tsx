@@ -15,6 +15,8 @@ interface PaginationProps {
   totalPages: number;
   total: number;
   onChange: (page: number) => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
 }
 
 interface ModuleFormData {
