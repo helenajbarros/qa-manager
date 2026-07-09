@@ -41,12 +41,17 @@ const PRI_OPTS = [
 ];
 const PAGE_SIZE = 10;
 
-function Pagination({ page, totalPages, total, onChange }) {
+function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeChange }) {
   if (totalPages <= 1) return null;
   return (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
       padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
       <span>{total} item(s) — Página {page} de {totalPages}</span>
+        {onPageSizeChange && <select value={pageSize} onChange={e=>{onPageSizeChange(Number(e.target.value))}}
+          style={{fontSize:11,padding:"2px 6px",borderRadius:4,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer"}}>
+          {[10,25,50,999].map(s=><option key={s} value={s}>{s===999?"Todos":s}</option>)}
+        </select>}
+      </div>
       <div style={{display:"flex",gap:4}}>
         <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1}
           style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
@@ -160,8 +165,8 @@ export default function TestCases() {
     return true;
   });
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paged      = filtered.slice((page-1)*pageSize, page*pageSize);
 
   function handleFilterChange(fn) {
     fn();
@@ -266,7 +271,7 @@ export default function TestCases() {
                 </tbody>
               </table>
             </div>
-            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={setPage} />
+            <Pagination page={page} totalPages={totalPages} total={filtered.length} onChange={p=>{setPage(p)}} pageSize={pageSize} onPageSizeChange={s=>{setPageSize(s);setPage(1)}} />
           </>
         )}
       </div>
