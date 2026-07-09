@@ -85,7 +85,10 @@ function applyExportFilters(data, dash, filters) {
     const bugIdsInCycle = new Set(filteredExec.filter(e => e.bug_id).map(e => e.bug_id));
     filteredBugs = filteredBugs.filter(b => bugIdsInCycle.has(b.id));
   }
-  // sem filtro: todos os bugs (sem filtrar)
+  // sem filtro: só bugs vinculados a algum ciclo (excluir exploratórios)
+  if (!cycle_id) {
+    filteredBugs = filteredBugs.filter(b => bugIdsInAnyCycle.has(b.id));
+  }
   if (modName) {
     filteredBugs = filteredBugs.filter(b => b.module === modName);
   }
@@ -269,7 +272,7 @@ async function exportExcel(projectName, projectId, filters) {
   XLSX.utils.book_append_sheet(wb,bgWs,"Bugs");
 
   const mdH=["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Total bugs","Bugs abertos","% Sucesso"];
-  const mdR=data.modules.map(m=>{ const d2=(m.total_executions||0)-(m.not_executed||0); const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—"; return [m.module||m.name,m.total_cases||0,m.total_executions||0,m.passed||0,m.failed||0,m.blocked||0,m.total_bugs||0,m.open_bugs||0,pct]; });
+  const mdR=data.modules.map(m=>{ const d2=Math.max(0,(m.total_executions||0)-(m.not_executed||0)); const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—"; return [m.module||m.name,m.total_cases||0,d2,m.passed||0,m.failed||0,m.blocked||0,m.total_bugs||0,m.open_bugs||0,pct]; });
   const mdWs=XLSX.utils.aoa_to_sheet([mdH,...mdR]);
   applyStyles(mdWs,mdH,mdR,"D97706");
   mdWs["!cols"]=[{wch:20},{wch:8},{wch:12},{wch:8},{wch:8},{wch:10},{wch:10},{wch:12},{wch:10}];
