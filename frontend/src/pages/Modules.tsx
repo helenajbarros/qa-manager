@@ -98,6 +98,7 @@ export default function Modules() {
   const [confirm, setConfirm] = useState<ModuleWithCount | null>(null);
   const [search,  setSearch]  = useState("");
   const [page,    setPage]    = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState<string | null>(null);
 
