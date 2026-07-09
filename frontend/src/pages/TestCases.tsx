@@ -152,6 +152,7 @@ export default function TestCases() {
   const [filterMod, setFilterMod] = useState("");
   const [filterPri, setFilterPri] = useState("");
   const [page,      setPage]      = useState(1);
+  const [pageSize,  setPageSize]  = useState(10);
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
 
