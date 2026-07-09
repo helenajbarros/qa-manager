@@ -536,7 +536,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
     finalMods.filter(m=>(m.total_bugs||0)>0).map(m=>[m.name,m.total_cases||0,m.total_bugs||0,"<span class=\"red\">"+(m.open_bugs||0)+"</span>","<span class=\"green\">"+(m.fixed_bugs||0)+"</span>"]))}` : "") :
   ((data.modules||[]).length > 0 ? `<h2>Métricas por Módulo</h2>
   ${table(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],
-    (data.modules||[]).map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=(m.total_executions||0)-(m.not_executed||0); const mname=m.module||m.name||'—'; return[mname,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
+    (data.modules||[]).map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=Math.max(0,(m.total_executions||0)-(m.not_executed||0)); const mname=m.module||m.name||'—'; return[mname,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
   <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
