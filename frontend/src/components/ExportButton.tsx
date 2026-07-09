@@ -74,19 +74,17 @@ function applyExportFilters(data, dash, filters) {
 
   // Filtra bugs conforme o tipo de filtro:
   // - no_cycle: só bugs exploratórios (sem vínculo com nenhuma execução)
-  // - cycle_id: só bugs vinculados às execuções desse ciclo
-  // - sem filtro: só bugs vinculados a ciclos (excluir exploratórios)
-  const bugIdsInAnyCycle = new Set(data.executions.filter(e => e.bug_id).map(e => e.bug_id));
+  // - cycle_id específico: só bugs vinculados às execuções desse ciclo
+  // - sem filtro: todos os bugs do projeto
+  const bugIdsInAnyCycle = new Set((data.executions || []).filter(e => e.bug_id).map(e => e.bug_id));
   let filteredBugs = data.bugs || [];
   if (cycle_id === "no_cycle") {
     filteredBugs = filteredBugs.filter(b => !bugIdsInAnyCycle.has(b.id));
   } else if (cycle_id) {
     const bugIdsInCycle = new Set(filteredExec.filter(e => e.bug_id).map(e => e.bug_id));
     filteredBugs = filteredBugs.filter(b => bugIdsInCycle.has(b.id));
-  } else {
-    // Todos os ciclos: só bugs vinculados a algum ciclo
-    filteredBugs = filteredBugs.filter(b => bugIdsInAnyCycle.has(b.id));
   }
+  // sem filtro: todos os bugs (sem filtrar)
   if (modName) {
     filteredBugs = filteredBugs.filter(b => b.module === modName);
   }
@@ -94,11 +92,11 @@ function applyExportFilters(data, dash, filters) {
   // Recalcula módulos a partir das execuções E bugs filtrados
   const moduleMap: Record<string, any> = {};
 
-  // Popula a partir das execuções (exceto no_cycle que não tem execuções)
+  // Popula moduleMap a partir das execuções
   filteredExec.forEach(e => {
     if (!e.module) return;
     if (!moduleMap[e.module]) {
-      moduleMap[e.module] = { name: e.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
+      moduleMap[e.module] = { name: e.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0, fixed_bugs: 0 };
     }
     const m = moduleMap[e.module];
     if (e.status === "passed")            { m.passed++;  m.total_executions++; }
@@ -107,23 +105,33 @@ function applyExportFilters(data, dash, filters) {
     else if (e.status === "not_executed") { m.not_executed++; }
   });
 
-  // Popula bugs por módulo (inclui exploratórios no caso no_cycle)
-  filteredBugs.forEach(b => {
-    if (!b.module) return;
-    if (!moduleMap[b.module]) {
-      moduleMap[b.module] = { name: b.module, total_cases: 0, total_executions: 0, passed: 0, failed: 0, blocked: 0, not_executed: 0, total_bugs: 0, open_bugs: 0 };
-    }
-    moduleMap[b.module].total_bugs++;
-    if (b.status === "open") moduleMap[b.module].open_bugs++;
-  });
+  // finalMods para no_cycle: construído a partir dos bugs exploratórios
+  const noCycleMap: Record<string, any> = {};
+  if (cycle_id === "no_cycle") {
+    filteredBugs.forEach(b => {
+      if (!b.module) return;
+      if (!noCycleMap[b.module]) {
+        noCycleMap[b.module] = { name: b.module, total_cases: 0, total_bugs: 0, open_bugs: 0, fixed_bugs: 0 };
+      }
+      noCycleMap[b.module].total_bugs++;
+      if (b.status === "open")  noCycleMap[b.module].open_bugs++;
+      if (b.status === "fixed") noCycleMap[b.module].fixed_bugs++;
+    });
+    // Adiciona total_cases
+    (data.modules || []).forEach((m: any) => {
+      const key = m.name || m.module;
+      if (key && noCycleMap[key]) noCycleMap[key].total_cases = m.total_cases || 0;
+    });
+  }
 
   // total_cases vem dos dados originais de módulo
   (data.modules || []).forEach((m: any) => {
-    if (moduleMap[m.name]) moduleMap[m.name].total_cases = m.total_cases || 0;
+    const key = m.name || m.module;
+    if (key && moduleMap[key]) moduleMap[key].total_cases = m.total_cases || 0;
   });
 
   const recalcMods = Object.values(moduleMap);
-  const finalMods = recalcMods.length > 0 ? recalcMods : (filteredMods || []);
+  const finalMods = cycle_id === "no_cycle" ? Object.values(noCycleMap) : recalcMods;
 
   // Recalcula summary a partir das execuções filtradas
   const passed   = filteredExec.filter(e=>e.status==="passed").length;
@@ -132,6 +140,12 @@ function applyExportFilters(data, dash, filters) {
   const notExec  = filteredExec.filter(e=>e.status==="not_executed").length;
   const total    = filteredExec.length;
   const executed = total - notExec;
+
+  // Recalcula bugs a partir dos bugs filtrados
+  const bugsOpen       = filteredBugs.filter(b=>b.status==="open").length;
+  const bugsInProgress = filteredBugs.filter(b=>b.status==="in_progress").length;
+  const bugsFixed      = filteredBugs.filter(b=>b.status==="fixed").length;
+  const bugsClosed     = filteredBugs.filter(b=>b.status==="closed").length;
 
   const filteredDash = {
     ...dash,
@@ -142,12 +156,20 @@ function applyExportFilters(data, dash, filters) {
       success_rate: executed>0?+((passed/executed)*100).toFixed(1):0,
       fail_rate:    executed>0?+((failed/executed)*100).toFixed(1):0,
     },
+    bugs: {
+      open: bugsOpen,
+      in_progress: bugsInProgress,
+      fixed: bugsFixed,
+      closed: bugsClosed,
+      total: filteredBugs.length,
+    },
     modules: modName ? (dash.modules||[]).filter(m=>m.name===modName) : dash.modules,
   };
 
   return {
-    data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: finalMods },
+    data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: filteredMods||data.modules||[] },
     dash: filteredDash,
+    finalMods, // só usado no modo no_cycle
   };
 }
 
@@ -198,7 +220,7 @@ function filterLabel(filters) {
 async function exportExcel(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
   const rawDash = await fetchDashboard(projectId);
-  const { data } = applyExportFilters(rawData, rawDash, filters);
+  const { data, finalMods = [] } = applyExportFilters(rawData, rawDash, filters);
 
   const XLSX = await loadXLSX();
   const wb   = XLSX.utils.book_new();
@@ -260,7 +282,8 @@ async function exportExcel(projectName, projectId, filters) {
 async function exportHTML(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
   const rawDash = await fetchDashboard(projectId);
-  const { data, dash } = applyExportFilters(rawData, rawDash, filters);
+  const { data, dash, finalMods = [] } = applyExportFilters(rawData, rawDash, filters);
+  const isNoCycle = (filters?.cycle_id === "no_cycle");
 
   const now  = new Date().toLocaleString("pt-BR");
   const s    = dash.summary || {};
@@ -280,7 +303,7 @@ async function exportHTML(projectName, projectId, filters) {
     { label:"Fechado",      value: dash.bugs?.closed||0,      color:"#9CA3AF" },
   ].filter(d=>d.value>0);
 
-  const modData = (dash.modules||[]).slice(0,10);
+  const modData = (isNoCycle ? finalMods : (data.modules||dash.modules||[])).slice(0,10);
 
   function pieChart(items, title) {
     const total = items.reduce((a,b)=>a+b.value,0);
@@ -309,8 +332,23 @@ async function exportHTML(projectName, projectId, filters) {
 
   function barChart(items, title) {
     if (!items.length) return `<div class="chart-box wide"><h3>${title}</h3><p style="color:#999">Sem dados</p></div>`;
+    if (isNoCycle) {
+      // Bugs sem ciclo: mostra bugs abertos/corrigidos por módulo
+      const bars = items.filter(m => (m.total_bugs||0) > 0).map(m => {
+        const tot = m.total_bugs||1;
+        const open = m.open_bugs||0;
+        const fixed = m.fixed_bugs||0;
+        const other = Math.max(0, tot - open - fixed);
+        return `<div class="bar-row"><div class="bar-label">${m.name}</div><div class="bar-track">
+          <div class="bar-seg" style="width:${(open/tot*100).toFixed(1)}%;background:#EF4444" title="Abertos: ${open}"></div>
+          <div class="bar-seg" style="width:${(fixed/tot*100).toFixed(1)}%;background:#10B981" title="Corrigidos: ${fixed}"></div>
+          <div class="bar-seg" style="width:${(other/tot*100).toFixed(1)}%;background:#9CA3AF" title="Outros: ${other}"></div>
+        </div><div class="bar-nums">${open} abertos</div></div>`;
+      }).join("");
+      return `<div class="chart-box wide"><h3>${title}</h3><div class="bar-legend"><span style="background:#EF4444"></span>Abertos <span style="background:#10B981"></span>Corrigidos <span style="background:#9CA3AF"></span>Outros</div>${bars||'<p style="color:#999">Sem bugs</p>'}</div>`;
+    }
     const bars=items.map(m=>{ const p=m.passed||0,f=m.failed||0,bl=m.blocked||0,ne=m.not_executed||0,tot=p+f+bl+ne||1;
-      return `<div class="bar-row"><div class="bar-label">${m.name}</div><div class="bar-track">
+      return `<div class="bar-row"><div class="bar-label">${m.name||m.module||"—"}</div><div class="bar-track">
         <div class="bar-seg" style="width:${(p/tot*100).toFixed(1)}%;background:#10B981" title="Passou: ${p}"></div>
         <div class="bar-seg" style="width:${(f/tot*100).toFixed(1)}%;background:#EF4444" title="Falhou: ${f}"></div>
         <div class="bar-seg" style="width:${(bl/tot*100).toFixed(1)}%;background:#8B5CF6" title="Bloqueado: ${bl}"></div>
@@ -480,7 +518,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   </div>
   <h2>Gráficos</h2>
   <div class="charts">
-    ${pieChart(execPie,"Execuções por Status")}
+    ${isNoCycle ? "" : pieChart(execPie,"Execuções por Status")}
     ${pieChart(bugPie,"Bugs por Status")}
     ${barChart(modData,"Resultados por Módulo")}
     ${trendChart(data.cycles)}
@@ -490,9 +528,12 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   ${data.bugs.length > 0 ? `<h2>Bugs</h2>
   ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
     data.bugs.map(b=>[b.id,b.title,b.module||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}
-  ${data.modules.length > 0 ? `<h2>Métricas por Módulo</h2>
+  ${isNoCycle ? (finalMods.filter(m=>(m.total_bugs||0)>0).length > 0 ? `<h2>Bugs por Módulo</h2>
+  ${table(["Módulo","Casos","Total Bugs","Abertos","Corrigidos"],
+    finalMods.filter(m=>(m.total_bugs||0)>0).map(m=>[m.name,m.total_cases||0,m.total_bugs||0,"<span class=\"red\">"+(m.open_bugs||0)+"</span>","<span class=\"green\">"+(m.fixed_bugs||0)+"</span>"]))}` : "") :
+  ((data.modules||[]).length > 0 ? `<h2>Métricas por Módulo</h2>
   ${table(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],
-    data.modules.map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";return[m.module||m.name,m.total_cases||0,m.total_executions||0,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : ""}
+    (data.modules||[]).map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=(m.total_executions||0)-(m.not_executed||0); return[m.module||m.name,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
   <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
