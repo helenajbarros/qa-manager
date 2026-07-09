@@ -303,7 +303,10 @@ async function exportHTML(projectName, projectId, filters) {
     { label:"Fechado",      value: dash.bugs?.closed||0,      color:"#9CA3AF" },
   ].filter(d=>d.value>0);
 
-  const modData = (isNoCycle ? finalMods : (data.modules||dash.modules||[])).slice(0,10);
+  // Quando não há execuções mas há bugs, usa finalMods para mostrar bugs por módulo
+  const hasExecData = (data.modules||[]).some(m => (m.total_executions||0) > 0 || (m.passed||0) > 0);
+  const effectiveNoCycle = isNoCycle || (!hasExecData && finalMods.length > 0);
+  const modData = (effectiveNoCycle ? finalMods : (data.modules||dash.modules||[])).slice(0,10);
 
   function pieChart(items, title) {
     const total = items.reduce((a,b)=>a+b.value,0);
@@ -332,7 +335,7 @@ async function exportHTML(projectName, projectId, filters) {
 
   function barChart(items, title) {
     if (!items.length) return `<div class="chart-box wide"><h3>${title}</h3><p style="color:#999">Sem dados</p></div>`;
-    if (isNoCycle) {
+    if (effectiveNoCycle) {
       // Bugs sem ciclo: mostra bugs abertos/corrigidos por módulo
       const bars = items.filter(m => (m.total_bugs||0) > 0).map(m => {
         const tot = m.total_bugs||1;
@@ -348,7 +351,7 @@ async function exportHTML(projectName, projectId, filters) {
       return `<div class="chart-box wide"><h3>${title}</h3><div class="bar-legend"><span style="background:#EF4444"></span>Abertos <span style="background:#10B981"></span>Corrigidos <span style="background:#9CA3AF"></span>Outros</div>${bars||'<p style="color:#999">Sem bugs</p>'}</div>`;
     }
     const bars=items.map(m=>{ const p=m.passed||0,f=m.failed||0,bl=m.blocked||0,ne=m.not_executed||0,tot=p+f+bl+ne||1;
-      return `<div class="bar-row"><div class="bar-label">${m.name||m.module||"—"}</div><div class="bar-track">
+      const label=(m.module||m.name||"—"); return `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track">
         <div class="bar-seg" style="width:${(p/tot*100).toFixed(1)}%;background:#10B981" title="Passou: ${p}"></div>
         <div class="bar-seg" style="width:${(f/tot*100).toFixed(1)}%;background:#EF4444" title="Falhou: ${f}"></div>
         <div class="bar-seg" style="width:${(bl/tot*100).toFixed(1)}%;background:#8B5CF6" title="Bloqueado: ${bl}"></div>
@@ -518,7 +521,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   </div>
   <h2>Gráficos</h2>
   <div class="charts">
-    ${isNoCycle ? "" : pieChart(execPie,"Execuções por Status")}
+    ${effectiveNoCycle ? "" : pieChart(execPie,"Execuções por Status")}
     ${pieChart(bugPie,"Bugs por Status")}
     ${barChart(modData,"Resultados por Módulo")}
     ${trendChart(data.cycles)}
@@ -528,12 +531,12 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   ${data.bugs.length > 0 ? `<h2>Bugs</h2>
   ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
     data.bugs.map(b=>[b.id,b.title,b.module||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}
-  ${isNoCycle ? (finalMods.filter(m=>(m.total_bugs||0)>0).length > 0 ? `<h2>Bugs por Módulo</h2>
+  ${effectiveNoCycle ? (finalMods.filter(m=>(m.total_bugs||0)>0).length > 0 ? `<h2>Bugs por Módulo</h2>
   ${table(["Módulo","Casos","Total Bugs","Abertos","Corrigidos"],
     finalMods.filter(m=>(m.total_bugs||0)>0).map(m=>[m.name,m.total_cases||0,m.total_bugs||0,"<span class=\"red\">"+(m.open_bugs||0)+"</span>","<span class=\"green\">"+(m.fixed_bugs||0)+"</span>"]))}` : "") :
   ((data.modules||[]).length > 0 ? `<h2>Métricas por Módulo</h2>
   ${table(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],
-    (data.modules||[]).map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=(m.total_executions||0)-(m.not_executed||0); return[m.module||m.name,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
+    (data.modules||[]).map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=(m.total_executions||0)-(m.not_executed||0); const mname=m.module||m.name||'—'; return[mname,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
   <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
