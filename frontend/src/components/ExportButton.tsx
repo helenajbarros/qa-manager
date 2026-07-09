@@ -167,7 +167,7 @@ function applyExportFilters(data, dash, filters) {
   };
 
   return {
-    data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: filteredMods||data.modules||[] },
+    data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: recalcMods.length > 0 ? recalcMods : (filteredMods||data.modules||[]) },
     dash: filteredDash,
     finalMods, // só usado no modo no_cycle
   };
@@ -350,7 +350,7 @@ async function exportHTML(projectName, projectId, filters) {
       }).join("");
       return `<div class="chart-box wide"><h3>${title}</h3><div class="bar-legend"><span style="background:#EF4444"></span>Abertos <span style="background:#10B981"></span>Corrigidos <span style="background:#9CA3AF"></span>Outros</div>${bars||'<p style="color:#999">Sem bugs</p>'}</div>`;
     }
-    const bars=items.map(m=>{ const p=m.passed||0,f=m.failed||0,bl=m.blocked||0,ne=m.not_executed||0,tot=p+f+bl+ne||1;
+    const bars=items.filter(m=>(m.passed||0)+(m.failed||0)+(m.blocked||0)+(m.not_executed||0)>0).map(m=>{ const p=m.passed||0,f=m.failed||0,bl=m.blocked||0,ne=m.not_executed||0,tot=p+f+bl+ne||1;
       const label=(m.module||m.name||"—"); return `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track">
         <div class="bar-seg" style="width:${(p/tot*100).toFixed(1)}%;background:#10B981" title="Passou: ${p}"></div>
         <div class="bar-seg" style="width:${(f/tot*100).toFixed(1)}%;background:#EF4444" title="Falhou: ${f}"></div>
