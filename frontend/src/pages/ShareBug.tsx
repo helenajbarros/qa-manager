@@ -129,7 +129,8 @@ export default function ShareBug() {
     </>
   );
 
-  const fmtDate = d => d ? new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+  // ✅ CORREÇÃO: T12:00:00 evita problema de fuso horário com datas tipo "2026-07-08"
+  const fmtDate = d => d ? new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
   const fmtDateTime = d => {
     if (!d) return "";
     const dt = new Date(d);
@@ -362,7 +363,6 @@ export default function ShareBug() {
                 </div>
               </div>
 
-              {/* Tracker */}
               {(bug as any).evidence_url && (
               <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:8,padding:"12px 16px",marginBottom:12}}>
                 <div style={{fontSize:11,fontWeight:600,color:"var(--text-muted)",textTransform:"uppercase",
@@ -385,7 +385,6 @@ export default function ShareBug() {
                 </div>
               )}
 
-              {/* Anexos */}
               {(bug.evidence_files||[]).length > 0 && (
                 <div className="share-card">
                   <div className="share-card-header">Anexos</div>
