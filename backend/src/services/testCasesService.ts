@@ -23,7 +23,7 @@ export async function findAll({ module_id, project_id, search, page, limit }: an
   if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(tc.title) LIKE $${params.length}`); }
   const where    = conds.join(" AND ");
   const pageNum  = Math.max(1, parseInt(page) || 1);
-  const pageSize = Math.min(200, Math.max(1, parseInt(limit) || 100));
+  const pageSize = Math.min(9999, Math.max(1, parseInt(limit) || 100));
   const offset   = (pageNum - 1) * pageSize;
   const countRows = await query<{total: string}>(`SELECT COUNT(*) AS total FROM test_cases tc JOIN modules m ON m.id = tc.module_id WHERE ${where}`, params);
   const total = parseInt(countRows[0]?.total || "0");

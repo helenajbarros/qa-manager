@@ -130,7 +130,7 @@ export default function TestCases() {
   const isViewer  = user?.role === "viewer";
   const canManage = user?.role === "admin" || user?.role === "manager";
 
-  const { data: casesRaw,  loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: casesRaw,  loading:l1, error:e1, refetch } = useAsync(() => testCasesApi.list(pid?{project_id:pid, limit:9999}:{limit:9999}), [pid]);
   const { data: modules,   loading:l2, error:e2 }          = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: usersRaw } = useAsync<MentionUser[]>(() => usersApi.mentions() as Promise<MentionUser[]>);
   const cases = casesRaw?.data ?? casesRaw;
