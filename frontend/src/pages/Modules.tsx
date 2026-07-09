@@ -34,11 +34,12 @@ type ModalState = { mode: "create"; item?: null } | { mode: "edit"; item: Module
 const PAGE_SIZE = 10;
 
 function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeChange }: PaginationProps) {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1 && !onPageSizeChange) return null;
   return (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
       padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
-      <span>{total} módulo(s) — Página {page} de {totalPages}</span>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span>{total} módulo(s) — Página {page} de {totalPages}</span>
         {onPageSizeChange && <select value={pageSize} onChange={e=>{onPageSizeChange(Number(e.target.value))}}
           style={{fontSize:11,padding:"2px 6px",borderRadius:4,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer"}}>
           {[10,25,50,999].map(s=><option key={s} value={s}>{s===999?"Todos":s}</option>)}
