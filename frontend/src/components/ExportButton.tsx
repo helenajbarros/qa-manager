@@ -58,7 +58,8 @@ function applyExportFilters(data, dash, filters) {
 
   // Filtra execuções: por ciclo + status + módulo
   let filteredExec = (data.executions || []).filter(e => {
-    if (cycleNames.size > 0 && !cycleNames.has(e.cycle)) return false;
+    if (cycle_id && cycle_id !== "no_cycle" && String(e.cycle_id) !== String(cycle_id) && !cycleNames.has(e.cycle)) return false;
+    if (!cycle_id && cycleNames.size > 0 && !cycleNames.has(e.cycle)) return false;
     if (status && e.status !== status) return false;
     if (module_id) {
       const modName = dash.modules?.find(m => String(m.id) === String(module_id))?.name;
@@ -303,9 +304,8 @@ async function exportHTML(projectName, projectId, filters) {
     { label:"Fechado",      value: dash.bugs?.closed||0,      color:"#9CA3AF" },
   ].filter(d=>d.value>0);
 
-  // Quando não há execuções mas há bugs, usa finalMods para mostrar bugs por módulo
-  const hasExecData = (data.modules||[]).some(m => (m.total_executions||0) > 0 || (m.passed||0) > 0);
-  const effectiveNoCycle = isNoCycle || (!hasExecData && finalMods.length > 0);
+  // effectiveNoCycle só é true quando explicitamente filtrado por "no_cycle"
+  const effectiveNoCycle = isNoCycle;
   const modData = (effectiveNoCycle ? finalMods : (data.modules||dash.modules||[])).slice(0,10);
 
   function pieChart(items, title) {
