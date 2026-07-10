@@ -144,7 +144,7 @@ function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeCha
   );
 }
 
-function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, saving, bugId, onFileUpload, onFileDelete }) {
+function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, saving, bugId, onFileUpload, onFileDelete, envOpts=[] }) {
   const [form, setForm] = useState({
     title:          initial.title          || "",
     description:    initial.description    || "",
@@ -621,6 +621,7 @@ export default function Bugs() {
             saving={saving}
             onFileUpload={handleFileUpload}
             onFileDelete={handleFileDelete}
+            envOpts={envOpts}
           />
         </Modal>
       )}
