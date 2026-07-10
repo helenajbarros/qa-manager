@@ -257,11 +257,11 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
   // Ao selecionar um ciclo, preenche automaticamente as datas de início e fim
   function setCycle(cycleId) {
     if (!cycleId) {
-      onChange({ ...filters, cycle_id: "", date_from: "", date_to: "", period: "" });
+      onChange({ ...filters, cycle_id: "" });
       return;
     }
     if (cycleId === "no_cycle") {
-      onChange({ ...filters, cycle_id: "no_cycle", date_from: "", date_to: "", period: "" });
+      onChange({ ...filters, cycle_id: "no_cycle" });
       return;
     }
     const cycle = cycles.find(c => String(c.id) === String(cycleId));
