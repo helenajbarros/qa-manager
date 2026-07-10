@@ -590,6 +590,8 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
             {loading ? "⏳ Gerando…" : "⬇ Exportar ▾"}
           </button>
           {showMenu && (
+            <>
+            <div onClick={()=>setShowMenu(false)} style={{position:"fixed",inset:0,zIndex:99,background:"rgba(0,0,0,0.3)"}} />
             <div style={{position:"absolute",right:0,top:"110%",background:"var(--card)",
               border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
               zIndex:100,minWidth:160,overflow:"hidden"}}>
@@ -608,6 +610,7 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
                 📄 HTML + PDF
               </button>
             </div>
+            </>
           )}
         </div>
         {hasFilters && (

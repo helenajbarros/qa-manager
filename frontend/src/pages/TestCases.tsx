@@ -292,6 +292,8 @@ export default function TestCases() {
               ⬇ Exportar ▾
             </button>
             {showExport && (
+              <>
+              <div onClick={()=>setShowExport(false)} style={{position:"fixed",inset:0,zIndex:99,background:"rgba(0,0,0,0.3)"}} />
               <div style={{position:"absolute",right:0,top:"110%",background:"var(--card)",
                 border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
                 zIndex:100,minWidth:150,overflow:"hidden"}}>
@@ -310,6 +312,7 @@ export default function TestCases() {
                   📄 HTML + PDF
                 </button>
               </div>
+              </>
             )}
           </div>
           {!isViewer && (
