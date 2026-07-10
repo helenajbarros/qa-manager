@@ -13,6 +13,10 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
   const pWhere  = pid ? `AND c.project_id = ${pid}` : "";
   const pWhereM = pid ? `AND m.project_id = ${pid}` : "";
   const pWhereB = pid ? `AND b.project_id = ${pid}` : "";
+  const dWhereB = date_from && date_to
+    ? `AND b.created_at >= '${date_from}' AND b.created_at <= '${date_to} 23:59:59'`
+    : date_from ? `AND b.created_at >= '${date_from}'`
+    : date_to   ? `AND b.created_at <= '${date_to} 23:59:59'` : "";
 
   const dWhereE = (!cid && date_from && date_to)
     ? `AND c.start_date >= '${date_from}' AND c.end_date <= '${date_to}'`
@@ -49,7 +53,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
       SUM(CASE WHEN status='fixed' THEN 1 ELSE 0 END) AS fixed,
       SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) AS closed
-      FROM bugs b WHERE 1=1 ${pWhereB}
+      FROM bugs b WHERE 1=1 ${pWhereB} ${dWhereB}
       AND b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)`);
   } else {
     // Todos os ciclos: só bugs vinculados a ciclos ativos
@@ -61,7 +65,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
       FROM test_executions e
       JOIN test_cycles c ON c.id = e.cycle_id AND c.status = 'active'
       JOIN bugs b ON b.id = e.bug_id
-      WHERE 1=1 ${pWhereB}`);
+      WHERE 1=1 ${pWhereB} ${dWhereB}`);
   }
   const bugs = bugRows[0] || {};
 
@@ -145,7 +149,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     COALESCE(b.environment, 'development') AS environment,
     COUNT(*) AS total,
     SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open
-    FROM bugs b WHERE 1=1 ${pWhereB} GROUP BY b.environment`);
+    FROM bugs b WHERE 1=1 ${pWhereB} ${dWhereB} GROUP BY b.environment`);
   const bugs_by_environment = envRows.map((r: any) => ({
     environment: r.environment,
     total: num(r.total),
