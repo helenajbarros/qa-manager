@@ -107,7 +107,7 @@ const PAGE_SIZE = 10;
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
-const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"development",label:"Desenvolvimento"}];
+const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 
 function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeChange }) {

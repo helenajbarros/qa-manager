@@ -73,7 +73,7 @@ function detectBrowser(): string {
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
-const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"development",label:"Desenvolvimento"}];
+const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}];
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 const ACT_ICONS   = {"criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤","editou o bug":"✏","adicionou passo":"➕","removeu passo":"➖"};
 
@@ -920,7 +920,7 @@ export default function BugDetail() {
             <BugStatus v={bug.status} />
             <Severity  v={bug.severity} />
             {bug.priority && <><span style={{color:"var(--text-muted)",fontSize:12}}>Prioridade:</span> <strong>{bug.priority === "low" ? "Baixa" : bug.priority === "medium" ? "Média" : bug.priority === "high" ? "Alta" : "Crítica"}</strong></>}
-            {bug.environment && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : "Desenvolvimento"}</strong></>}
+            {bug.environment && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : bug.environment === "staging" ? "Staging" : "Desenvolvimento"}</strong></>}
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
             {bug.test_type && (
               <span style={{fontSize:11,padding:"2px 10px",borderRadius:10,
