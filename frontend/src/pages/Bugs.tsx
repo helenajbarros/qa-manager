@@ -297,7 +297,10 @@ export default function Bugs() {
   const [cycleBugIdsSet, setCycleBugIdsSet] = useState<Set<number> | null>(null);
   useEffect(() => {
     if (!filterCycle || filterCycle === "") {
-      setCycleBugIdsSet(null);
+      // Todos os ciclos: busca bug_ids vinculados para mostrar só eles
+      cyclesApi.getAllBugIds(pid).then(ids => {
+        setCycleBugIdsSet(ids && ids.length > 0 ? new Set(ids.map(Number)) : null);
+      }).catch(() => setCycleBugIdsSet(null));
       return;
     }
     if (filterCycle === "none") {
@@ -350,6 +353,10 @@ export default function Bugs() {
       // Bugs sem vínculo com nenhum ciclo
       if (!cycleBugIdsSet) return true;
       return !cycleBugIdsSet.has(Number(b.id));
+    }
+    // Todos os ciclos: mostrar só bugs vinculados a algum ciclo
+    if (cycleBugIdsSet && cycleBugIdsSet.size > 0) {
+      return cycleBugIdsSet.has(Number(b.id));
     }
     return true;
   });
