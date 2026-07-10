@@ -1,7 +1,7 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAsync }    from "../hooks/useAsync.js";
-import { bugsApi, modulesApi, testCasesApi, cyclesApi, usersApi } from "../services/resources.js";
+import { bugsApi, modulesApi, testCasesApi, cyclesApi, usersApi, environmentsApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.js";
 import { useProject }  from "../context/ProjectContext.js";
 import { FileUpload }  from "../components/FileUpload.js";
@@ -107,7 +107,7 @@ const PAGE_SIZE = 10;
 
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
-const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}];
+// ENV_OPTS agora vem do projeto via environmentsApi
 const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 
 function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeChange }) {
@@ -190,7 +190,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
           <Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={STATUS_OPTS} />
         </Field>
         <Field label="Ambiente">
-          <Select value={form.environment} onChange={v=>setForm(f=>({...f,environment:v}))} options={ENV_OPTS} />
+          <Select value={form.environment} onChange={v=>setForm(f=>({...f,environment:v}))} options={envOpts.length > 0 ? envOpts : [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}]} />
         </Field>
       </div>
       <div className="form-row">

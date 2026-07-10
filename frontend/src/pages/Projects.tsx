@@ -4,6 +4,7 @@ import { projectsApi }  from "../services/resources.js";
 import { useProject }   from "../context/ProjectContext.js";
 import { useAuth }      from "../context/AuthContext.js";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field } from "../components/UI.js";
+import { environmentsApi } from "../services/resources.js";
 import type { Project } from "../types/index.js";
 
 interface ProjectFormData {
@@ -100,6 +101,40 @@ export default function Projects() {
   const [confirm, setConfirm] = useState<ProjectWithStats | null>(null);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState<string | null>(null);
+  const [envModal, setEnvModal] = useState<ProjectWithStats | null>(null);
+  const [envs,     setEnvs]     = useState<any[]>([]);
+  const [envForm,  setEnvForm]  = useState({ name: "", color: "#6B7280" });
+  const [envEdit,  setEnvEdit]  = useState<any | null>(null);
+  const [envSaving,setEnvSaving]= useState(false);
+
+  async function openEnvModal(p: ProjectWithStats) {
+    setEnvModal(p);
+    const data = await environmentsApi.list(p.id) as any;
+    setEnvs(data?.data ?? data ?? []);
+  }
+
+  async function handleEnvSave() {
+    if (!envForm.name.trim() || !envModal) return;
+    setEnvSaving(true);
+    try {
+      if (envEdit) {
+        await environmentsApi.update(envModal.id, envEdit.id, envForm);
+      } else {
+        await environmentsApi.create(envModal.id, { ...envForm, sort_order: envs.length });
+      }
+      const data = await environmentsApi.list(envModal.id) as any;
+      setEnvs(data?.data ?? data ?? []);
+      setEnvForm({ name: "", color: "#6B7280" });
+      setEnvEdit(null);
+    } finally { setEnvSaving(false); }
+  }
+
+  async function handleEnvDelete(envId: number) {
+    if (!envModal) return;
+    await environmentsApi.delete(envModal.id, envId);
+    const data = await environmentsApi.list(envModal.id) as any;
+    setEnvs(data?.data ?? data ?? []);
+  }
   const { data: projectsRaw, loading, error, refetch } = useAsync(() => projectsApi.list());
   const projects = search
     ? (projectsRaw as ProjectWithStats[] || []).filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -192,6 +227,7 @@ export default function Projects() {
                       onChange={e => { if(e.target.files[0]) handleLogoUpload(p.id, e.target.files[0]); e.target.value=""; }} />
                   </label>
                   <button className="btn btn-sm" onClick={() => setModal({ mode:"edit", item:p })}>✏ Editar</button>
+                  <button className="btn btn-sm" onClick={() => openEnvModal(p)}>🌍 Ambientes</button>
                   {isAdmin && (
                     <button className="btn btn-sm btn-danger" onClick={() => setConfirm(p)}>🗑</button>
                   )}
@@ -210,6 +246,35 @@ export default function Projects() {
             onCancel={() => setModal(null)}
             saving={saving}
           />
+        </Modal>
+      )}
+      {envModal && (
+        <Modal title={`Ambientes — ${envModal.name}`} onClose={() => { setEnvModal(null); setEnvEdit(null); setEnvForm({ name: "", color: "#6B7280" }); }}>
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+              <input value={envForm.name} onChange={e=>setEnvForm(f=>({...f,name:e.target.value}))}
+                placeholder="Nome do ambiente (ex: QA, Sandbox...)"
+                style={{flex:1,padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13}} />
+              <input type="color" value={envForm.color} onChange={e=>setEnvForm(f=>({...f,color:e.target.value}))}
+                style={{width:36,height:34,borderRadius:6,border:"1px solid var(--border)",cursor:"pointer",padding:2}} />
+              <button className="btn btn-primary" onClick={handleEnvSave} disabled={envSaving||!envForm.name.trim()}>
+                {envEdit ? "Salvar" : "+ Adicionar"}
+              </button>
+              {envEdit && <button className="btn" onClick={()=>{setEnvEdit(null);setEnvForm({name:"",color:"#6B7280"})}}>Cancelar</button>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {envs.length === 0 && <p style={{color:"var(--text-muted)",fontSize:13}}>Nenhum ambiente cadastrado.</p>}
+              {envs.map(e => (
+                <div key={e.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
+                  background:"var(--bg)",borderRadius:8,border:"1px solid var(--border)"}}>
+                  <div style={{width:14,height:14,borderRadius:"50%",background:e.color,flexShrink:0}} />
+                  <span style={{flex:1,fontSize:13,fontWeight:500}}>{e.name}</span>
+                  <button className="btn btn-sm" onClick={()=>{setEnvEdit(e);setEnvForm({name:e.name,color:e.color})}}>✏</button>
+                  <button className="btn btn-sm btn-danger" onClick={()=>handleEnvDelete(e.id)}>🗑</button>
+                </div>
+              ))}
+            </div>
+          </div>
         </Modal>
       )}
       {confirm && (

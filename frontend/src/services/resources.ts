@@ -63,6 +63,13 @@ export const testCasesApi = {
   getActivity: (id: number)            => api.get<unknown[]>(`/test-cases/${id}/activity`),
 };
 
+export const environmentsApi = {
+  list:   (project_id: number|string) => api.get(`/projects/${project_id}/environments`),
+  create: (project_id: number|string, data: any) => api.post(`/projects/${project_id}/environments`, data),
+  update: (project_id: number|string, id: number|string, data: any) => api.put(`/projects/${project_id}/environments/${id}`, data),
+  delete: (project_id: number|string, id: number|string) => api.delete(`/projects/${project_id}/environments/${id}`),
+};
+
 export const cyclesApi = {
   list:            (p?: CycleFilters)           => api.get<Cycle[]>(`/cycles${qs(p as Record<string, unknown>)}`),
   get:             (id: number)                 => api.get<Cycle>(`/cycles/${id}`),

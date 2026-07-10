@@ -35,6 +35,7 @@ import userProjectsRouter from "./routes/userProjects";
 import exportRouter       from "./routes/export";
 import shareRouter        from "./routes/shareRoutes";
 import backupRouter       from "./routes/backup";
+import environmentsRouter from "./routes/environments";
 
 const UPLOAD_DIR = process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads");
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch(_) {}
@@ -68,6 +69,7 @@ app.use("/api/users",                userProjectsRouter);
 app.use("/api/users/login",          loginLimiter);
 app.use("/api/users",                usersRouter);
 app.use("/api/projects",             projectsRouter);
+app.use("/api/projects/:projectId/environments", authenticate, environmentsRouter);
 app.use("/api/modules",              authenticate, modulesRouter);
 app.use("/api/test-cases",           authenticate, testCasesRouter);
 app.use("/api/cycles",               authenticate, cyclesRouter);
