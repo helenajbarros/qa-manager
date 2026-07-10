@@ -121,10 +121,14 @@ function applyExportFilters(data, dash, filters) {
       if (b.status === "open")  noCycleMap[b.module].open_bugs++;
       if (b.status === "fixed") noCycleMap[b.module].fixed_bugs++;
     });
-    // Adiciona total_cases
-    (data.modules || []).forEach((m: any) => {
+    // Adiciona total_cases dos dados originais (rawData antes de filtros)
+    // Usa dash.modules que vem do dashboardService com contagem correta
+    const tcSource = (dash.modules || []).length > 0 ? dash.modules : (data.modules || []);
+    tcSource.forEach((m: any) => {
       const key = m.name || m.module;
-      if (key && noCycleMap[key]) noCycleMap[key].total_cases = m.total_cases || 0;
+      if (key && noCycleMap[key]) {
+        noCycleMap[key].total_cases = m.total_cases || 0;
+      }
     });
   }
 
