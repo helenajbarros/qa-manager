@@ -264,6 +264,10 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
       onChange({ ...filters, cycle_id: "no_cycle" });
       return;
     }
+    if (cycleId?.startsWith("version:")) {
+      onChange({ ...filters, cycle_id: cycleId });
+      return;
+    }
     const cycle = cycles.find(c => String(c.id) === String(cycleId));
     onChange({
       ...filters,
@@ -341,6 +345,13 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
               fontSize:13, background:"var(--surface)", width:"100%" }}>
             <option value="">Todos os ciclos</option>
             <option value="no_cycle">📋 Bugs sem vínculo com ciclo</option>
+            {(() => {
+              const versions = [...new Set(cycles.filter(c=>c.version).map(c=>c.version))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+              if (!versions.length) return null;
+              return <optgroup label="── Por versão ──">
+                {versions.map(v => <option key={v} value={`version:${v}`}>📦 v{v}</option>)}
+              </optgroup>;
+            })()}
             {cycles.filter(c=>c.status==="active").length > 0 && <optgroup label="── Ativos ──">
               {cycles.filter(c=>c.status==="active").map(c => {
                 const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
@@ -651,7 +662,8 @@ export default function Dashboard() {
           {(filters.date_from || filters.date_to) && filters.period === "custom" && !filters.cycle_id && (
             <span>Período: {filters.date_from ? fmtBR(filters.date_from) : "início"} → {filters.date_to ? fmtBR(filters.date_to) : "hoje"}</span>
           )}
-          {filters.cycle_id && filters.cycle_id !== "no_cycle" && <span>Ciclo: {filterCycles?.find(c=>String(c.id)===String(filters.cycle_id))?.name}</span>}
+          {filters.cycle_id && filters.cycle_id !== "no_cycle" && !filters.cycle_id.startsWith("version:") && <span>Ciclo: {filterCycles?.find(c=>String(c.id)===String(filters.cycle_id))?.name}</span>}
+          {filters.cycle_id?.startsWith("version:") && <span>Versão: {filters.cycle_id.replace("version:","")}</span>}
           {filters.cycle_id === "no_cycle" && <span>Bugs sem vínculo com ciclo</span>}
           {filters.module_id && <span>Módulo: {data?.modules?.find(m=>String(m.id)===String(filters.module_id))?.name}</span>}
           {filters.status    && <span>Status: {filters.status}</span>}
@@ -818,6 +830,60 @@ export default function Dashboard() {
           Nenhum ciclo ativo encontrado para o período selecionado. Os dados de bugs e módulos abaixo refletem o estado atual do projeto.
         </div>
       ) : null}
+
+      {/* Histórico por versão */}
+      {(() => {
+        const allCycles = ((cyclesRaw as any)?.data ?? cyclesRaw ?? []) as CycleWithStats[];
+        const withVersion = allCycles.filter(c => c.version);
+        if (!withVersion.length) return null;
+        // Agrupar por versão
+        const byVersion: Record<string, CycleWithStats[]> = {};
+        withVersion.forEach(c => {
+          const v = c.version!;
+          if (!byVersion[v]) byVersion[v] = [];
+          byVersion[v].push(c);
+        });
+        const versions = Object.keys(byVersion).sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
+        return (
+          <div style={{marginBottom:24}}>
+            <h2 style={{fontSize:15,fontWeight:600,marginBottom:12}}>📦 Histórico por Versão</h2>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {versions.map(v => {
+                const vCycles = byVersion[v];
+                const totalExec = vCycles.reduce((a,c) => a+(c.total_executions||0), 0);
+                const passed    = vCycles.reduce((a,c) => a+(c.passed||0), 0);
+                const failed    = vCycles.reduce((a,c) => a+(c.failed||0), 0);
+                const blocked   = vCycles.reduce((a,c) => a+(c.blocked||0), 0);
+                const notExec   = vCycles.reduce((a,c) => a+(c.not_executed||0), 0);
+                const executed  = totalExec - notExec;
+                const successRate = executed > 0 ? +((passed/executed)*100).toFixed(1) : 0;
+                const failRate    = executed > 0 ? +((failed/executed)*100).toFixed(1) : 0;
+                const bugs = vCycles.reduce((a,c) => a+((c.bugs as any)?.total||0), 0);
+                const openBugs = vCycles.reduce((a,c) => a+((c.bugs as any)?.open||0), 0);
+                return (
+                  <div key={v} className="card" style={{padding:"14px 18px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                      <span style={{fontWeight:700,fontSize:14,color:"var(--accent)",minWidth:80}}>v{v}</span>
+                      <span style={{fontSize:12,color:"var(--text-muted)"}}>{vCycles.length} ciclo{vCycles.length!==1?"s":""}: {vCycles.map(c=>c.name).join(", ")}</span>
+                      <div style={{display:"flex",gap:16,marginLeft:"auto",fontSize:12,flexWrap:"wrap"}}>
+                        <span>🔢 {executed} executados</span>
+                        <span style={{color:"var(--success)"}}>✅ {successRate}% sucesso</span>
+                        <span style={{color:"var(--danger)"}}>❌ {failRate}% falha</span>
+                        {bugs > 0 && <span style={{color:"var(--danger)"}}>🐛 {bugs} bug{bugs!==1?"s":""} ({openBugs} aberto{openBugs!==1?"s":""})</span>}
+                        {notExec > 0 && <span style={{color:"var(--text-muted)"}}>⏳ {notExec} não executados</span>}
+                      </div>
+                      <button className="btn btn-sm"
+                        onClick={()=>setFilters(f=>({...f, cycle_id: String(vCycles[0].id), date_from:"", date_to:"", period:""}))}>
+                        Ver
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tabelas expansíveis com paginação */}
       <div className="grid-2" id="tables-section" style={{ display:"grid",

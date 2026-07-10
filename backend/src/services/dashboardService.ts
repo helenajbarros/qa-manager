@@ -7,8 +7,17 @@ function cast(col: string): string {
 export async function getDashboard({ project_id, cycle_id, date_from, date_to }: any = {}) {
   const num = (v: any) => parseInt(v || 0);
   const pid = project_id ? parseInt(project_id) : null;
-  const noCycle = cycle_id === "no_cycle"; // bugs sem vínculo com ciclo
-  const cid = (!noCycle && cycle_id) ? parseInt(cycle_id) : null;
+  const noCycle = cycle_id === "no_cycle";
+  const versionFilter = typeof cycle_id === "string" && cycle_id.startsWith("version:") ? cycle_id.replace("version:","") : null;
+  const cid = (!noCycle && !versionFilter && cycle_id) ? parseInt(cycle_id) : null;
+  
+  // Se filtro por versão, buscar os IDs dos ciclos dessa versão
+  let versionCycleIds: number[] = [];
+  if (versionFilter && pid) {
+    const vRows = await query<{id:number}>(`SELECT id FROM test_cycles WHERE project_id=$1 AND version=$2`, [pid, versionFilter]);
+    versionCycleIds = vRows.map((r:any) => r.id);
+  }
+  const vWhere = versionCycleIds.length > 0 ? `AND e.cycle_id IN (${versionCycleIds.join(",")})` : "";
 
   const pWhere  = pid ? `AND c.project_id = ${pid}` : "";
   const pWhereM = pid ? `AND m.project_id = ${pid}` : "";
@@ -25,7 +34,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     : (!cid && date_to   ? `AND c.end_date <= '${date_to}'` : ""));
 
   // Sem filtro de ciclo: considera só ciclos ativos
-  const cWhereE  = cid ? `AND e.cycle_id = ${cid}` : `AND c.status = 'active'`;
+  const cWhereE  = cid ? `AND e.cycle_id = ${cid}` : versionFilter ? vWhere : `AND c.status = 'active'`;
 
   const execRows = await query<any>(`SELECT COUNT(*) AS total,
     SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END) AS passed,
