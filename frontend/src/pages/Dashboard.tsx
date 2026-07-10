@@ -392,6 +392,19 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
   );
 }
 
+const ENV_LABELS: Record<string,string> = {
+  production: "Produção",
+  homologation: "Homologação",
+  staging: "Staging",
+  development: "Desenvolvimento",
+};
+const ENV_COLORS: Record<string,string> = {
+  production: "var(--danger)",
+  homologation: "#F59E0B",
+  staging: "#8B5CF6",
+  development: "#2563EB",
+};
+
 function applyFilters(data, filters) {
   if (!data) return data;
   const { date_from, date_to, module_id, status, cycle_id } = filters;
@@ -553,7 +566,7 @@ export default function Dashboard() {
   if (error)   return <ErrorMsg msg={error} />;
   if (!data)   return null;
 
-  const { summary, bugs, modules, bugs_per_module } = filtered;
+  const { summary, bugs, modules, bugs_per_module, bugs_by_environment } = filtered;
   const cycles = filtered.cycles?.filter(c => c.status === 'active') || [];
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const activeStatus = filtered.activeStatus;
@@ -654,6 +667,14 @@ export default function Dashboard() {
         <MetricCard label="Não executados"     value={summary.not_executed} />
         <MetricCard label="Total de bugs"      value={bugs.total} />
         <MetricCard label="Bugs abertos"       value={bugs.open}                  color="var(--danger)" />
+        {bugs_by_environment && bugs_by_environment.length > 0 && bugs_by_environment.map(env => (
+          <MetricCard key={env.environment}
+            label={`Bugs ${ENV_LABELS[env.environment]||env.environment}`}
+            value={env.total}
+            sub={`${env.open} aberto${env.open!==1?"s":""}`}
+            color={ENV_COLORS[env.environment]||"var(--text)"}
+          />
+        ))}
       </div>
 
       <div className="grid-2 mb-20">

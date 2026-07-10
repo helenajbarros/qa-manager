@@ -251,6 +251,12 @@ async function exportExcel(projectName, projectId, filters) {
     ["Em andamento",data.bugs.filter(b=>b.status==="in_progress").length],
     ["Corrigidos",data.bugs.filter(b=>b.status==="fixed").length],
     ["Fechados",data.bugs.filter(b=>b.status==="closed").length],[""],
+    ["BUGS POR AMBIENTE",""],
+    ...["production","homologation","staging","development"].map(env => {
+      const envBugs = data.bugs.filter(b=>(b.environment||"development")===env);
+      const label = env==="production"?"Produção":env==="homologation"?"Homologação":env==="staging"?"Staging":"Desenvolvimento";
+      return [label, envBugs.length, `${envBugs.filter(b=>b.status==="open").length} abertos`];
+    }).filter(r=>r[1]>0),[""],
 
   ];
   const sumWs=XLSX.utils.aoa_to_sheet(sumRows);
@@ -531,6 +537,19 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   </div>
 
 
+  ${(()=>{
+    const envMap = {"production":"Produção","homologation":"Homologação","staging":"Staging","development":"Desenvolvimento"};
+    const envColors = {"production":"#EF4444","homologation":"#F59E0B","staging":"#8B5CF6","development":"#2563EB"};
+    const envData = ["production","homologation","staging","development"].map(env=>{
+      const envBugs = data.bugs.filter(b=>(b.environment||"development")===env);
+      return {env, label:envMap[env], total:envBugs.length, open:envBugs.filter(b=>b.status==="open").length};
+    }).filter(e=>e.total>0);
+    if(!envData.length) return "";
+    return `<h2>Bugs por Ambiente</h2><div class="cards">${envData.map(e=>`
+      <div class="card"><div class="val" style="color:${envColors[e.env]}">${e.total}</div>
+      <div class="lbl">${e.label}</div>
+      <div style="font-size:11px;color:#EF4444;margin-top:4px">${e.open} aberto${e.open!==1?"s":""}</div></div>`).join("")}</div>`;
+  })()}
   ${data.bugs.length > 0 ? `<h2>Bugs</h2>
   ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
     data.bugs.map(b=>[b.id,b.title,b.module||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}

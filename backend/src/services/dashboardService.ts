@@ -140,6 +140,18 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
   const executed = total - notExec;
   const rate = (n: number) => executed > 0 ? +((n/executed)*100).toFixed(1) : 0;
 
+  // Bugs por ambiente
+  const envRows = await query<any>(`SELECT
+    COALESCE(b.environment, 'development') AS environment,
+    COUNT(*) AS total,
+    SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open
+    FROM bugs b WHERE 1=1 ${pWhereB} GROUP BY b.environment`);
+  const bugs_by_environment = envRows.map((r: any) => ({
+    environment: r.environment,
+    total: num(r.total),
+    open: num(r.open),
+  }));
+
   return {
     summary: { total_cases: totalCases, total_executions: total, passed, failed, blocked, not_executed: notExec,
       success_rate: rate(passed), fail_rate: rate(failed), block_rate: rate(blocked) },
@@ -147,5 +159,6 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     modules:         modRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_executions:num(m.total_executions), passed:num(m.passed), failed:num(m.failed), blocked:num(m.blocked), not_executed:num(m.not_executed)})),
     bugs_per_module: bpmRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_bugs:num(m.total_bugs), open_bugs:num(m.open_bugs), fixed_bugs:num(m.fixed_bugs)})),
     cycles: cycleRows.map((c: any) => ({...c, total_executions:num(c.total_executions), passed:num(c.passed), failed:num(c.failed), blocked:num(c.blocked), not_executed:num(c.not_executed), bugs: bugsByCycle[c.id] || {total:0,open:0,in_progress:0,fixed:0,closed:0}})),
+    bugs_by_environment,
   };
 }
