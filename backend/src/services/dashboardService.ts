@@ -155,6 +155,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     LEFT JOIN bugs b ON b.environment_id = pe.id ${dWhereBug}
     WHERE pe.project_id = $1
     GROUP BY pe.id, pe.name, pe.color, pe.sort_order
+    HAVING COUNT(b.id) > 0
     ORDER BY pe.sort_order`, [pid || 0]);
   const bugs_by_environment = envRows.map((r: any) => ({
     id: r.id,

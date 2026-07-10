@@ -675,6 +675,8 @@ export default function BugDetail() {
   const { data: testCases } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: users, refetch: refetchUsers } = useAsync(() => usersApi.mentions().catch(() => usersApi.list()), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: envsRaw }   = useAsync(() => pid ? environmentsApi.list(pid) : Promise.resolve([]), [pid]);
+  const envOpts = ((envsRaw as any)?.data ?? envsRaw ?? []).map((e:any) => ({ value: String(e.id), label: e.name, color: e.color }));
 
   useEffect(() => {
     if (!users || users.length === 0) {
@@ -715,7 +717,8 @@ export default function BugDetail() {
       assigned_to_id: bug.assigned_to_id || "",
       steps:          bug.steps          || "",
       test_type:      bug.test_type      || "",
-      environment:    bug.environment    || "production",
+      environment:    bug.environment    || null,
+      environment_id: bug.environment_id || null,
       actual_result:  bug.actual_result  || "",
       expected_result: bug.expected_result || "",
     });
@@ -907,7 +910,7 @@ export default function BugDetail() {
             <Select value={form.status}   onChange={v=>setForm(f=>({...f,status:v}))}   options={STATUS_OPTS} />
             <Select value={form.severity} onChange={v=>setForm(f=>({...f,severity:v}))} options={SEV_OPTS} />
             <Field label="Prioridade"><Select value={form.priority} onChange={v=>setForm(f=>({...f,priority:v}))} options={PRIO_OPTS} /></Field>
-            <Field label="Ambiente"><Select value={form.environment} onChange={v=>setForm(f=>({...f,environment:v}))} options={ENV_OPTS} /></Field>
+            <Field label="Ambiente"><Select value={String(form.environment_id||'')} onChange={v=>{ const env=envOpts.find(e=>e.value===v); setForm(f=>({...f,environment_id:v?Number(v):null,environment:env?.label||null})); }} options={envOpts.length>0?envOpts:[{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}]} /></Field>
             <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
               style={{padding:"5px 10px",borderRadius:6,border:"1px solid var(--border)",
                 fontSize:12,background:"var(--surface)",color:"var(--text)"}}>
@@ -920,7 +923,7 @@ export default function BugDetail() {
             <BugStatus v={bug.status} />
             <Severity  v={bug.severity} />
             {bug.priority && <><span style={{color:"var(--text-muted)",fontSize:12}}>Prioridade:</span> <strong>{bug.priority === "low" ? "Baixa" : bug.priority === "medium" ? "Média" : bug.priority === "high" ? "Alta" : "Crítica"}</strong></>}
-            {bug.environment && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : bug.environment === "staging" ? "Staging" : "Desenvolvimento"}</strong></>}
+            {(bug.environment_name || bug.environment) && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment_name || bug.environment}</strong></>}
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
             {bug.test_type && (
               <span style={{fontSize:11,padding:"2px 10px",borderRadius:10,
