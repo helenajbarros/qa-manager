@@ -276,7 +276,8 @@ export default function Bugs() {
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: users }                                       = useAsync(() => usersApi.mentions(), []);
   const { data: envsRaw }  = useAsync(() => pid ? environmentsApi.list(pid) : Promise.resolve([]), [pid]);
-  const envOpts = ((envsRaw as any)?.data ?? envsRaw ?? []).map((e:any) => ({ value: String(e.id), label: e.name, color: e.color }));
+  const _envsArr = Array.isArray((envsRaw as any)?.data) ? (envsRaw as any).data : Array.isArray(envsRaw) ? envsRaw : [];
+  const envOpts = _envsArr.map((e:any) => ({ value: String(e.id), label: e.name, color: e.color }));
 
   const openId    = getOpenIdFromUrl();
   const bugToOpen = openId && bugs ? bugs.find(b => String(b.id) === String(openId)) : null;

@@ -676,7 +676,8 @@ export default function BugDetail() {
   const { data: users, refetch: refetchUsers } = useAsync(() => usersApi.mentions().catch(() => usersApi.list()), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: envsRaw }   = useAsync(() => pid ? environmentsApi.list(pid) : Promise.resolve([]), [pid]);
-  const envOpts = ((envsRaw as any)?.data ?? envsRaw ?? []).map((e:any) => ({ value: String(e.id), label: e.name, color: e.color }));
+  const _envsArr = Array.isArray((envsRaw as any)?.data) ? (envsRaw as any).data : Array.isArray(envsRaw) ? envsRaw : [];
+  const envOpts = _envsArr.map((e:any) => ({ value: String(e.id), label: e.name, color: e.color }));
 
   useEffect(() => {
     if (!users || users.length === 0) {
