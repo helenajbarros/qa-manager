@@ -594,11 +594,15 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
               border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
               zIndex:100,minWidth:160,overflow:"hidden"}}>
               <button onClick={()=>{setShowMenu(false);handle("xlsx");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#F1F5F9")}
+                onMouseLeave={e=>(e.currentTarget.style.background="none")}
                 style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
                   background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
                 📊 Excel (.xlsx)
               </button>
               <button onClick={()=>{setShowMenu(false);handle("html");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#F1F5F9")}
+                onMouseLeave={e=>(e.currentTarget.style.background="none")}
                 style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
                   background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
                 📄 HTML + PDF

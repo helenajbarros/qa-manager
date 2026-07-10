@@ -288,7 +288,7 @@ export default function TestCases() {
         <div style={{display:"flex",gap:8,alignItems:"center",position:"relative"}}>
           <div style={{position:"relative"}}>
             <button className="btn" onClick={()=>setShowExport(v=>!v)}
-              style={{background:"#dee8fc",color:"#1E3A5F",border:"none",fontWeight:600}}>
+              style={{background:"#1E3A5F",color:"white",border:"none",fontWeight:600}}>
               ⬇ Exportar ▾
             </button>
             {showExport && (
@@ -296,11 +296,15 @@ export default function TestCases() {
                 border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
                 zIndex:100,minWidth:150,overflow:"hidden"}}>
                 <button onClick={handleExportExcel}
+                  onMouseEnter={e=>(e.currentTarget.style.background="#F1F5F9")}
+                  onMouseLeave={e=>(e.currentTarget.style.background="none")}
                   style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
                     background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
                   📊 Excel (.xlsx)
                 </button>
                 <button onClick={exportHTML}
+                  onMouseEnter={e=>(e.currentTarget.style.background="#F1F5F9")}
+                  onMouseLeave={e=>(e.currentTarget.style.background="none")}
                   style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
                     background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
                   📄 HTML + PDF
