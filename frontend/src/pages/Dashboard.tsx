@@ -251,7 +251,7 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
       onChange({ ...filters, period: "custom" });
       return;
     }
-    onChange({ ...filters, period, date_from: from, date_to: to, cycle_id: "" });
+    onChange({ ...filters, period, date_from: from, date_to: to });
   }
 
   // Ao selecionar um ciclo, preenche automaticamente as datas de início e fim
