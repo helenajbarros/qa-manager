@@ -741,7 +741,19 @@ export default function Dashboard() {
                     <Cell key={i} fill={ENV_COLORS[e.environment] || PIE_COLORS[i]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value, name, props) => [`${value} total (${props.payload.open} abertos)`, name]} />
+                <Tooltip content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload;
+                    const fechados = d.value - d.open;
+                    return (
+                      <div style={{background:"white",border:"1px solid #E5E7EB",borderRadius:8,padding:"10px 14px",fontSize:13,boxShadow:"0 2px 8px rgba(0,0,0,.1)"}}>
+                        <div style={{fontWeight:600,marginBottom:6}}>{d.name}</div>
+                        <div>🐛 Total: <strong>{d.value}</strong></div>
+                        <div style={{color:"#EF4444"}}>🔴 Abertos: <strong>{d.open}</strong></div>
+                        <div style={{color:"#10B981"}}>✅ Fechados/Corrigidos: <strong>{fechados}</strong></div>
+                      </div>
+                    );
+                  }} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
