@@ -525,12 +525,13 @@ function applyFilters(data, filters) {
       fail_rate:    displayExecuted > 0 ? +((displayFailed   / displayExecuted) * 100).toFixed(1) : 0,
       block_rate:   displayExecuted > 0 ? +((displayBlocked  / displayExecuted) * 100).toFixed(1) : 0,
     },
-    bugs:            filteredBugsSummary,
-    modules:         filteredModules,
-    bugs_per_module: filteredBpm,
-    cycles:          filteredCycles,
+    bugs:                filteredBugsSummary,
+    modules:             filteredModules,
+    bugs_per_module:     filteredBpm,
+    cycles:              filteredCycles,
+    bugs_by_environment: data.bugs_by_environment,
     // Passa o status ativo para o componente poder filtrar modBarData
-    activeStatus:    status || null,
+    activeStatus:        status || null,
   };
 }
 
@@ -667,14 +668,7 @@ export default function Dashboard() {
         <MetricCard label="Não executados"     value={summary.not_executed} />
         <MetricCard label="Total de bugs"      value={bugs.total} />
         <MetricCard label="Bugs abertos"       value={bugs.open}                  color="var(--danger)" />
-        {bugs_by_environment && bugs_by_environment.length > 0 && bugs_by_environment.map(env => (
-          <MetricCard key={env.environment}
-            label={`Bugs ${ENV_LABELS[env.environment]||env.environment}`}
-            value={env.total}
-            sub={`${env.open} aberto${env.open!==1?"s":""}`}
-            color={ENV_COLORS[env.environment]||"var(--text)"}
-          />
-        ))}
+
       </div>
 
       <div className="grid-2 mb-20">
@@ -722,6 +716,37 @@ export default function Dashboard() {
             </ResponsiveContainer>
           ) : <div className="empty"><p>Sem bugs</p></div>}
         </div>
+        {bugs_by_environment && bugs_by_environment.length > 0 && (
+          <div className="card">
+            <div className="card-title">Bugs por ambiente</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={bugs_by_environment.map(e => ({
+                    name: ENV_LABELS[e.environment] || e.environment,
+                    value: e.total,
+                    open: e.open,
+                  }))}
+                  cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value"
+                  labelLine={false}
+                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                    if (percent < 0.05) return null;
+                    const RADIAN = Math.PI / 180;
+                    const radius = innerRadius + (outerRadius - innerRadius) * 1.3;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    return <text x={x} y={y} fill="#333" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="500">{`${(percent*100).toFixed(0)}%`}</text>;
+                  }}>
+                  {bugs_by_environment.map((e, i) => (
+                    <Cell key={i} fill={ENV_COLORS[e.environment] || PIE_COLORS[i]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value, name, props) => [`${value} total (${props.payload.open} abertos)`, name]} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {modBarData.length > 0 && (
