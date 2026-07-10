@@ -92,19 +92,18 @@ function ProjectForm({ initial = {}, onSave, onCancel, saving }: ProjectFormProp
 }
 
 export default function Projects() {
-  const [search,  setSearch]  = useState("");
-  const { data: projectsRaw, loading, error, refetch } = useAsync(() => projectsApi.list());
-  const projects = search
-    ? (projectsRaw as ProjectWithStats[] || []).filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-    : (projectsRaw as ProjectWithStats[] || []);
   const { refreshProjects, selectProject } = useProject();
   const { isAdmin, isManager }             = useAuth();
   const canManage = isAdmin || isManager;
-
+  const [search,  setSearch]  = useState("");
   const [modal,   setModal]   = useState<ModalState | null>(null);
   const [confirm, setConfirm] = useState<ProjectWithStats | null>(null);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState<string | null>(null);
+  const { data: projectsRaw, loading, error, refetch } = useAsync(() => projectsApi.list());
+  const projects = search
+    ? (projectsRaw as ProjectWithStats[] || []).filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : (projectsRaw as ProjectWithStats[] || []);
 
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg msg={error} />;
