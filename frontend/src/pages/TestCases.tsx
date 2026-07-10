@@ -294,21 +294,21 @@ export default function TestCases() {
             {showExport && (
               <>
               <div onClick={()=>setShowExport(false)} style={{position:"fixed",inset:0,zIndex:99,background:"rgba(0,0,0,0.3)"}} />
-              <div style={{position:"absolute",right:0,top:"110%",background:"var(--card)",
-                border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
-                zIndex:100,minWidth:150,overflow:"hidden"}}>
+              <div style={{position:"absolute",right:0,top:"110%",background:"#ffffff",
+                border:"1px solid #E5E7EB",borderRadius:8,boxShadow:"0 8px 24px rgba(0,0,0,.2)",
+                zIndex:100,minWidth:160,overflow:"hidden"}}>
                 <button onClick={handleExportExcel}
-                  onMouseEnter={e=>(e.currentTarget.style.background="#F1F5F9")}
+                  onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
                   onMouseLeave={e=>(e.currentTarget.style.background="none")}
                   style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
-                    background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
+                    background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
                   📊 Excel (.xlsx)
                 </button>
                 <button onClick={exportHTML}
-                  onMouseEnter={e=>(e.currentTarget.style.background="#F1F5F9")}
+                  onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
                   onMouseLeave={e=>(e.currentTarget.style.background="none")}
                   style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
-                    background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
+                    background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
                   📄 HTML + PDF
                 </button>
               </div>
