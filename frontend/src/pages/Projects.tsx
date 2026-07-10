@@ -105,7 +105,6 @@ export default function Projects() {
   const [confirm, setConfirm] = useState<ProjectWithStats | null>(null);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState<string | null>(null);
-  const [search,  setSearch]  = useState("");
 
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg msg={error} />;
