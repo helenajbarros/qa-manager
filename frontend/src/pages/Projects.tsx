@@ -92,6 +92,7 @@ function ProjectForm({ initial = {}, onSave, onCancel, saving }: ProjectFormProp
 }
 
 export default function Projects() {
+  const [search,  setSearch]  = useState("");
   const { data: projectsRaw, loading, error, refetch } = useAsync(() => projectsApi.list());
   const projects = search
     ? (projectsRaw as ProjectWithStats[] || []).filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
