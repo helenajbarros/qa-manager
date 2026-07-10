@@ -29,8 +29,12 @@ async function fetchData(projectId) {
   return data;
 }
 
-async function fetchDashboard(projectId) {
-  const res = await fetch(`${getBase()}/dashboard${projectId?`?project_id=${projectId}`:""}`, { headers:{Authorization:`Bearer ${getToken()}`} });
+async function fetchDashboard(projectId, filters?) {
+  let url = `${getBase()}/dashboard${projectId?`?project_id=${projectId}`:"?"}`;
+  if (filters?.date_from) url += `&date_from=${filters.date_from}`;
+  if (filters?.date_to)   url += `&date_to=${filters.date_to}`;
+  if (filters?.cycle_id)  url += `&cycle_id=${filters.cycle_id}`;
+  const res = await fetch(url, { headers:{Authorization:`Bearer ${getToken()}`} });
   if (!res.ok) return {};
   const json = await res.json();
   return json.data ?? json ?? {};
@@ -228,7 +232,7 @@ function filterLabel(filters) {
 
 async function exportExcel(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
-  const rawDash = await fetchDashboard(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
   const { data, finalMods = [] } = applyExportFilters(rawData, rawDash, filters);
 
   const XLSX = await loadXLSX();
@@ -296,7 +300,7 @@ async function exportExcel(projectName, projectId, filters) {
 // ── HTML com gráficos ─────────────────────────────────────────
 async function exportHTML(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
-  const rawDash = await fetchDashboard(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
   const { data, dash, finalMods = [] } = applyExportFilters(rawData, rawDash, filters);
   const isNoCycle = (filters?.cycle_id === "no_cycle");
 
