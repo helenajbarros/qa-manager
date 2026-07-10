@@ -30,7 +30,7 @@ export const updateExecution = async (req: AuthRequest, res: Response, next: Nex
 export const removeExecution = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { const x=await svc.removeExecution(req.params.execId); (x as any).changes===0?r.notFound(res,"Execução"):r.noContent(res); } catch(e){next(e);} };
 export const listActivity    = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.getActivity(req.params.id)); } catch(e){next(e);} };
 export const listBugs        = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.getBugIdsByCycle(req.params.id)); } catch(e){next(e);} };
-export const allBugIds       = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.getAllBugIdsInAnyCycle()); } catch(e){next(e);} };
+export const allBugIds       = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.getAllBugIdsInAnyCycle(req.query.project_id as string)); } catch(e){next(e);} };
 export const uploadEvidence  = [upload.single("file"), async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try { if(!req.file){r.badRequest(res,"Arquivo obrigatório");return;} r.ok(res, await svc.addEvidenceFile(req.params.execId, req.file)); } catch(e){next(e);}
 }];

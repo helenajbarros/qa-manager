@@ -302,7 +302,7 @@ export default function Bugs() {
     }
     if (filterCycle === "none") {
       // Busca todos os bug_ids vinculados a algum ciclo para excluí-los
-      cyclesApi.getAllBugIds().then(ids => {
+      cyclesApi.getAllBugIds(pid).then(ids => {
         setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
       }).catch(() => setCycleBugIdsSet(new Set()));
       return;

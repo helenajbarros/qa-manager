@@ -75,7 +75,7 @@ export const cyclesApi = {
   deleteExecution: (id: number, eid: number)    => api.delete<void>(`/cycles/${id}/executions/${eid}`),
   getActivity:     (id: number)                 => api.get<unknown[]>(`/cycles/${id}/activity`),
   getBugs:         (id: number)                 => api.get<Bug[]>(`/cycles/${id}/bugs`),
-  getAllBugIds:     ()                            => api.get<number[]>(`/cycles/all-bug-ids`),
+  getAllBugIds:     (project_id?: number|string) => api.get<number[]>(`/cycles/all-bug-ids${project_id?`?project_id=${project_id}`:''}`),
 };
 
 export const bugsApi = {
