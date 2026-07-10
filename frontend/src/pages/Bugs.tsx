@@ -299,8 +299,8 @@ export default function Bugs() {
     if (!filterCycle || filterCycle === "") {
       // Todos os ciclos: busca bug_ids vinculados para mostrar só eles
       cyclesApi.getAllBugIds(pid).then(ids => {
-        setCycleBugIdsSet(ids && ids.length > 0 ? new Set(ids.map(Number)) : null);
-      }).catch(() => setCycleBugIdsSet(null));
+        setCycleBugIdsSet(new Set((ids || []).map(Number)));
+      }).catch(() => setCycleBugIdsSet(new Set()));
       return;
     }
     if (filterCycle === "none") {
@@ -355,10 +355,9 @@ export default function Bugs() {
       return !cycleBugIdsSet.has(Number(b.id));
     }
     // Todos os ciclos: mostrar só bugs vinculados a algum ciclo
-    if (cycleBugIdsSet && cycleBugIdsSet.size > 0) {
-      return cycleBugIdsSet.has(Number(b.id));
-    }
-    return true;
+    // null = ainda carregando, Set vazio = nenhum bug vinculado
+    if (cycleBugIdsSet === null) return true; // carregando
+    return cycleBugIdsSet.has(Number(b.id));
   });
 
   const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
