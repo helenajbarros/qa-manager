@@ -92,7 +92,10 @@ function ProjectForm({ initial = {}, onSave, onCancel, saving }: ProjectFormProp
 }
 
 export default function Projects() {
-  const { data: projects, loading, error, refetch } = useAsync(() => projectsApi.list());
+  const { data: projectsRaw, loading, error, refetch } = useAsync(() => projectsApi.list());
+  const projects = search
+    ? (projectsRaw as ProjectWithStats[] || []).filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : (projectsRaw as ProjectWithStats[] || []);
   const { refreshProjects, selectProject } = useProject();
   const { isAdmin, isManager }             = useAuth();
   const canManage = isAdmin || isManager;
@@ -101,6 +104,7 @@ export default function Projects() {
   const [confirm, setConfirm] = useState<ProjectWithStats | null>(null);
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState<string | null>(null);
+  const [search,  setSearch]  = useState("");
 
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg msg={error} />;
@@ -137,6 +141,9 @@ export default function Projects() {
     <div className="page">
       <div className="page-header">
         <h1>Projetos</h1>
+        <input value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="🔍 Buscar projeto..."
+          style={{padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)",fontSize:13,minWidth:220}} />
         {canManage && (
           <button className="btn btn-primary" onClick={() => setModal({ mode:"create" })}>
             + Novo projeto
