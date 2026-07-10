@@ -121,14 +121,15 @@ function applyExportFilters(data, dash, filters) {
       if (b.status === "open")  noCycleMap[b.module].open_bugs++;
       if (b.status === "fixed") noCycleMap[b.module].fixed_bugs++;
     });
-    // Adiciona total_cases dos dados originais (rawData antes de filtros)
-    // Usa dash.modules que vem do dashboardService com contagem correta
-    const tcSource = (dash.modules || []).length > 0 ? dash.modules : (data.modules || []);
-    tcSource.forEach((m: any) => {
+    // Adiciona TODOS os módulos ao noCycleMap (mesmo sem bugs)
+    // para que total_cases apareça corretamente no relatório
+    (data.modules || []).forEach((m: any) => {
       const key = m.name || m.module;
-      if (key && noCycleMap[key]) {
-        noCycleMap[key].total_cases = m.total_cases || 0;
+      if (!key) return;
+      if (!noCycleMap[key]) {
+        noCycleMap[key] = { name: key, total_cases: 0, total_bugs: 0, open_bugs: 0, fixed_bugs: 0 };
       }
+      noCycleMap[key].total_cases = parseInt(m.total_cases) || 0;
     });
   }
 
