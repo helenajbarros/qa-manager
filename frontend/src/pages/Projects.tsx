@@ -149,7 +149,10 @@ export default function Projects() {
           </button>
         )}
       </div>
-      {err && <ErrorMsg msg={err} />}
+      {err && <div style={{display:"flex",alignItems:"center",gap:8,background:"#FEE2E2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",marginBottom:12}}>
+        <span style={{flex:1,fontSize:13,color:"#991B1B"}}>{err}</span>
+        <button onClick={()=>setErr(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#991B1B",fontSize:16,fontWeight:700,lineHeight:1}}>✕</button>
+      </div>}
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:16 }}>
         {!projects?.length
