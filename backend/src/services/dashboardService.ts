@@ -146,15 +146,16 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
   const rate = (n: number) => executed > 0 ? +((n/executed)*100).toFixed(1) : 0;
 
   // Bugs por ambiente (usando environment_id para ambientes customizados)
+  const dWhereBug = dWhereB ? dWhereB.replace('AND b.created_at', 'AND b.created_at') : '';
   const envRows = await query<any>(`SELECT
     pe.id, pe.name AS environment, pe.color,
     COUNT(b.id) AS total,
     SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open
     FROM project_environments pe
-    LEFT JOIN bugs b ON b.environment_id = pe.id ${dWhereB ? `AND b.created_at ${dWhereB.replace('AND b.created_at','')}`.trim() : ''}
-    WHERE pe.project_id = ${pid || 'pe.project_id'}
+    LEFT JOIN bugs b ON b.environment_id = pe.id ${dWhereBug}
+    WHERE pe.project_id = $1
     GROUP BY pe.id, pe.name, pe.color, pe.sort_order
-    ORDER BY pe.sort_order`);
+    ORDER BY pe.sort_order`, [pid || 0]);
   const bugs_by_environment = envRows.map((r: any) => ({
     id: r.id,
     environment: r.environment,
