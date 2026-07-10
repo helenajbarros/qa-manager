@@ -1,5 +1,5 @@
 import type { Response, NextFunction } from "express";
-import type { AuthRequest } from "../middlewares/auth";
+import type { AuthRequest } from "../types/index";
 import * as r from "../utils/response";
 import * as svc from "../services/environmentsService";
 
