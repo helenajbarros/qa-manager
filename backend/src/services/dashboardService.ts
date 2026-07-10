@@ -18,6 +18,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     : date_from ? `AND b.created_at >= '${date_from}'`
     : date_to   ? `AND b.created_at <= '${date_to} 23:59:59'` : "";
 
+
   const dWhereE = (!cid && date_from && date_to)
     ? `AND c.start_date >= '${date_from}' AND c.end_date <= '${date_to}'`
     : (!cid && date_from ? `AND c.start_date >= '${date_from}'`
@@ -144,14 +145,20 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
   const executed = total - notExec;
   const rate = (n: number) => executed > 0 ? +((n/executed)*100).toFixed(1) : 0;
 
-  // Bugs por ambiente
+  // Bugs por ambiente (usando environment_id para ambientes customizados)
   const envRows = await query<any>(`SELECT
-    COALESCE(b.environment, 'development') AS environment,
-    COUNT(*) AS total,
+    pe.id, pe.name AS environment, pe.color,
+    COUNT(b.id) AS total,
     SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open
-    FROM bugs b WHERE 1=1 ${pWhereB} ${dWhereB} GROUP BY b.environment`);
+    FROM project_environments pe
+    LEFT JOIN bugs b ON b.environment_id = pe.id ${dWhereB ? `AND b.created_at ${dWhereB.replace('AND b.created_at','')}`.trim() : ''}
+    WHERE pe.project_id = ${pid || 'pe.project_id'}
+    GROUP BY pe.id, pe.name, pe.color, pe.sort_order
+    ORDER BY pe.sort_order`);
   const bugs_by_environment = envRows.map((r: any) => ({
+    id: r.id,
     environment: r.environment,
+    color: r.color,
     total: num(r.total),
     open: num(r.open),
   }));

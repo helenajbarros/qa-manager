@@ -13,11 +13,13 @@ async function extractModuleId(title: string): Promise<number | null> {
 const BASE_Q = `
   SELECT b.*, m.name AS module_name, u.name AS created_by_name, a.name AS assigned_to_name,
     tc.title AS test_case_title,
+    pe.name AS environment_name, pe.color AS environment_color,
     (SELECT cyc.status FROM test_executions tex JOIN test_cycles cyc ON cyc.id = tex.cycle_id
      WHERE tex.bug_id = b.id ORDER BY cyc.created_at DESC LIMIT 1) AS cycle_status
   FROM bugs b
   LEFT JOIN modules m ON m.id = b.module_id LEFT JOIN users u ON u.id = b.created_by_id
   LEFT JOIN users a ON a.id = b.assigned_to_id LEFT JOIN test_cases tc ON tc.id = b.test_case_id
+  LEFT JOIN project_environments pe ON pe.id = b.environment_id
 `;
 
 async function getFiles(bug_id: number | string) {
@@ -36,13 +38,18 @@ async function attachAll(bug: any) {
   return { ...bug, evidence_files: files, related_bugs: relations };
 }
 
-export async function findAll({ status, severity, module_id, project_id, search, page, limit }: any = {}) {
+export async function findAll({ status, severity, module_id, project_id, search, page, limit, cycle_id }: any = {}) {
   const conds = ["1=1"]; const params: unknown[] = [];
   if (project_id) { params.push(project_id); conds.push(`b.project_id = $${params.length}`); }
   if (status)     { params.push(status);      conds.push(`b.status = $${params.length}`); }
   if (severity)   { params.push(severity);    conds.push(`b.severity = $${params.length}`); }
   if (module_id)  { params.push(module_id);   conds.push(`b.module_id = $${params.length}`); }
   if (search)     { params.push(`%${search.toLowerCase()}%`); conds.push(`LOWER(b.title) LIKE $${params.length}`); }
+  if (cycle_id === "no_cycle") {
+    conds.push(`b.id NOT IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL)`);
+  } else if (cycle_id) {
+    params.push(cycle_id); conds.push(`b.id IN (SELECT DISTINCT bug_id FROM test_executions WHERE cycle_id = $${params.length} AND bug_id IS NOT NULL)`);
+  }
   const where    = conds.join(" AND ");
   const pageNum  = Math.max(1, parseInt(page) || 1);
   const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
@@ -75,8 +82,9 @@ export async function create(data: any) {
     module_id, test_case_id, created_by_id, project_id, assigned_to_id, pr_url, steps,
     environment, actual_result, expected_result, os, browser, impact, evidence_url } = data;
   const mod = module_id || await extractModuleId(title);
-  const rows = await query<{id: number}>(`INSERT INTO bugs (title,description,comment,tracker_url,severity,priority,status,module_id,test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive,environment,actual_result,expected_result,os,browser,impact,evidence_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id`,
-    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false, environment||"production", actual_result||null, expected_result||null, os||null, browser||null, impact||null, evidence_url||null]);
+  const { environment_id } = data;
+  const rows = await query<{id: number}>(`INSERT INTO bugs (title,description,comment,tracker_url,severity,priority,status,module_id,test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive,environment,environment_id,actual_result,expected_result,os,browser,impact,evidence_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id`,
+    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false, environment||null, environment_id||null, actual_result||null, expected_result||null, os||null, browser||null, impact||null, evidence_url||null]);
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
   return bug;
@@ -90,8 +98,9 @@ export async function update(id: number | string, data: any, userId?: number) {
   const prev = await findById(id) as any;
   const mod  = module_id || await extractModuleId(title);
   const archiveVal = closed_by_archive === true ? true : closed_by_archive === false ? false : prev?.closed_by_archive || false;
-  await execute(`UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,environment=$14,actual_result=$15,expected_result=$16,closed_by_archive=$17,os=$18,browser=$19,impact=$20,evidence_url=$21 WHERE id=$22`,
-    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, assigned_to_id||null, pr_url||null, steps||null, test_type||null, environment||"production", actual_result||null, expected_result||null, archiveVal, os||null, browser||null, impact||null, evidence_url||null, id]);
+  const environment_id2 = data.environment_id;
+  await execute(`UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,environment=$14,environment_id=$15,actual_result=$16,expected_result=$17,closed_by_archive=$18,os=$19,browser=$20,impact=$21,evidence_url=$22 WHERE id=$23`,
+    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, assigned_to_id||null, pr_url||null, steps||null, test_type||null, environment||null, environment_id2||null, actual_result||null, expected_result||null, archiveVal, os||null, browser||null, impact||null, evidence_url||null, id]);
   if (prev) {
     if (prev.status !== status) await logActivity(id, userId ?? null, "alterou o status", `${prev.status} → ${status}`);
     if (prev.assigned_to_id !== (assigned_to_id || null)) {

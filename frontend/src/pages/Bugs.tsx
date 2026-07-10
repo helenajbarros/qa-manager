@@ -162,7 +162,8 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     module_id:      initial.module_id      || "",
     test_case_id:   initial.test_case_id   || "",
     assigned_to_id: initial.assigned_to_id || "",
-    environment:    initial.environment    || "production",
+    environment:    initial.environment    || null,
+    environment_id: initial.environment_id || null,
     actual_result:  initial.actual_result  || "",
     expected_result: initial.expected_result || "",
   });
@@ -190,7 +191,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
           <Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={STATUS_OPTS} />
         </Field>
         <Field label="Ambiente">
-          <Select value={form.environment} onChange={v=>setForm(f=>({...f,environment:v}))} options={envOpts.length > 0 ? envOpts : [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}]} />
+          <Select value={String(form.environment_id||'')} onChange={v=>{ const env = envOpts.find(e=>String(e.value)===v); setForm(f=>({...f,environment_id:v?Number(v):null,environment:env?.label||null})); }} options={envOpts.length > 0 ? envOpts : [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}]} />
         </Field>
       </div>
       <div className="form-row">

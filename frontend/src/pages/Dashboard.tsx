@@ -738,7 +738,7 @@ export default function Dashboard() {
                     return <text x={x} y={y} fill="#333" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="500">{`${(percent*100).toFixed(0)}%`}</text>;
                   }}>
                   {bugs_by_environment.map((e, i) => (
-                    <Cell key={i} fill={ENV_COLORS[e.environment] || PIE_COLORS[i]} />
+                    <Cell key={i} fill={e.color || ENV_COLORS[e.environment] || PIE_COLORS[i]} />
                   ))}
                 </Pie>
                 <Tooltip content={({ active, payload }) => {
