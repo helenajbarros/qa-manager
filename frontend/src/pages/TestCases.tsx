@@ -153,6 +153,85 @@ export default function TestCases() {
   const [filterPri, setFilterPri] = useState("");
   const [page,      setPage]      = useState(1);
   const [pageSize,  setPageSize]  = useState(10);
+  const [showExport, setShowExport] = useState(false);
+
+  function exportExcel() {
+    const XLSX = (window as any).XLSX;
+    const rows = filtered.map(tc => ({
+      ID: tc.id,
+      Titulo: tc.title,
+      Modulo: (modules as Module[])?.find(m => m.id === tc.module_id)?.name || "—",
+      Prioridade: tc.priority === "low" ? "Baixa" : tc.priority === "medium" ? "Média" : tc.priority === "high" ? "Alta" : "Crítica",
+      Precondicoes: tc.preconditions || "—",
+      Passos: tc.steps || "—",
+      Resultado_Esperado: tc.expected_result || "—",
+      Responsavel: tc.assigned_to_name || "—",
+      Criado_em: new Date(tc.created_at).toLocaleDateString("pt-BR"),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{wch:6},{wch:40},{wch:16},{wch:10},{wch:30},{wch:50},{wch:50},{wch:20},{wch:12}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Casos de Teste");
+    const date = new Date().toLocaleDateString("pt-BR").replace(/\//g,"-");
+    XLSX.writeFile(wb, `Casos_de_Teste_${date}.xlsx`);
+    setShowExport(false);
+  }
+
+  async function loadXLSX() {
+    if ((window as any).XLSX) return (window as any).XLSX;
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      s.onload = () => resolve((window as any).XLSX);
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function handleExportExcel() {
+    await loadXLSX();
+    exportExcel();
+  }
+
+  function exportHTML() {
+    const pri: Record<string,string> = {low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
+    const rows = filtered.map(tc => {
+      const mod = (modules as Module[])?.find(m => m.id === tc.module_id)?.name || "—";
+      return `<tr>
+        <td>${tc.id}</td>
+        <td>${tc.title}</td>
+        <td>${mod}</td>
+        <td>${pri[tc.priority]||tc.priority}</td>
+        <td style="white-space:pre-wrap">${tc.preconditions||"—"}</td>
+        <td style="white-space:pre-wrap">${tc.steps||"—"}</td>
+        <td style="white-space:pre-wrap">${tc.expected_result||"—"}</td>
+      </tr>`;
+    }).join("");
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Casos de Teste</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#1E293B}
+    h1{font-size:20px;margin-bottom:16px;color:#1E3A5F}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#1E3A5F;color:white;padding:8px 10px;text-align:left}
+    td{padding:7px 10px;border-bottom:1px solid #E5E7EB;vertical-align:top}
+    tr:nth-child(even) td{background:#F8FAFC}
+    @media print{body{padding:0}}</style></head><body>
+    <h1>Casos de Teste — ${currentProject?.name || ""}</h1>
+    <p style="font-size:12px;color:#64748B;margin-bottom:16px">Gerado em ${new Date().toLocaleString("pt-BR")} — ${filtered.length} caso(s)</p>
+    <table><thead><tr><th>ID</th><th>Título</th><th>Módulo</th><th>Prioridade</th><th>Pré-condições</th><th>Passos</th><th>Resultado Esperado</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="text-align:center;margin-top:24px">
+      <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
+    </div></body></html>`;
+    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Casos_de_Teste_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExport(false);
+  }
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
 
@@ -206,9 +285,33 @@ export default function TestCases() {
     <div className="page">
       <div className="page-header">
         <h1>Casos de Teste</h1>
-        {!isViewer && (
-          <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
-        )}
+        <div style={{display:"flex",gap:8,alignItems:"center",position:"relative"}}>
+          <div style={{position:"relative"}}>
+            <button className="btn" onClick={()=>setShowExport(v=>!v)}
+              style={{background:"#dee8fc",color:"#1E3A5F",border:"none",fontWeight:600}}>
+              ⬇ Exportar ▾
+            </button>
+            {showExport && (
+              <div style={{position:"absolute",right:0,top:"110%",background:"var(--card)",
+                border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
+                zIndex:100,minWidth:150,overflow:"hidden"}}>
+                <button onClick={handleExportExcel}
+                  style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                    background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
+                  📊 Excel (.xlsx)
+                </button>
+                <button onClick={exportHTML}
+                  style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                    background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
+                  📄 HTML + PDF
+                </button>
+              </div>
+            )}
+          </div>
+          {!isViewer && (
+            <button className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
+          )}
+        </div>
       </div>
       {err && <ErrorMsg msg={err} />}
 
