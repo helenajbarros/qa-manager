@@ -579,17 +579,33 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
     } finally { setLoading(null); }
   }
 
+  const [showMenu, setShowMenu] = useState<boolean>(false);
+
   return (
     <div style={{display:"inline-flex",flexDirection:"column",gap:4}}>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <button className="btn" onClick={()=>handle("xlsx")} disabled={!!loading}
-          style={{...style, background:"#dee8fc", color:"#1E3A5F", border:"none", fontWeight:600}}>
-          {loading==="xlsx" ? "⏳ Gerando…" : "⬇ Excel"}
-        </button>
-        <button className="btn" onClick={()=>handle("html")} disabled={!!loading}
-          style={{...style, background:"#dee8fc", color:"#1E3A5F", border:"none", fontWeight:600}}>
-          {loading==="html" ? "⏳ Gerando…" : "📊 HTML + PDF"}
-        </button>
+        <div style={{position:"relative"}}>
+          <button className="btn" onClick={()=>setShowMenu(v=>!v)} disabled={!!loading}
+            style={{...style, background:"#1E3A5F", color:"white", border:"none", fontWeight:600}}>
+            {loading ? "⏳ Gerando…" : "⬇ Exportar ▾"}
+          </button>
+          {showMenu && (
+            <div style={{position:"absolute",right:0,top:"110%",background:"var(--card)",
+              border:"1px solid var(--border)",borderRadius:8,boxShadow:"0 4px 12px rgba(0,0,0,.1)",
+              zIndex:100,minWidth:160,overflow:"hidden"}}>
+              <button onClick={()=>{setShowMenu(false);handle("xlsx");}}
+                style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                  background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
+                📊 Excel (.xlsx)
+              </button>
+              <button onClick={()=>{setShowMenu(false);handle("html");}}
+                style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                  background:"none",border:"none",cursor:"pointer",fontSize:13,color:"var(--text)"}}>
+                📄 HTML + PDF
+              </button>
+            </div>
+          )}
+        </div>
         {hasFilters && (
           <span style={{fontSize:11, color:"var(--accent)", background:"var(--accent-bg)",
             padding:"2px 8px", borderRadius:10, whiteSpace:"nowrap"}}>
