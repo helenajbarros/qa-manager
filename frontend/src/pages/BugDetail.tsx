@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAsync }   from "../hooks/useAsync.js";
-import { bugsApi, modulesApi, testCasesApi, usersApi } from "../services/resources.js";
+import { bugsApi, modulesApi, testCasesApi, usersApi, environmentsApi } from "../services/resources.js";
 import { useAuth }    from "../context/AuthContext.js";
 import { useProject } from "../context/ProjectContext.js";
 import { Loading, ErrorMsg, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.js";
