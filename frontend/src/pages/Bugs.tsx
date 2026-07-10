@@ -296,8 +296,15 @@ export default function Bugs() {
   // Busca IDs de bugs do ciclo selecionado via useEffect (deve ficar ANTES dos early returns)
   const [cycleBugIdsSet, setCycleBugIdsSet] = useState<Set<number> | null>(null);
   useEffect(() => {
-    if (!filterCycle || filterCycle === "none" || filterCycle === "") {
+    if (!filterCycle || filterCycle === "") {
       setCycleBugIdsSet(null);
+      return;
+    }
+    if (filterCycle === "none") {
+      // Busca todos os bug_ids vinculados a algum ciclo para excluí-los
+      cyclesApi.getAllBugIds().then(ids => {
+        setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
+      }).catch(() => setCycleBugIdsSet(new Set()));
       return;
     }
     cyclesApi.getBugs(filterCycle).then(ids => {
@@ -340,8 +347,9 @@ export default function Bugs() {
       return cycleBugIdsSet.has(Number(b.id));
     }
     if (filterCycle === "none") {
-      if (b.test_case_id) return false;
-      return true;
+      // Bugs sem vínculo com nenhum ciclo
+      if (!cycleBugIdsSet) return true;
+      return !cycleBugIdsSet.has(Number(b.id));
     }
     return true;
   });

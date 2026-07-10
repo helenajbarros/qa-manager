@@ -15,5 +15,6 @@ router.delete("/:id/executions/:execId",                  c.removeExecution);
 router.post("/:id/executions/:execId/evidence",           ...(c.uploadEvidence as any[]));
 router.delete("/:id/executions/:execId/evidence/:fileId", c.deleteEvidence);
 router.get("/:id/activity", c.listActivity);
+router.get("/all-bug-ids",  c.allBugIds);
 router.get("/:id/bugs",     c.listBugs);
 export default router;

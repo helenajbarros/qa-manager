@@ -119,6 +119,11 @@ export async function removeEvidenceFile(execution_id: number | string, file_id:
 
 export async function removeExecution(id: number | string) { return execute("DELETE FROM test_executions WHERE id=$1", [id]); }
 
+export async function getAllBugIdsInAnyCycle() {
+  const rows = await query<{bug_id: number}>(`SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL`);
+  return rows.map(r => r.bug_id);
+}
+
 export async function getBugIdsByCycle(cycle_id: number | string) {
   const rows = await query<{bug_id: number}>("SELECT DISTINCT e.bug_id FROM test_executions e WHERE e.cycle_id = $1 AND e.bug_id IS NOT NULL", [cycle_id]);
   return rows.map(r => r.bug_id);
