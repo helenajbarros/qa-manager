@@ -817,7 +817,7 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
     try {
       if (type === "xlsx") await exportExcel(currentProject?.name, currentProject?.id, filters);
       if (type === "html") await exportHTML(currentProject?.name, currentProject?.id, filters);
-      if (type === "executive") await exportExecutive(currentProject?.name, currentProject?.id, filters);
+      if (type === "executive") await exportExecutive(currentProject?.name, currentProject?.id, filters); // Quality Gate Report
     } catch(e) {
       console.error(e);
       setError(e.message || "Erro ao exportar. Tente novamente.");
@@ -839,27 +839,42 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
             <div onClick={()=>setShowMenu(false)} style={{position:"fixed",inset:0,zIndex:99,background:"rgba(0,0,0,0.3)"}} />
             <div style={{position:"absolute",right:0,top:"110%",background:"#ffffff",
               border:"1px solid #E5E7EB",borderRadius:8,boxShadow:"0 8px 24px rgba(0,0,0,.2)",
-              zIndex:100,minWidth:160,overflow:"hidden"}}>
+              zIndex:100,minWidth:220,overflow:"hidden"}}>
+
+              {/* Dados */}
+              <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6"}}>
+                Dados
+              </div>
               <button onClick={()=>{setShowMenu(false);handle("xlsx");}}
                 onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
-                onMouseLeave={e=>(e.currentTarget.style.background="none")}
-                style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
                 📊 Excel (.xlsx)
               </button>
+
+              {/* Time de QA */}
+              <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
+                👥 Time de QA
+              </div>
               <button onClick={()=>{setShowMenu(false);handle("html");}}
                 onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
-                onMouseLeave={e=>(e.currentTarget.style.background="none")}
-                style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
-                📄 HTML + PDF
+                📄 Relatório Técnico
               </button>
+
+              {/* Gestão / Cliente */}
+              <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
+                🏢 Gestão / Cliente
+              </div>
               <button onClick={()=>{setShowMenu(false);handle("executive");}}
                 onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
-                onMouseLeave={e=>(e.currentTarget.style.background="none")}
-                style={{display:"block",width:"100%",padding:"10px 16px",textAlign:"left",
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
-                📋 Relatório Executivo
+                🎯 Quality Gate Report
               </button>
             </div>
             </>
