@@ -697,10 +697,10 @@ export default function Cycles() {
                               <style>{`.cv-wrap:hover .cv-tip{display:block!important}`}</style>
                               <div className="cv-wrap" style={{display:"inline-block"}}>
                                 <span style={{cursor:"help",color:"var(--accent)",fontWeight:500}}>v{c.version} ℹ️</span>
-                                <div className="cv-tip" style={{display:"none",position:"absolute",left:0,top:"100%",
+                                <div className="cv-tip" style={{display:"none",position:"absolute",left:0,bottom:"130%",
                                   background:"#1E293B",color:"white",borderRadius:8,padding:"12px 16px",
                                   fontSize:12,whiteSpace:"nowrap",zIndex:200,boxShadow:"0 4px 16px rgba(0,0,0,.3)",minWidth:220,
-                                  marginTop:4}}>
+                                  marginBottom:4}}>
                                   <div style={{fontWeight:600,marginBottom:8,fontSize:13}}>📦 v{c.version}</div>
                                   {(() => {
                                     const exec = (c.total_executions||0) - (c.not_executed||0);
