@@ -362,13 +362,6 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
               fontSize:13, background:"var(--surface)", width:"100%" }}>
             <option value="">Todos os ciclos</option>
             <option value="no_cycle">📋 Bugs sem vínculo com ciclo</option>
-            {(() => {
-              const versions = [...new Set(cycles.filter(c=>c.version).map(c=>c.version))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
-              if (!versions.length) return null;
-              return <optgroup label="── Por versão ──">
-                {versions.map(v => <option key={v} value={`version:${v}`}>📦 v{v}</option>)}
-              </optgroup>;
-            })()}
             {cycles.filter(c=>c.status==="active").length > 0 && <optgroup label="── Ativos ──">
               {cycles.filter(c=>c.status==="active").map(c => {
                 const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
