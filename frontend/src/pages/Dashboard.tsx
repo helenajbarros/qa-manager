@@ -96,19 +96,20 @@ function CycleCard({ cycle, activeStatus }: CycleCardProps) {
         <div>
           <div style={{ fontWeight:600, fontSize:14 }}>{cycle.name}</div>
           {cycle.version && (
-            <div style={{position:"relative",display:"inline-block"}}
-              onMouseEnter={e=>{const t=e.currentTarget.querySelector('.v-tip') as HTMLElement;if(t)t.style.display="block"}}
-              onMouseLeave={e=>{const t=e.currentTarget.querySelector('.v-tip') as HTMLElement;if(t)t.style.display="none"}}>
-              <div style={{fontSize:11,color:"var(--accent)",marginTop:2,cursor:"help"}}>v{cycle.version} ℹ️</div>
-              <div className="v-tip" style={{display:"none",position:"absolute",left:0,top:"120%",
-                background:"#1E293B",color:"white",borderRadius:8,padding:"10px 14px",
-                fontSize:12,whiteSpace:"nowrap",zIndex:100,boxShadow:"0 4px 12px rgba(0,0,0,.2)",minWidth:200}}>
-                <div style={{fontWeight:600,marginBottom:6}}>v{cycle.version}</div>
-                <div>✅ Sucesso: {executed > 0 ? Math.round((displayCycle.passed/executed)*100) : 0}%</div>
-                <div>❌ Falha: {executed > 0 ? Math.round((displayCycle.failed/executed)*100) : 0}%</div>
-                <div>🔢 Executados: {executed}</div>
-                <div>⏳ Não executados: {displayCycle.not_executed||0}</div>
-                {(cycle.bugs as any)?.total > 0 && <div>🐛 Bugs: {(cycle.bugs as any).total} ({(cycle.bugs as any).open} abertos)</div>}
+            <div style={{position:"relative",display:"inline-block"}}>
+              <style>{`.vw-${cycle.id}:hover .vt-${cycle.id}{display:block!important}`}</style>
+              <div className={`vw-${cycle.id}`} style={{display:"inline-block"}}>
+                <div style={{fontSize:11,color:"var(--accent)",marginTop:2,cursor:"help"}}>v{cycle.version} ℹ️</div>
+                <div className={`vt-${cycle.id}`} style={{display:"none",position:"absolute",left:0,top:"100%",
+                  background:"#1E293B",color:"white",borderRadius:8,padding:"12px 16px",
+                  fontSize:12,whiteSpace:"nowrap",zIndex:200,boxShadow:"0 4px 16px rgba(0,0,0,.3)",minWidth:220,marginTop:4}}>
+                  <div style={{fontWeight:600,marginBottom:8,fontSize:13}}>📦 v{cycle.version}</div>
+                  <div style={{marginBottom:4}}>✅ Sucesso: <strong>{executed > 0 ? Math.round((displayCycle.passed/executed)*100) : 0}%</strong></div>
+                  <div style={{marginBottom:4}}>❌ Falha: <strong>{executed > 0 ? Math.round((displayCycle.failed/executed)*100) : 0}%</strong></div>
+                  <div style={{marginBottom:4}}>🔢 Executados: <strong>{executed}</strong></div>
+                  <div style={{marginBottom:4}}>⏳ Não executados: <strong>{displayCycle.not_executed||0}</strong></div>
+                  {(cycle.bugs as any)?.total > 0 && <div>🐛 Bugs: <strong>{(cycle.bugs as any).total}</strong> ({(cycle.bugs as any).open} abertos)</div>}
+                </div>
               </div>
             </div>
           )}

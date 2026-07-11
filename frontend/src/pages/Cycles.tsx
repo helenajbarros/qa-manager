@@ -693,25 +693,28 @@ export default function Cycles() {
                         </td>
                         <td style={{fontSize:12,color:"var(--text-muted)"}}>
                           {c.version ? (
-                            <div style={{position:"relative",display:"inline-block"}}
-                              onMouseEnter={e=>{const t=e.currentTarget.querySelector('.cv-tip') as HTMLElement;if(t)t.style.display="block"}}
-                              onMouseLeave={e=>{const t=e.currentTarget.querySelector('.cv-tip') as HTMLElement;if(t)t.style.display="none"}}>
-                              <span style={{cursor:"help",color:"var(--accent)",fontWeight:500}}>v{c.version} ℹ️</span>
-                              <div className="cv-tip" style={{display:"none",position:"absolute",left:0,top:"120%",
-                                background:"#1E293B",color:"white",borderRadius:8,padding:"10px 14px",
-                                fontSize:12,whiteSpace:"nowrap",zIndex:100,boxShadow:"0 4px 12px rgba(0,0,0,.2)",minWidth:200}}>
-                                <div style={{fontWeight:600,marginBottom:6}}>v{c.version}</div>
-                                {(() => {
-                                  const exec = (c.total_executions||0) - (c.not_executed||0);
-                                  const pct = exec > 0 ? Math.round(((c.passed||0)/exec)*100) : 0;
-                                  const fPct = exec > 0 ? Math.round(((c.failed||0)/exec)*100) : 0;
-                                  return <>
-                                    <div>✅ Sucesso: {pct}%</div>
-                                    <div>❌ Falha: {fPct}%</div>
-                                    <div>🔢 Executados: {exec}</div>
-                                    <div>⏳ Não executados: {c.not_executed||0}</div>
-                                  </>;
-                                })()}
+                            <div style={{position:"relative",display:"inline-block"}}>
+                              <style>{`.cv-wrap:hover .cv-tip{display:block!important}`}</style>
+                              <div className="cv-wrap" style={{display:"inline-block"}}>
+                                <span style={{cursor:"help",color:"var(--accent)",fontWeight:500}}>v{c.version} ℹ️</span>
+                                <div className="cv-tip" style={{display:"none",position:"absolute",left:0,top:"100%",
+                                  background:"#1E293B",color:"white",borderRadius:8,padding:"12px 16px",
+                                  fontSize:12,whiteSpace:"nowrap",zIndex:200,boxShadow:"0 4px 16px rgba(0,0,0,.3)",minWidth:220,
+                                  marginTop:4}}>
+                                  <div style={{fontWeight:600,marginBottom:8,fontSize:13}}>📦 v{c.version}</div>
+                                  {(() => {
+                                    const exec = (c.total_executions||0) - (c.not_executed||0);
+                                    const pct = exec > 0 ? Math.round(((c.passed||0)/exec)*100) : 0;
+                                    const fPct = exec > 0 ? Math.round(((c.failed||0)/exec)*100) : 0;
+                                    return <>
+                                      <div style={{marginBottom:4}}>✅ Sucesso: <strong>{pct}%</strong></div>
+                                      <div style={{marginBottom:4}}>❌ Falha: <strong>{fPct}%</strong></div>
+                                      <div style={{marginBottom:4}}>🔢 Executados: <strong>{exec}</strong></div>
+                                      <div style={{marginBottom:4}}>⏳ Não executados: <strong>{c.not_executed||0}</strong></div>
+                                      <div>📊 Total: <strong>{c.total_executions||0}</strong></div>
+                                    </>;
+                                  })()}
+                                </div>
                               </div>
                             </div>
                           ) : "—"}
