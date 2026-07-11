@@ -633,8 +633,9 @@ async function exportExecutive(projectName, projectId, filters) {
               successRate >= 80 ? "✅ APROVADO — produto em condição satisfatória para entrega." :
               "ℹ️ Em progresso — aguardar conclusão do ciclo de testes.";
 
-  // Top módulos com falha
-  const modsFailed = (data.modules || [])
+  // Top módulos com falha — usa data.modules filtrado pelo ciclo
+  const modsSource = data.modules || rawData.modules || [];
+  const modsFailed = modsSource
     .filter(m => (m.failed || 0) > 0)
     .sort((a,b) => (b.failed||0) - (a.failed||0))
     .slice(0, 5);
@@ -768,8 +769,9 @@ async function exportExecutive(projectName, projectId, filters) {
   <div class="section">
     <div class="section-title">Cobertura por Módulo</div>
     <div class="card">
-      ${(data.modules||[]).filter(m=>(m.total_cases||0)>0).map(m => {
-        const exec2 = Math.max(0,(m.total_executions||0)-(m.not_executed||0));
+      ${(rawData.modules||data.modules||[]).filter(m=>(m.total_cases||0)>0).map(m => {
+        const modExec = (data.modules||[]).find(dm=>(dm.module||dm.name)===(m.module||m.name));
+        const exec2 = Math.max(0,(modExec?.total_executions||0)-(modExec?.not_executed||0));
         const cov2 = (m.total_cases||0)>0?Math.round((exec2/(m.total_cases||1))*100):0;
         const col = cov2>=80?"#10B981":cov2>=50?"#F59E0B":"#EF4444";
         return `<div style="margin-bottom:10px">
