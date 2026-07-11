@@ -804,6 +804,374 @@ async function exportExecutive(projectName, projectId, filters) {
   URL.revokeObjectURL(url);
 }
 
+// ── Relatório de Defeitos ─────────────────────────────────────
+async function exportBugReport(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const { data } = applyExportFilters(rawData, rawDash, filters);
+  const now = new Date().toLocaleString("pt-BR");
+  const fLabel = filterLabel(filters);
+  const bugs = [...(data.bugs || [])].sort((a,b) => {
+    const order = { critical:0, high:1, medium:2, low:3 };
+    const so = (order[a.severity]??9) - (order[b.severity]??9);
+    if (so !== 0) return so;
+    return new Date(b.created_at||0) - new Date(a.created_at||0);
+  });
+
+  const bySeverity = { critical:0, high:0, medium:0, low:0 };
+  const byStatus   = { open:0, in_progress:0, fixed:0, closed:0 };
+  const byEnv      = { production:0, homologation:0, staging:0, development:0 };
+  const byModule: Record<string, any>   = {};
+  bugs.forEach(b => {
+    if (b.severity in bySeverity) bySeverity[b.severity]++;
+    if (b.status   in byStatus)   byStatus[b.status]++;
+    const env = b.environment || "development";
+    byEnv[env] = (byEnv[env]||0) + 1;
+    const mod = b.module || "—";
+    if (!byModule[mod]) byModule[mod] = { total:0, open:0, fixed:0 };
+    byModule[mod].total++;
+    if (b.status === "open") byModule[mod].open++;
+    if (b.status === "fixed") byModule[mod].fixed++;
+  });
+
+  const sevPie = [
+    { label:"Crítica", value: bySeverity.critical, color:"#DC2626" },
+    { label:"Alta",    value: bySeverity.high,     color:"#EF4444" },
+    { label:"Média",   value: bySeverity.medium,   color:"#F59E0B" },
+    { label:"Baixa",   value: bySeverity.low,      color:"#9CA3AF" },
+  ].filter(d => d.value > 0);
+
+  const statPie = [
+    { label:"Aberto",       value: byStatus.open,        color:"#EF4444" },
+    { label:"Em andamento", value: byStatus.in_progress, color:"#F59E0B" },
+    { label:"Corrigido",    value: byStatus.fixed,       color:"#10B981" },
+    { label:"Fechado",      value: byStatus.closed,      color:"#9CA3AF" },
+  ].filter(d => d.value > 0);
+
+  const envLabels = { production:"Produção", homologation:"Homologação", staging:"Staging", development:"Desenvolvimento" };
+  const envColors = { production:"#EF4444", homologation:"#F59E0B", staging:"#8B5CF6", development:"#2563EB" };
+
+  function pieChart(items, title) {
+    const total = items.reduce((a,b)=>a+b.value,0);
+    if (!total) return `<div class="chart-box"><h3>${title}</h3><p style="color:#999;text-align:center">Sem dados</p></div>`;
+    let svgPaths="", legends="";
+    if (items.length === 1) {
+      svgPaths = `<circle cx="100" cy="100" r="80" fill="${items[0].color}"/>`;
+      legends  = `<div class="legend-item"><span class="legend-dot" style="background:${items[0].color}"></span>${items[0].label}: <b>${items[0].value}</b> (100.0%)</div>`;
+    } else {
+      let angleDeg=-90;
+      items.forEach(item => {
+        const pct=item.value/total;
+        const a1=angleDeg*Math.PI/180;
+        angleDeg+=pct*360;
+        const a2=angleDeg*Math.PI/180;
+        const x1=100+80*Math.cos(a1), y1=100+80*Math.sin(a1);
+        const x2=100+80*Math.cos(a2), y2=100+80*Math.sin(a2);
+        svgPaths+=`<path d="M100,100 L${x1.toFixed(2)},${y1.toFixed(2)} A80,80 0 ${pct>.5?1:0},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${item.color}" fill-opacity="1" stroke="white" stroke-width="2"/>`;
+        legends +=`<div class="legend-item"><span class="legend-dot" style="background:${item.color}"></span>${item.label}: <b>${item.value}</b> (${(pct*100).toFixed(1)}%)</div>`;
+      });
+    }
+    return `<div class="chart-box"><h3>${title}</h3><div class="pie-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="180" height="180" style="display:block;width:180px;height:180px;flex-shrink:0">${svgPaths}</svg><div class="legends">${legends}</div></div></div>`;
+  }
+
+  function table(headers, rows) {
+    const ths = headers.map(h=>`<th>${h}</th>`).join("");
+    const trs = rows.map((r,i)=>`<tr class="${i%2?"even":""}">${r.map(c=>`<td>${c??""}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  const moduleRows = Object.entries(byModule)
+    .sort((a,b) => b[1].total - a[1].total)
+    .map(([name, m]) => [name, m.total, `<span class="red">${m.open}</span>`, `<span class="green">${m.fixed}</span>`]);
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório de Defeitos — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .header{background:linear-gradient(135deg,#7C2D12,#DC2626);color:white;padding:32px 40px;}
+  .header h1{font-size:26px;margin-bottom:6px;}
+  .header p{opacity:.85;font-size:14px;}
+  .filter-badge{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:8px 16px;margin:16px 40px 0;font-size:13px;color:#991B1B;}
+  .container{max-width:1200px;margin:0 auto;padding:32px 24px;}
+  h2{font-size:20px;color:#7C2D12;margin:32px 0 16px;border-bottom:3px solid #DC2626;padding-bottom:8px;break-after:avoid;page-break-after:avoid;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:32px;}
+  .card{background:white;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .card .val{font-size:30px;font-weight:700;margin:8px 0;}
+  .card .lbl{font-size:12px;color:#64748B;}
+  .green{color:#10B981;}.red{color:#EF4444;}.purple{color:#8B5CF6;}.blue{color:#2563EB;}
+  .charts{display:flex;flex-wrap:wrap;gap:24px;margin-bottom:32px;}
+  .chart-box{background:white;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.08);min-width:280px;}
+  .chart-box.wide{flex:1;min-width:100%;}
+  .chart-box h3{font-size:16px;color:#7C2D12;margin-bottom:16px;}
+  .pie-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+  .legends{display:flex;flex-direction:column;gap:8px;}
+  .legend-item{font-size:13px;display:flex;align-items:center;gap:8px;}
+  .legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;margin-bottom:24px;}
+  thead tr{background:#7C2D12;color:white;}
+  th,td{padding:10px 14px;text-align:left;}
+  tr.even td{background:#F8FAFC;}
+  tbody tr:hover td{background:#FEF2F2;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+  .badge-fixed,.badge-passed{background:#D1FAE5;color:#065F46;}
+  .badge-open,.badge-failed{background:#FEE2E2;color:#991B1B;}
+  .badge-critical{background:#FEE2E2;color:#7F1D1D;}
+  .badge-high{background:#FEE2E2;color:#991B1B;}
+  .badge-medium,.badge-in_progress{background:#FEF3C7;color:#92400E;}
+  .badge-low,.badge-closed{background:#F3F4F6;color:#374151;}
+  .desc-cell{max-width:280px;font-size:12px;color:#475569;}
+  .footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px;}
+  .no-print{}
+  @media print{
+    .no-print{display:none!important}
+    body{background:white}
+    .card,.chart-box{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid;}
+    .charts{display:flex!important;flex-wrap:wrap!important;}
+    .chart-box{page-break-inside:avoid;}
+    .pie-wrap{display:flex!important;align-items:center!important;}
+    svg{display:block!important;visibility:visible!important;overflow:visible!important;}
+    svg path,svg circle{display:block!important;visibility:visible!important;fill-opacity:1!important;}
+    h2{break-before:auto;break-after:avoid;page-break-after:avoid;}
+    table{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🐛 Relatório de Defeitos — ${projectName||"Projeto"}</h1>
+  <p>Gerado em ${now}</p>
+</div>
+${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
+<div class="container">
+  <h2>Resumo de Defeitos</h2>
+  <div class="cards">
+    <div class="card"><div class="val blue">${bugs.length}</div><div class="lbl">Total de bugs</div></div>
+    <div class="card"><div class="val red">${byStatus.open}</div><div class="lbl">Abertos</div></div>
+    <div class="card"><div class="val" style="color:#F59E0B">${byStatus.in_progress}</div><div class="lbl">Em andamento</div></div>
+    <div class="card"><div class="val green">${byStatus.fixed}</div><div class="lbl">Corrigidos</div></div>
+    <div class="card"><div class="val">${byStatus.closed}</div><div class="lbl">Fechados</div></div>
+    <div class="card"><div class="val" style="color:#DC2626">${bySeverity.critical}</div><div class="lbl">Críticos</div></div>
+  </div>
+
+  <h2>Gráficos</h2>
+  <div class="charts">
+    ${pieChart(sevPie,"Bugs por Severidade")}
+    ${pieChart(statPie,"Bugs por Status")}
+  </div>
+
+  ${Object.values(byEnv).some(v=>v>0) ? `<h2>Bugs por Ambiente</h2><div class="cards">${
+    Object.entries(byEnv).filter(([,v])=>v>0).map(([env,total]) => `
+      <div class="card"><div class="val" style="color:${envColors[env]}">${total}</div>
+      <div class="lbl">${envLabels[env]}</div></div>`).join("")
+  }</div>` : ""}
+
+  ${moduleRows.length ? `<h2>Bugs por Módulo</h2>${table(["Módulo","Total","Abertos","Corrigidos"], moduleRows)}` : ""}
+
+  <h2>Detalhamento dos Bugs</h2>
+  ${bugs.length ? table(
+    ["#","Título","Módulo","TC","Severidade","Status","Ambiente","Descrição","Criado por","Criado em","Tracker"],
+    bugs.map(b => [
+      b.id,
+      b.title,
+      b.module||"—",
+      b.tc_id?`#${b.tc_id}`:"—",
+      `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
+      `<span class="badge badge-${b.status}">${SL[b.status]||b.status}</span>`,
+      envLabels[b.environment||"development"],
+      `<span class="desc-cell">${b.description||b.comment||"—"}</span>`,
+      b.created_by||"—",
+      fd(b.created_at),
+      b.tracker_url?`<a href="${b.tracker_url}" target="_blank">Ver</a>`:"—",
+    ])
+  ) : `<p style="color:#999">Nenhum bug encontrado para os filtros aplicados.</p>`}
+</div>
+<div class="no-print" style="text-align:center;padding:24px">
+  <button onclick="window.print()" style="background:#7C2D12;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
+    🖨️ Imprimir / Salvar como PDF
+  </button>
+  <p style="margin-top:8px;color:#94A3B8;font-size:12px">Dica: na janela de impressão selecione "Salvar como PDF" para gerar o arquivo</p>
+</div>
+<div class="footer">QA Manager — Relatório de Defeitos gerado em ${now} | ${projectName||"Projeto"}${fLabel?` | ${fLabel}`:""}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Relatorio_Defeitos_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Release Notes de QA ──────────────────────────────────────
+async function exportReleaseNotes(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const { data, dash } = applyExportFilters(rawData, rawDash, filters);
+  const now = new Date().toLocaleString("pt-BR");
+  const fLabel = filterLabel(filters);
+  const s = dash.summary || {};
+
+  const bugs = data.bugs || [];
+  const fixedBugs = bugs.filter(b => b.status === "fixed" || b.status === "closed")
+    .sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+  const knownIssues = bugs.filter(b => b.status === "open" || b.status === "in_progress")
+    .sort((a,b) => {
+      const order = { critical:0, high:1, medium:2, low:3 };
+      return (order[a.severity]??9) - (order[b.severity]??9);
+    });
+
+  const executed = s.total_executions || 0;
+  const totalCases = s.total_cases || 0;
+  const successRate = s.success_rate || 0;
+  const coverage = totalCases > 0 ? +((executed / totalCases) * 100).toFixed(1) : 0;
+  const criticalOpen = knownIssues.filter(b => b.severity === "critical").length;
+  const highOpen = knownIssues.filter(b => b.severity === "high").length;
+
+  // Versão: usa a versão do ciclo mais recente com dados, se disponível
+  const cyclesWithVersion = (data.cycles||[]).filter(c => c.version);
+  const version = cyclesWithVersion.length
+    ? [...cyclesWithVersion].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0].version
+    : null;
+
+  const status = criticalOpen > 0 ? { label:"❌ Não recomendado para release", color:"#EF4444",
+      text:"Existem defeitos críticos em aberto que impedem o lançamento desta versão." } :
+    highOpen > 0 ? { label:"⚠️ Release com ressalvas", color:"#F59E0B",
+      text:"Existem defeitos de alta severidade em aberto. Avaliar impacto antes do lançamento." } :
+    successRate >= 80 ? { label:"✅ Pronto para release", color:"#10B981",
+      text:"Nenhum bloqueio identificado. Qualidade validada para lançamento." } :
+    { label:"ℹ️ Validação em andamento", color:"#2563EB",
+      text:"Ciclo de testes ainda em progresso. Acompanhar conclusão antes do lançamento." };
+
+  const modulesTested = (data.modules||[]).filter(m => (m.total_cases||0) > 0);
+
+  function table(headers, rows) {
+    const ths = headers.map(h=>`<th>${h}</th>`).join("");
+    const trs = rows.map((r,i)=>`<tr class="${i%2?"even":""}">${r.map(c=>`<td>${c??""}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Release Notes de QA — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .header{background:linear-gradient(135deg,#1E3A5F,#2563EB);color:white;padding:32px 40px}
+  .header h1{font-size:24px;margin-bottom:4px}
+  .header p{opacity:.85;font-size:13px}
+  .container{max-width:960px;margin:0 auto;padding:32px 24px}
+  .section{margin-bottom:28px}
+  .section-title{font-size:13px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E2E8F0}
+  .card{background:white;border-radius:12px;padding:20px 24px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:12px}
+  .status-box{padding:16px 20px;border-radius:8px;border-left:4px solid;display:flex;flex-direction:column;gap:4px}
+  .status-box .label{font-size:16px;font-weight:700}
+  .status-box .text{font-size:13px;color:#475569}
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+  .metric{text-align:center;padding:16px 12px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0}
+  .metric-val{font-size:26px;font-weight:700;margin-bottom:4px}
+  .metric-lbl{font-size:11px;color:#64748B}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#F1F5F9;padding:8px 12px;text-align:left;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:8px 12px;border-bottom:1px solid #F1F5F9}
+  tr.even td{background:#FAFBFC}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .badge-critical{background:#FEE2E2;color:#7F1D1D}
+  .badge-high{background:#FEE2E2;color:#991B1B}
+  .badge-medium{background:#FEF3C7;color:#92400E}
+  .badge-low{background:#F3F4F6;color:#374151}
+  .footer{text-align:center;padding:24px;color:#94A3B8;font-size:12px}
+  .no-print{}
+  @media print{.no-print{display:none!important}body{background:white}.card{box-shadow:none;border:1px solid #E2E8F0}table{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📋 Release Notes de QA — ${projectName||"Projeto"}${version?` (v${version})`:""}</h1>
+  <p>Gerado em ${now}${fLabel ? ` &nbsp;|&nbsp; ${fLabel}` : ""}</p>
+</div>
+<div class="container">
+
+  <div class="section">
+    <div class="section-title">Status de Release</div>
+    <div class="card status-box" style="border-color:${status.color}">
+      <span class="label" style="color:${status.color}">${status.label}</span>
+      <span class="text">${status.text}</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Resumo da Validação</div>
+    <div class="metrics-grid">
+      <div class="metric"><div class="metric-val" style="color:#2563EB">${totalCases}</div><div class="metric-lbl">Casos Testados</div></div>
+      <div class="metric"><div class="metric-val">${executed}</div><div class="metric-lbl">Execuções</div></div>
+      <div class="metric"><div class="metric-val" style="color:#10B981">${successRate}%</div><div class="metric-lbl">Taxa de Sucesso</div></div>
+      <div class="metric"><div class="metric-val" style="color:#6366F1">${coverage}%</div><div class="metric-lbl">Cobertura</div></div>
+      <div class="metric"><div class="metric-val" style="color:#10B981">${fixedBugs.length}</div><div class="metric-lbl">Corrigidos</div></div>
+      <div class="metric"><div class="metric-val" style="color:${knownIssues.length>0?"#EF4444":"#10B981"}">${knownIssues.length}</div><div class="metric-lbl">Problemas Conhecidos</div></div>
+    </div>
+  </div>
+
+  ${fixedBugs.length ? `
+  <div class="section">
+    <div class="section-title">✅ Correções Incluídas Nesta Versão</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      ${table(["#","Título","Módulo","Severidade"], fixedBugs.map(b => [
+        b.id, b.title, b.module||"—", `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`
+      ]))}
+    </div>
+  </div>` : ""}
+
+  ${knownIssues.length ? `
+  <div class="section">
+    <div class="section-title">⚠️ Problemas Conhecidos</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      ${table(["#","Título","Módulo","Severidade","Status","Observação"], knownIssues.map(b => [
+        b.id, b.title, b.module||"—",
+        `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
+        SL[b.status]||b.status,
+        b.comment||b.description||"—"
+      ]))}
+    </div>
+  </div>` : `<div class="section"><div class="section-title">⚠️ Problemas Conhecidos</div><div class="card">Nenhum problema conhecido em aberto. ✅</div></div>`}
+
+  <div class="section">
+    <div class="section-title">Escopo Testado</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      ${modulesTested.length ? table(["Módulo","Casos","Execuções","% Sucesso"], modulesTested.map(m => {
+        const exec2 = Math.max(0,(m.total_executions||0)-(m.not_executed||0));
+        const pct = exec2>0?((m.passed/exec2)*100).toFixed(1)+"%":"—";
+        return [m.module||m.name, m.total_cases||0, exec2, pct];
+      })) : `<div style="padding:16px;color:#64748B">Sem módulos testados neste período.</div>`}
+    </div>
+  </div>
+
+</div>
+<div class="no-print" style="text-align:center;padding:24px">
+  <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
+</div>
+<div class="footer">Release Notes de QA — ${projectName||"Projeto"} — ${now}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Release_Notes_QA_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Componente ────────────────────────────────────────────────
 export function ExportButton({ style, filters }: ExportButtonProps) {
   const { currentProject } = useProject();
@@ -817,7 +1185,9 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
     try {
       if (type === "xlsx") await exportExcel(currentProject?.name, currentProject?.id, filters);
       if (type === "html") await exportHTML(currentProject?.name, currentProject?.id, filters);
+      if (type === "bugs") await exportBugReport(currentProject?.name, currentProject?.id, filters);
       if (type === "executive") await exportExecutive(currentProject?.name, currentProject?.id, filters); // Quality Gate Report
+      if (type === "release") await exportReleaseNotes(currentProject?.name, currentProject?.id, filters);
     } catch(e) {
       console.error(e);
       setError(e.message || "Erro ao exportar. Tente novamente.");
@@ -855,19 +1225,26 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
 
               {/* Time de QA */}
               <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
-                👥 Time de QA
+                👥 Para o Time de QA
               </div>
               <button onClick={()=>{setShowMenu(false);handle("html");}}
                 onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
                 onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
                 style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
-                📄 Relatório Técnico
+                📄 Relatório Técnico (HTML+PDF)
+              </button>
+              <button onClick={()=>{setShowMenu(false);handle("bugs");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                🐛 Relatório de Defeitos
               </button>
 
               {/* Gestão / Cliente */}
               <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
-                🏢 Gestão / Cliente
+                🏢 Para Gestão / Cliente
               </div>
               <button onClick={()=>{setShowMenu(false);handle("executive");}}
                 onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
@@ -875,6 +1252,13 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
                 style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
                 🎯 Quality Gate Report
+              </button>
+              <button onClick={()=>{setShowMenu(false);handle("release");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                📋 Release Notes de QA
               </button>
             </div>
             </>
