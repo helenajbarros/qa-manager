@@ -691,7 +691,31 @@ export default function Cycles() {
                             onClick={()=>setDetail(c)}>{c.name}</button>
                           {c.description&&<div style={{fontSize:11,color:"var(--text-muted)"}}>{c.description}</div>}
                         </td>
-                        <td style={{fontSize:12,color:"var(--text-muted)"}}>{c.version||"—"}</td>
+                        <td style={{fontSize:12,color:"var(--text-muted)"}}>
+                          {c.version ? (
+                            <div style={{position:"relative",display:"inline-block"}}
+                              onMouseEnter={e=>{const t=e.currentTarget.querySelector('.cv-tip') as HTMLElement;if(t)t.style.display="block"}}
+                              onMouseLeave={e=>{const t=e.currentTarget.querySelector('.cv-tip') as HTMLElement;if(t)t.style.display="none"}}>
+                              <span style={{cursor:"help",color:"var(--accent)",fontWeight:500}}>v{c.version} ℹ️</span>
+                              <div className="cv-tip" style={{display:"none",position:"absolute",left:0,top:"120%",
+                                background:"#1E293B",color:"white",borderRadius:8,padding:"10px 14px",
+                                fontSize:12,whiteSpace:"nowrap",zIndex:100,boxShadow:"0 4px 12px rgba(0,0,0,.2)",minWidth:200}}>
+                                <div style={{fontWeight:600,marginBottom:6}}>v{c.version}</div>
+                                {(() => {
+                                  const exec = (c.total_executions||0) - (c.not_executed||0);
+                                  const pct = exec > 0 ? Math.round(((c.passed||0)/exec)*100) : 0;
+                                  const fPct = exec > 0 ? Math.round(((c.failed||0)/exec)*100) : 0;
+                                  return <>
+                                    <div>✅ Sucesso: {pct}%</div>
+                                    <div>❌ Falha: {fPct}%</div>
+                                    <div>🔢 Executados: {exec}</div>
+                                    <div>⏳ Não executados: {c.not_executed||0}</div>
+                                  </>;
+                                })()}
+                              </div>
+                            </div>
+                          ) : "—"}
+                        </td>
                         <td style={{fontSize:12,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
                           {c.start_date?new Date(c.start_date + "T12:00:00").toLocaleDateString("pt-BR"):"—"}
                           {c.end_date?` → ${new Date(c.end_date + "T12:00:00").toLocaleDateString("pt-BR")}` :""}

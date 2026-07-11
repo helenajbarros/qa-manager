@@ -95,7 +95,23 @@ function CycleCard({ cycle, activeStatus }: CycleCardProps) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
         <div>
           <div style={{ fontWeight:600, fontSize:14 }}>{cycle.name}</div>
-          {cycle.version && <div style={{ fontSize:11, color:"var(--accent)", marginTop:2 }}>v{cycle.version}</div>}
+          {cycle.version && (
+            <div style={{position:"relative",display:"inline-block"}}
+              onMouseEnter={e=>{const t=e.currentTarget.querySelector('.v-tip') as HTMLElement;if(t)t.style.display="block"}}
+              onMouseLeave={e=>{const t=e.currentTarget.querySelector('.v-tip') as HTMLElement;if(t)t.style.display="none"}}>
+              <div style={{fontSize:11,color:"var(--accent)",marginTop:2,cursor:"help"}}>v{cycle.version} ℹ️</div>
+              <div className="v-tip" style={{display:"none",position:"absolute",left:0,top:"120%",
+                background:"#1E293B",color:"white",borderRadius:8,padding:"10px 14px",
+                fontSize:12,whiteSpace:"nowrap",zIndex:100,boxShadow:"0 4px 12px rgba(0,0,0,.2)",minWidth:200}}>
+                <div style={{fontWeight:600,marginBottom:6}}>v{cycle.version}</div>
+                <div>✅ Sucesso: {executed > 0 ? Math.round((displayCycle.passed/executed)*100) : 0}%</div>
+                <div>❌ Falha: {executed > 0 ? Math.round((displayCycle.failed/executed)*100) : 0}%</div>
+                <div>🔢 Executados: {executed}</div>
+                <div>⏳ Não executados: {displayCycle.not_executed||0}</div>
+                {(cycle.bugs as any)?.total > 0 && <div>🐛 Bugs: {(cycle.bugs as any).total} ({(cycle.bugs as any).open} abertos)</div>}
+              </div>
+            </div>
+          )}
         </div>
         <span className={`badge badge-${cycle.status}`}>
           {cycle.status==="active"?"Ativo":cycle.status==="completed"?"Concluído":"Arquivado"}
@@ -831,73 +847,7 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      {/* Histórico por versão */}
-      {(() => {
-        const allCycles = ((cyclesRaw as any)?.data ?? cyclesRaw ?? []) as CycleWithStats[];
-        const withVersion = allCycles.filter(c => c.version);
-        if (!withVersion.length) return null;
-        // Agrupar por versão — inclui ciclos com versão
-        const byVersion: Record<string, CycleWithStats[]> = {};
-        withVersion.forEach(c => {
-          const v = c.version!;
-          if (!byVersion[v]) byVersion[v] = [];
-          byVersion[v].push(c);
-        });
-        // Também incluir versões de bugs exploratórios (sem ciclo)
-        const allBugsRaw = (data as any)?.all_bugs_versions || [];
-        allBugsRaw.forEach((b: any) => {
-          if (b.version && !byVersion[b.version]) byVersion[b.version] = [];
-        });
-        const versions = Object.keys(byVersion).sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
-        return (
-          <div style={{marginBottom:24}}>
-            <h2 style={{fontSize:15,fontWeight:600,marginBottom:12}}>📦 Histórico por Versão</h2>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {versions.map(v => {
-                const vCycles = byVersion[v];
-                const totalExec = vCycles.reduce((a,c) => a+(c.total_executions||0), 0);
-                const passed    = vCycles.reduce((a,c) => a+(c.passed||0), 0);
-                const failed    = vCycles.reduce((a,c) => a+(c.failed||0), 0);
-                const blocked   = vCycles.reduce((a,c) => a+(c.blocked||0), 0);
-                const notExec   = vCycles.reduce((a,c) => a+(c.not_executed||0), 0);
-                const executed  = totalExec - notExec;
-                const successRate = executed > 0 ? +((passed/executed)*100).toFixed(1) : 0;
-                const failRate    = executed > 0 ? +((failed/executed)*100).toFixed(1) : 0;
-                const bugsByCycle = vCycles.reduce((a,c) => a+((c.bugs as any)?.total||0), 0);
-                const openBugsByCycle = vCycles.reduce((a,c) => a+((c.bugs as any)?.open||0), 0);
-                // Bugs com version própria (exploratórios)
-                const bugsWithVersion = allBugsRaw.filter((b:any) => b.version === v);
-                const bugs = Math.max(bugsByCycle, bugsWithVersion.length > 0 ? bugsWithVersion.length : bugsByCycle);
-                const openBugs = bugsWithVersion.length > 0
-                  ? bugsWithVersion.filter((b:any) => b.status === "open").length
-                  : openBugsByCycle;
-                return (
-                  <div key={v} className="card" style={{padding:"14px 18px"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-                      <span style={{fontWeight:700,fontSize:14,color:"var(--accent)",minWidth:80}}>v{v}</span>
-                      <span style={{fontSize:12,color:"var(--text-muted)"}}>{vCycles.length} ciclo{vCycles.length!==1?"s":""}: {vCycles.map(c=>c.name).join(", ")}</span>
-                      <div style={{display:"flex",gap:16,marginLeft:"auto",fontSize:12,flexWrap:"wrap"}}>
-                        <span>🔢 {executed} executados</span>
-                        <span style={{color:"var(--success)"}}>✅ {successRate}% sucesso</span>
-                        <span style={{color:"var(--danger)"}}>❌ {failRate}% falha</span>
-                        {bugs > 0 && <span style={{color:"var(--danger)"}}>🐛 {bugs} bug{bugs!==1?"s":""} ({openBugs} aberto{openBugs!==1?"s":""})</span>}
-                        {notExec > 0 && <span style={{color:"var(--text-muted)"}}>⏳ {notExec} não executados</span>}
-                      </div>
-                      <button className="btn btn-sm"
-                        onClick={()=>setFilters(f=>({...f, cycle_id: String(vCycles[0].id), date_from:"", date_to:"", period:""}))}>
-                        Ver
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Tabelas expansíveis com paginação */}
-      <div className="grid-2" id="tables-section" style={{ display:"grid",
+      {/* Tabelas expansíveis com paginação */}      <div className="grid-2" id="tables-section" style={{ display:"grid",
         gridTemplateColumns:"1fr 1fr", gap:16, alignItems:"start" }}>
         <ExpandableTable
           title="Métricas por módulo"
