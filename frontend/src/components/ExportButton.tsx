@@ -279,11 +279,11 @@ async function exportExcel(projectName, projectId, filters) {
 
   // Aba Execuções removida do relatório
 
-  const bgH=["#","Título","Módulo","TC","Severidade","Status","Criado por","Comentário","Tracker","Criado em"];
-  const bgR=data.bugs.map(b=>[b.id,b.title,b.module||"—",b.tc_id?`#${b.tc_id}`:"—",SVL[b.severity]||b.severity,SL[b.status]||b.status,b.created_by||"—",b.comment||"—",b.tracker_url||"—",fd(b.created_at)]);
+  const bgH=["#","Título","Módulo","Versão","TC","Severidade","Status","Criado por","Comentário","Tracker","Criado em"];
+  const bgR=data.bugs.map(b=>[b.id,b.title,b.module||"—",b.version||"—",b.tc_id?`#${b.tc_id}`:"—",SVL[b.severity]||b.severity,SL[b.status]||b.status,b.created_by||"—",b.comment||"—",b.tracker_url||"—",fd(b.created_at)]);
   const bgWs=XLSX.utils.aoa_to_sheet([bgH,...bgR]);
   applyStyles(bgWs,bgH,bgR,"DC2626");
-  bgWs["!cols"]=[{wch:6},{wch:36},{wch:16},{wch:10},{wch:10},{wch:14},{wch:18},{wch:30},{wch:30},{wch:12}];
+  bgWs["!cols"]=[{wch:6},{wch:36},{wch:16},{wch:10},{wch:10},{wch:10},{wch:14},{wch:18},{wch:30},{wch:30},{wch:12}];
   XLSX.utils.book_append_sheet(wb,bgWs,"Bugs");
 
   const mdH=["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Total bugs","Bugs abertos","% Sucesso"];
@@ -560,8 +560,8 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
       <div style="font-size:11px;color:#EF4444;margin-top:4px">${e.open} aberto${e.open!==1?"s":""}</div></div>`).join("")}</div>`;
   })()}
   ${data.bugs.length > 0 ? `<h2>Bugs</h2>
-  ${table(["#","Título","Módulo","Severidade","Status","Criado por","Tracker"],
-    data.bugs.map(b=>[b.id,b.title,b.module||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}
+  ${table(["#","Título","Módulo","Versão","Severidade","Status","Criado por","Tracker"],
+    data.bugs.map(b=>[b.id,b.title,b.module||"—",b.version||"—","<span class=\"badge badge-"+b.severity+"\">"+( SVL[b.severity]||b.severity)+"</span>","<span class=\"badge badge-"+b.status+"\">"+( SL[b.status]||b.status)+"</span>",b.created_by||"—",b.tracker_url?"<a href=\""+b.tracker_url+"\" target=\"_blank\">Ver</a>":"—"]))}`  : ""}
   ${effectiveNoCycle ? (finalMods.filter(m=>(m.total_bugs||0)>0).length > 0 ? `<h2>Bugs por Módulo</h2>
   ${table(["Módulo","Casos","Total Bugs","Abertos","Corrigidos"],
     finalMods.filter(m=>(m.total_bugs||0)>0).map(m=>[m.name,m.total_cases||0,m.total_bugs||0,"<span class=\"red\">"+(m.open_bugs||0)+"</span>","<span class=\"green\">"+(m.fixed_bugs||0)+"</span>"]))}` : "") :
@@ -728,12 +728,13 @@ async function exportExecutive(projectName, projectId, filters) {
     <div class="section-title">⚠ Bugs Críticos e Altos Abertos</div>
     <div class="card" style="padding:0;overflow:hidden">
       <table>
-        <thead><tr><th>#</th><th>Título</th><th>Módulo</th><th>Severidade</th></tr></thead>
+        <thead><tr><th>#</th><th>Título</th><th>Módulo</th><th>Versão</th><th>Severidade</th></tr></thead>
         <tbody>
           ${urgentBugs.map(b => `<tr>
             <td style="color:#64748B">${b.id}</td>
             <td style="font-weight:500">${b.title}</td>
             <td>${b.module||"—"}</td>
+            <td>${b.version||"—"}</td>
             <td><span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span></td>
           </tr>`).join("")}
         </tbody>
@@ -822,6 +823,7 @@ async function exportBugReport(projectName, projectId, filters) {
   const byStatus   = { open:0, in_progress:0, fixed:0, closed:0 };
   const byEnv      = { production:0, homologation:0, staging:0, development:0 };
   const byModule: Record<string, any>   = {};
+  const byVersion: Record<string, any>  = {};
   bugs.forEach(b => {
     if (b.severity in bySeverity) bySeverity[b.severity]++;
     if (b.status   in byStatus)   byStatus[b.status]++;
@@ -832,6 +834,12 @@ async function exportBugReport(projectName, projectId, filters) {
     byModule[mod].total++;
     if (b.status === "open") byModule[mod].open++;
     if (b.status === "fixed") byModule[mod].fixed++;
+    if (b.version) {
+      if (!byVersion[b.version]) byVersion[b.version] = { total:0, open:0, fixed:0 };
+      byVersion[b.version].total++;
+      if (b.status === "open") byVersion[b.version].open++;
+      if (b.status === "fixed") byVersion[b.version].fixed++;
+    }
   });
 
   const sevPie = [
@@ -883,6 +891,10 @@ async function exportBugReport(projectName, projectId, filters) {
   const moduleRows = Object.entries(byModule)
     .sort((a,b) => b[1].total - a[1].total)
     .map(([name, m]) => [name, m.total, `<span class="red">${m.open}</span>`, `<span class="green">${m.fixed}</span>`]);
+
+  const versionRows = Object.entries(byVersion)
+    .sort((a,b) => b[0].localeCompare(a[0], undefined, {numeric:true}))
+    .map(([v, m]) => [`v${v}`, m.total, `<span class="red">${m.open}</span>`, `<span class="green">${m.fixed}</span>`]);
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -972,13 +984,16 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
 
   ${moduleRows.length ? `<h2>Bugs por Módulo</h2>${table(["Módulo","Total","Abertos","Corrigidos"], moduleRows)}` : ""}
 
+  ${versionRows.length ? `<h2>Bugs por Versão</h2>${table(["Versão","Total","Abertos","Corrigidos"], versionRows)}` : ""}
+
   <h2>Detalhamento dos Bugs</h2>
   ${bugs.length ? table(
-    ["#","Título","Módulo","TC","Severidade","Status","Ambiente","Descrição","Criado por","Criado em","Tracker"],
+    ["#","Título","Módulo","Versão","TC","Severidade","Status","Ambiente","Descrição","Criado por","Criado em","Tracker"],
     bugs.map(b => [
       b.id,
       b.title,
       b.module||"—",
+      b.version||"—",
       b.tc_id?`#${b.tc_id}`:"—",
       `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
       `<span class="badge badge-${b.status}">${SL[b.status]||b.status}</span>`,
@@ -1125,8 +1140,8 @@ async function exportReleaseNotes(projectName, projectId, filters) {
   <div class="section">
     <div class="section-title">✅ Correções Incluídas Nesta Versão</div>
     <div class="card" style="padding:0;overflow:hidden">
-      ${table(["#","Título","Módulo","Severidade"], fixedBugs.map(b => [
-        b.id, b.title, b.module||"—", `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`
+      ${table(["#","Título","Módulo","Versão","Severidade"], fixedBugs.map(b => [
+        b.id, b.title, b.module||"—", b.version||"—", `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`
       ]))}
     </div>
   </div>` : ""}
@@ -1135,8 +1150,8 @@ async function exportReleaseNotes(projectName, projectId, filters) {
   <div class="section">
     <div class="section-title">⚠️ Problemas Conhecidos</div>
     <div class="card" style="padding:0;overflow:hidden">
-      ${table(["#","Título","Módulo","Severidade","Status","Observação"], knownIssues.map(b => [
-        b.id, b.title, b.module||"—",
+      ${table(["#","Título","Módulo","Versão","Severidade","Status","Observação"], knownIssues.map(b => [
+        b.id, b.title, b.module||"—", b.version||"—",
         `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
         SL[b.status]||b.status,
         b.comment||b.description||"—"
