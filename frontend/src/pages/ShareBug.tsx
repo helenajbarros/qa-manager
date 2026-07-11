@@ -176,7 +176,7 @@ export default function ShareBug() {
                 )}
                 {bug.environment && (
                   <span className="share-pill" style={{background:"#F0FDF4",color:"#166534"}}>
-                    {bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : bug.environment === "staging" ? "Staging" : "Desenvolvimento"}
+                    {bug.environment_name || (bug.environment === "production" ? "Produção" : bug.environment === "homologation" ? "Homologação" : bug.environment === "staging" ? "Staging" : "Desenvolvimento")}
                   </span>
                 )}
                 {(bug as any).os && (
@@ -341,6 +341,7 @@ export default function ShareBug() {
                       </div>},
                     {label:"Data",        value: fmtDate(bug.created_at)},
                     {label:"Módulo",      value: bug.module_name||"—"},
+                    {label:"Versão",      value: (bug as any).version||"—"},
                     {label:"TC",          value: bug.test_case_id ? `TC #${bug.test_case_id}` : "—"},
                     {label:"Responsável", value: bug.assigned_to_name
                       ? <div style={{display:"flex",alignItems:"center",gap:6}}>
