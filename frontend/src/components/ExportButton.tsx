@@ -265,10 +265,9 @@ async function exportExcel(projectName, projectId, filters) {
     ["Corrigidos",data.bugs.filter(b=>b.status==="fixed").length],
     ["Fechados",data.bugs.filter(b=>b.status==="closed").length],[""],
     ["BUGS POR AMBIENTE",""],
-    ...["production","homologation","staging","development"].map(env => {
-      const envBugs = data.bugs.filter(b=>(b.environment||"development")===env);
-      const label = env==="production"?"Produção":env==="homologation"?"Homologação":env==="staging"?"Staging":"Desenvolvimento";
-      return [label, envBugs.length, `${envBugs.filter(b=>b.status==="open").length} abertos`];
+    ...[...new Set(data.bugs.map(b=>b.environment||"Não informado"))].map(env => {
+      const envBugs = data.bugs.filter(b=>(b.environment||"Não informado")===env);
+      return [env, envBugs.length, `${envBugs.filter(b=>b.status==="open").length} abertos`];
     }).filter(r=>r[1]>0),[""],
 
   ];
@@ -552,16 +551,17 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
 
 
   ${(()=>{
-    const envMap = {"production":"Produção","homologation":"Homologação","staging":"Staging","development":"Desenvolvimento"};
-    const envColors = {"production":"#EF4444","homologation":"#F59E0B","staging":"#8B5CF6","development":"#2563EB"};
-    const envData = ["production","homologation","staging","development"].map(env=>{
-      const envBugs = data.bugs.filter(b=>(b.environment||"development")===env);
-      return {env, label:envMap[env], total:envBugs.length, open:envBugs.filter(b=>b.status==="open").length};
-    }).filter(e=>e.total>0);
+    const envPalette = ["#2563EB","#8B5CF6","#0EA5E9","#D97706","#14B8A6","#6366F1"];
+    const isProdEnv = (env) => /prod/i.test(env||"");
+    const envNames = [...new Set(data.bugs.map(b=>b.environment||"Não informado"))];
+    const envData = envNames.map((env,i)=>{
+      const envBugs = data.bugs.filter(b=>(b.environment||"Não informado")===env);
+      return {env, color: isProdEnv(env) ? "#EF4444" : envPalette[i % envPalette.length], total:envBugs.length, open:envBugs.filter(b=>b.status==="open").length};
+    }).filter(e=>e.total>0).sort((a,b)=>b.total-a.total);
     if(!envData.length) return "";
     return `<h2>Bugs por Ambiente</h2><div class="cards">${envData.map(e=>`
-      <div class="card"><div class="val" style="color:${envColors[e.env]}">${e.total}</div>
-      <div class="lbl">${e.label}</div>
+      <div class="card"><div class="val" style="color:${e.color}">${e.total}</div>
+      <div class="lbl">${e.env}</div>
       <div style="font-size:11px;color:#EF4444;margin-top:4px">${e.open} aberto${e.open!==1?"s":""}</div></div>`).join("")}</div>`;
   })()}
   ${data.bugs.length > 0 ? `<h2>Bugs</h2>
@@ -826,13 +826,14 @@ async function exportBugReport(projectName, projectId, filters) {
 
   const bySeverity = { critical:0, high:0, medium:0, low:0 };
   const byStatus   = { open:0, in_progress:0, fixed:0, closed:0 };
-  const byEnv      = { production:0, homologation:0, staging:0, development:0 };
+  const byEnv: Record<string, number> = {};
   const byModule: Record<string, any>   = {};
   const byVersion: Record<string, any>  = {};
+  const isProdEnv = (env) => /prod/i.test(env||"");
   bugs.forEach(b => {
     if (b.severity in bySeverity) bySeverity[b.severity]++;
     if (b.status   in byStatus)   byStatus[b.status]++;
-    const env = b.environment || "development";
+    const env = b.environment || "Não informado";
     byEnv[env] = (byEnv[env]||0) + 1;
     const mod = b.module || "—";
     if (!byModule[mod]) byModule[mod] = { total:0, open:0, fixed:0 };
@@ -848,7 +849,7 @@ async function exportBugReport(projectName, projectId, filters) {
   });
 
   // Bugs em produção = maior prioridade: já estão afetando o usuário final
-  const prodOpenBugs = bugs.filter(b => (b.environment||"development")==="production" && (b.status==="open"||b.status==="in_progress"));
+  const prodOpenBugs = bugs.filter(b => isProdEnv(b.environment) && (b.status==="open"||b.status==="in_progress"));
   const prodCriticalOpen = prodOpenBugs.filter(b => b.severity==="critical").length;
 
   const sevPie = [
@@ -865,8 +866,8 @@ async function exportBugReport(projectName, projectId, filters) {
     { label:"Fechado",      value: byStatus.closed,      color:"#9CA3AF" },
   ].filter(d => d.value > 0);
 
-  const envLabels = { production:"Produção", homologation:"Homologação", staging:"Staging", development:"Desenvolvimento" };
-  const envColors = { production:"#EF4444", homologation:"#F59E0B", staging:"#8B5CF6", development:"#2563EB" };
+  const envPalette = ["#2563EB","#8B5CF6","#0EA5E9","#D97706","#14B8A6","#6366F1"];
+  const envColor = (env, idx) => isProdEnv(env) ? "#DC2626" : envPalette[idx % envPalette.length];
 
   function pieChart(items, title) {
     const total = items.reduce((a,b)=>a+b.value,0);
@@ -996,9 +997,9 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   </div>
 
   ${Object.values(byEnv).some(v=>v>0) ? `<h2>Bugs por Ambiente</h2><div class="cards">${
-    Object.entries(byEnv).filter(([,v])=>v>0).map(([env,total]) => `
-      <div class="card"><div class="val" style="color:${envColors[env]}">${total}</div>
-      <div class="lbl">${envLabels[env]}</div></div>`).join("")
+    Object.entries(byEnv).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([env,total],idx) => `
+      <div class="card"><div class="val" style="color:${envColor(env,idx)}">${total}</div>
+      <div class="lbl">${env}</div></div>`).join("")
   }</div>` : ""}
 
   ${moduleRows.length ? `<h2>Bugs por Módulo</h2>${table(["Módulo","Total","Abertos","Corrigidos"], moduleRows)}` : ""}
@@ -1016,7 +1017,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
       b.tc_id?`#${b.tc_id}`:"—",
       `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
       `<span class="badge badge-${b.status}">${SL[b.status]||b.status}</span>`,
-      envLabels[b.environment||"development"],
+      isProdEnv(b.environment) ? `<b style="color:#DC2626">${b.environment}</b>` : (b.environment||"Não informado"),
       `<span class="desc-cell">${b.description||b.comment||"—"}</span>`,
       b.created_by||"—",
       fd(b.created_at),
@@ -1060,9 +1061,10 @@ async function exportReleaseNotes(projectName, projectId, filters) {
       const order = { critical:0, high:1, medium:2, low:3 };
       return (order[a.severity]??9) - (order[b.severity]??9);
     });
-  const envLabels = { production:"Produção", homologation:"Homologação", staging:"Staging", development:"Desenvolvimento" };
   // Bugs em produção = maior prioridade: já estão afetando o usuário final
-  const prodOpenIssues = knownIssues.filter(b => (b.environment||"development")==="production");
+  // (detecta por nome pois o ambiente é customizável por projeto — pode não ser "production" literal)
+  const isProdEnv = (env) => /prod/i.test(env||"");
+  const prodOpenIssues = knownIssues.filter(b => isProdEnv(b.environment));
 
   const executed = s.total_executions || 0;
   const totalCases = s.total_cases || 0;
@@ -1185,7 +1187,7 @@ async function exportReleaseNotes(projectName, projectId, filters) {
     <div class="card" style="padding:0;overflow:hidden">
       ${table(["#","Título","Módulo","Versão","Ambiente","Severidade","Status","Observação"], knownIssues.map(b => [
         b.id, b.title, b.module||"—", b.version||"—",
-        (b.environment||"development")==="production" ? `<b style="color:#DC2626">${envLabels.production}</b>` : (envLabels[b.environment||"development"]),
+        isProdEnv(b.environment) ? `<b style="color:#DC2626">${b.environment}</b>` : (b.environment||"Não informado"),
         `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
         SL[b.status]||b.status,
         b.comment||b.description||"—"
