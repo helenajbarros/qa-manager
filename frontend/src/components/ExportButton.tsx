@@ -291,7 +291,7 @@ async function exportExcel(projectName, projectId, filters) {
   XLSX.utils.book_append_sheet(wb,bgWs,"Bugs");
 
   const mdH=["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Total bugs","Bugs abertos","% Sucesso"];
-  const mdR=data.modules.map(m=>{ const d2=Math.max(0,(m.total_executions||0)-(m.not_executed||0)); const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—"; return [m.module||m.name,m.total_cases||0,d2,m.passed||0,m.failed||0,m.blocked||0,m.total_bugs||0,m.open_bugs||0,pct]; });
+  const mdR=data.modules.map(m=>{ const d2=m.total_executions||0; const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—"; return [m.module||m.name,m.total_cases||0,d2,m.passed||0,m.failed||0,m.blocked||0,m.total_bugs||0,m.open_bugs||0,pct]; });
   const mdWs=XLSX.utils.aoa_to_sheet([mdH,...mdR]);
   applyStyles(mdWs,mdH,mdR,"D97706");
   mdWs["!cols"]=[{wch:20},{wch:8},{wch:12},{wch:8},{wch:8},{wch:10},{wch:10},{wch:12},{wch:10}];
@@ -572,7 +572,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
     finalMods.filter(m=>(m.total_bugs||0)>0).map(m=>[m.name,m.total_cases||0,m.total_bugs||0,"<span class=\"red\">"+(m.open_bugs||0)+"</span>","<span class=\"green\">"+(m.fixed_bugs||0)+"</span>"]))}` : "") :
   ((data.modules||[]).length > 0 ? `<h2>Métricas por Módulo</h2>
   ${table(["Módulo","Casos","Execuções","Passou","Falhou","Bloqueado","Bugs","% Sucesso"],
-    (data.modules||[]).map(m=>{const d2=(m.total_executions||0)-(m.not_executed||0);const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=Math.max(0,(m.total_executions||0)-(m.not_executed||0)); const mname=m.module||m.name||'—'; return[mname,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
+    (data.modules||[]).map(m=>{const d2=m.total_executions||0;const pct=d2>0?((m.passed/d2)*100).toFixed(1)+"%":"—";const exec2=m.total_executions||0; const mname=m.module||m.name||'—'; return[mname,m.total_cases||0,exec2,"<span class=\"green\">"+( m.passed||0)+"</span>","<span class=\"red\">"+( m.failed||0)+"</span>",m.blocked||0,m.total_bugs||0,pct];}))}` : "")}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
   <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
@@ -756,7 +756,7 @@ async function exportExecutive(projectName, projectId, filters) {
         <thead><tr><th>Módulo</th><th>Casos</th><th>Passou</th><th>Falhou</th><th>% Sucesso</th></tr></thead>
         <tbody>
           ${modsFailed.map(m => {
-            const exec2 = Math.max(0,(m.total_executions||0)-(m.not_executed||0));
+            const exec2 = m.total_executions||0;
             const pct2 = exec2>0?((m.passed/exec2)*100).toFixed(1)+"%":"—";
             return `<tr>
               <td style="font-weight:500">${m.module||m.name}</td>
@@ -777,7 +777,7 @@ async function exportExecutive(projectName, projectId, filters) {
     <div class="card">
       ${(rawData.modules||data.modules||[]).filter(m=>(m.total_cases||0)>0).map(m => {
         const modExec = (data.modules||[]).find(dm=>(dm.module||dm.name)===(m.module||m.name));
-        const exec2 = Math.max(0,(modExec?.total_executions||0)-(modExec?.not_executed||0));
+        const exec2 = modExec?.total_executions||0;
         const cov2 = (m.total_cases||0)>0?Math.round((exec2/(m.total_cases||1))*100):0;
         const col = cov2>=80?"#10B981":cov2>=50?"#F59E0B":"#EF4444";
         return `<div style="margin-bottom:10px">
@@ -1169,7 +1169,7 @@ async function exportReleaseNotes(projectName, projectId, filters) {
     <div class="section-title">Escopo Testado</div>
     <div class="card" style="padding:0;overflow:hidden">
       ${modulesTested.length ? table(["Módulo","Casos","Execuções","% Sucesso"], modulesTested.map(m => {
-        const exec2 = Math.max(0,(m.total_executions||0)-(m.not_executed||0));
+        const exec2 = m.total_executions||0;
         const pct = exec2>0?((m.passed/exec2)*100).toFixed(1)+"%":"—";
         return [m.module||m.name, m.total_cases||0, exec2, pct];
       })) : `<div style="padding:16px;color:#64748B">Sem módulos testados neste período.</div>`}
