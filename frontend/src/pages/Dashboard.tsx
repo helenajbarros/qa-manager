@@ -836,12 +836,17 @@ export default function Dashboard() {
         const allCycles = ((cyclesRaw as any)?.data ?? cyclesRaw ?? []) as CycleWithStats[];
         const withVersion = allCycles.filter(c => c.version);
         if (!withVersion.length) return null;
-        // Agrupar por versão
+        // Agrupar por versão — inclui ciclos com versão
         const byVersion: Record<string, CycleWithStats[]> = {};
         withVersion.forEach(c => {
           const v = c.version!;
           if (!byVersion[v]) byVersion[v] = [];
           byVersion[v].push(c);
+        });
+        // Também incluir versões de bugs exploratórios (sem ciclo)
+        const allBugsRaw = (data as any)?.all_bugs_versions || [];
+        allBugsRaw.forEach((b: any) => {
+          if (b.version && !byVersion[b.version]) byVersion[b.version] = [];
         });
         const versions = Object.keys(byVersion).sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
         return (
@@ -858,8 +863,14 @@ export default function Dashboard() {
                 const executed  = totalExec - notExec;
                 const successRate = executed > 0 ? +((passed/executed)*100).toFixed(1) : 0;
                 const failRate    = executed > 0 ? +((failed/executed)*100).toFixed(1) : 0;
-                const bugs = vCycles.reduce((a,c) => a+((c.bugs as any)?.total||0), 0);
-                const openBugs = vCycles.reduce((a,c) => a+((c.bugs as any)?.open||0), 0);
+                const bugsByCycle = vCycles.reduce((a,c) => a+((c.bugs as any)?.total||0), 0);
+                const openBugsByCycle = vCycles.reduce((a,c) => a+((c.bugs as any)?.open||0), 0);
+                // Bugs com version própria (exploratórios)
+                const bugsWithVersion = allBugsRaw.filter((b:any) => b.version === v);
+                const bugs = Math.max(bugsByCycle, bugsWithVersion.length > 0 ? bugsWithVersion.length : bugsByCycle);
+                const openBugs = bugsWithVersion.length > 0
+                  ? bugsWithVersion.filter((b:any) => b.status === "open").length
+                  : openBugsByCycle;
                 return (
                   <div key={v} className="card" style={{padding:"14px 18px"}}>
                     <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>

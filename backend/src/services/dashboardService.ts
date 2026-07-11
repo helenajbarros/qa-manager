@@ -17,7 +17,9 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     const vRows = await query<{id:number}>(`SELECT id FROM test_cycles WHERE project_id=$1 AND version=$2`, [pid, versionFilter]);
     versionCycleIds = vRows.map((r:any) => r.id);
   }
-  const vWhere = versionCycleIds.length > 0 ? `AND e.cycle_id IN (${versionCycleIds.join(",")})` : "";
+  const vWhere = versionCycleIds.length > 0 ? `AND e.cycle_id IN (${versionCycleIds.join(",")})` : "AND 1=0";
+  // Bugs por versão inclui bugs com version própria OU bugs de ciclos dessa versão
+  const pWhereBV = versionFilter && pid ? `AND (b.version='${versionFilter}' OR b.id IN (SELECT DISTINCT bug_id FROM test_executions WHERE bug_id IS NOT NULL AND cycle_id IN (${versionCycleIds.join(",") || 0}))) AND b.project_id=${pid}` : pWhereB;
 
   const pWhere  = pid ? `AND c.project_id = ${pid}` : "";
   const pWhereM = pid ? `AND m.project_id = ${pid}` : "";
@@ -182,5 +184,6 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     bugs_per_module: bpmRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_bugs:num(m.total_bugs), open_bugs:num(m.open_bugs), fixed_bugs:num(m.fixed_bugs)})),
     cycles: cycleRows.map((c: any) => ({...c, total_executions:num(c.total_executions), passed:num(c.passed), failed:num(c.failed), blocked:num(c.blocked), not_executed:num(c.not_executed), bugs: bugsByCycle[c.id] || {total:0,open:0,in_progress:0,fixed:0,closed:0}})),
     bugs_by_environment,
+    all_bugs_versions: pid ? await query(`SELECT id, version, status FROM bugs WHERE project_id=$1 AND version IS NOT NULL AND version != ''`, [pid]) : [],
   };
 }
