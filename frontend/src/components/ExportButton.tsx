@@ -164,6 +164,10 @@ function applyExportFilters(data, dash, filters) {
     ...dash,
     summary: {
       ...(dash.summary||{}),
+      // total_cases do backend não é filtrado por módulo (só por projeto) — recalcula
+      // aqui a partir dos casos já filtrados para não inflar a base de cobertura/taxas
+      // quando um módulo específico está selecionado.
+      total_cases:  (filteredTC||[]).length,
       passed, failed, blocked, not_executed: notExec,
       total_executions: executed,
       success_rate: executed>0?+((passed/executed)*100).toFixed(1):0,
@@ -517,7 +521,8 @@ async function exportHTML(projectName, projectId, filters) {
     svg path,svg circle{display:block!important;visibility:visible!important;fill-opacity:1!important;}
     h2{break-before:auto;break-after:avoid;page-break-after:avoid;}
     h2 + table, h2 + div{break-before:avoid;page-break-before:avoid;}
-    table{break-inside:avoid;}
+    thead{display:table-header-group;}
+    tr{break-inside:avoid;page-break-inside:avoid;}
   }
 </style>
 </head>
@@ -681,7 +686,7 @@ async function exportExecutive(projectName, projectId, filters) {
   .badge-high{background:#FEE2E2;color:#991B1B}
   .footer{text-align:center;padding:24px;color:#94A3B8;font-size:12px}
   .no-print{}
-  @media print{.no-print{display:none!important}body{background:white}.card{box-shadow:none;border:1px solid #E2E8F0}}
+  @media print{.no-print{display:none!important}body{background:white}.card{box-shadow:none;border:1px solid #E2E8F0}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -949,7 +954,8 @@ async function exportBugReport(projectName, projectId, filters) {
     svg{display:block!important;visibility:visible!important;overflow:visible!important;}
     svg path,svg circle{display:block!important;visibility:visible!important;fill-opacity:1!important;}
     h2{break-before:auto;break-after:avoid;page-break-after:avoid;}
-    table{break-inside:avoid;}
+    thead{display:table-header-group;}
+    tr{break-inside:avoid;page-break-inside:avoid;}
   }
 </style>
 </head>
@@ -1106,7 +1112,7 @@ async function exportReleaseNotes(projectName, projectId, filters) {
   .badge-low{background:#F3F4F6;color:#374151}
   .footer{text-align:center;padding:24px;color:#94A3B8;font-size:12px}
   .no-print{}
-  @media print{.no-print{display:none!important}body{background:white}.card{box-shadow:none;border:1px solid #E2E8F0}table{break-inside:avoid}}
+  @media print{.no-print{display:none!important}body{background:white}.card{box-shadow:none;border:1px solid #E2E8F0}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}}
 </style>
 </head>
 <body>
