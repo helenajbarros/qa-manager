@@ -847,6 +847,10 @@ async function exportBugReport(projectName, projectId, filters) {
     }
   });
 
+  // Bugs em produção = maior prioridade: já estão afetando o usuário final
+  const prodOpenBugs = bugs.filter(b => (b.environment||"development")==="production" && (b.status==="open"||b.status==="in_progress"));
+  const prodCriticalOpen = prodOpenBugs.filter(b => b.severity==="critical").length;
+
   const sevPie = [
     { label:"Crítica", value: bySeverity.critical, color:"#DC2626" },
     { label:"Alta",    value: bySeverity.high,     color:"#EF4444" },
@@ -976,6 +980,15 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
     <div class="card"><div class="val" style="color:#DC2626">${bySeverity.critical}</div><div class="lbl">Críticos</div></div>
   </div>
 
+  ${prodOpenBugs.length > 0 ? `
+  <div style="background:#FEF2F2;border:2px solid #DC2626;border-radius:10px;padding:16px 20px;margin-bottom:32px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="font-size:32px">🔴</div>
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#7F1D1D">${prodOpenBugs.length} bug${prodOpenBugs.length>1?"s":""} em aberto em PRODUÇÃO${prodCriticalOpen>0?` (${prodCriticalOpen} crítico${prodCriticalOpen>1?"s":""})`:""}</div>
+      <div style="font-size:13px;color:#991B1B">Bugs em produção já estão afetando o usuário final — priorize a correção destes antes dos demais ambientes.</div>
+    </div>
+  </div>` : ""}
+
   <h2>Gráficos</h2>
   <div class="charts">
     ${pieChart(sevPie,"Bugs por Severidade")}
@@ -1047,6 +1060,9 @@ async function exportReleaseNotes(projectName, projectId, filters) {
       const order = { critical:0, high:1, medium:2, low:3 };
       return (order[a.severity]??9) - (order[b.severity]??9);
     });
+  const envLabels = { production:"Produção", homologation:"Homologação", staging:"Staging", development:"Desenvolvimento" };
+  // Bugs em produção = maior prioridade: já estão afetando o usuário final
+  const prodOpenIssues = knownIssues.filter(b => (b.environment||"development")==="production");
 
   const executed = s.total_executions || 0;
   const totalCases = s.total_cases || 0;
@@ -1130,6 +1146,17 @@ async function exportReleaseNotes(projectName, projectId, filters) {
     </div>
   </div>
 
+  ${prodOpenIssues.length > 0 ? `
+  <div class="section">
+    <div style="background:#FEF2F2;border:2px solid #DC2626;border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="font-size:32px">🔴</div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#7F1D1D">${prodOpenIssues.length} problema${prodOpenIssues.length>1?"s":""} conhecido${prodOpenIssues.length>1?"s":""} em PRODUÇÃO</div>
+        <div style="font-size:13px;color:#991B1B">Estes já estão em ambiente de produção e afetam o usuário final agora — comunique este risco antes do lançamento desta versão.</div>
+      </div>
+    </div>
+  </div>` : ""}
+
   <div class="section">
     <div class="section-title">Resumo da Validação</div>
     <div class="metrics-grid">
@@ -1156,8 +1183,9 @@ async function exportReleaseNotes(projectName, projectId, filters) {
   <div class="section">
     <div class="section-title">⚠️ Problemas Conhecidos</div>
     <div class="card" style="padding:0;overflow:hidden">
-      ${table(["#","Título","Módulo","Versão","Severidade","Status","Observação"], knownIssues.map(b => [
+      ${table(["#","Título","Módulo","Versão","Ambiente","Severidade","Status","Observação"], knownIssues.map(b => [
         b.id, b.title, b.module||"—", b.version||"—",
+        (b.environment||"development")==="production" ? `<b style="color:#DC2626">${envLabels.production}</b>` : (envLabels[b.environment||"development"]),
         `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
         SL[b.status]||b.status,
         b.comment||b.description||"—"
