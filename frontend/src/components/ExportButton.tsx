@@ -232,6 +232,18 @@ function envLabel(raw?: string | null) {
   return ENV_TRANSLATIONS[key] || raw.trim();
 }
 
+// ── Datas / tempo ───────────────────────────────────────────────
+function daysBetween(from?: string | null, to?: string | null) {
+  if (!from || !to) return null;
+  const d1 = new Date(from.length === 10 ? from + "T12:00:00" : from);
+  const d2 = new Date(to.length === 10 ? to + "T12:00:00" : to);
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+  return Math.max(0, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+}
+function resolutionDays(bug: any) {
+  return daysBetween(bug.created_at, bug.resolved_at);
+}
+
 function applyStyles(ws,headers,rows,bg) {
   const XLSX=window.XLSX;
   ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:headers.length-1}});
@@ -1025,8 +1037,10 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
 
   <h2>Detalhamento dos Bugs</h2>
   ${bugs.length ? table(
-    ["#","Título","Módulo","Versão","TC","Severidade","Status","Ambiente","Descrição","Criado por","Criado em","Tracker"],
-    bugs.map(b => [
+    ["#","Título","Módulo","Versão","TC","Severidade","Status","Ambiente","Descrição","Criado por","Criado em","Resolvido em","Tempo de Resolução","Tracker"],
+    bugs.map(b => {
+      const days = resolutionDays(b);
+      return [
       b.id,
       b.title,
       b.module||"—",
@@ -1038,8 +1052,10 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
       `<span class="desc-cell">${b.description||b.comment||"—"}</span>`,
       b.created_by||"—",
       fd(b.created_at),
+      b.resolved_at ? fd(b.resolved_at) : "—",
+      days!=null ? `${days} dia${days!==1?"s":""}` : "—",
       b.tracker_url?`<a href="${b.tracker_url}" target="_blank">Ver</a>`:"—",
-    ])
+    ];})
   ) : `<p style="color:#999">Nenhum bug encontrado para os filtros aplicados.</p>`}
 </div>
 <div class="no-print" style="text-align:center;padding:24px">
@@ -1240,6 +1256,688 @@ async function exportReleaseNotes(projectName, projectId, filters) {
   URL.revokeObjectURL(url);
 }
 
+// ── Relatório de Cobertura ───────────────────────────────────
+async function exportCoverageReport(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const modName = filters?.module_id ? (rawDash.modules||[]).find(m=>String(m.id)===String(filters.module_id))?.name : null;
+  const now = new Date().toLocaleString("pt-BR");
+  const fLabel = filterLabel(filters);
+
+  // Cobertura é uma métrica de "já foi testado alguma vez" — por isso ignora
+  // filtro de ciclo/período/status aqui (esses filtram execução pontual, não histórico).
+  // Só o filtro de módulo faz sentido restringir o escopo do relatório.
+  const allCases = modName ? (rawData.testCases||[]).filter(tc=>tc.module===modName) : (rawData.testCases||[]);
+  const allExecs = modName ? (rawData.executions||[]).filter(e=>e.module===modName) : (rawData.executions||[]);
+
+  const testedTcIds = new Set(allExecs.filter(e=>e.status!=="not_executed").map(e=>e.tc_id));
+  const totalCases = allCases.length;
+  const testedCount = allCases.filter(tc=>testedTcIds.has(tc.id)).length;
+  const untested = allCases.filter(tc=>!testedTcIds.has(tc.id))
+    .sort((a,b)=> new Date(a.created_at||0) - new Date(b.created_at||0));
+  const coveragePct = totalCases>0 ? +((testedCount/totalCases)*100).toFixed(1) : 0;
+
+  const moduleStats: Record<string, any> = {};
+  allCases.forEach(tc => {
+    const mod = tc.module || "—";
+    if (!moduleStats[mod]) moduleStats[mod] = { total:0, tested:0 };
+    moduleStats[mod].total++;
+    if (testedTcIds.has(tc.id)) moduleStats[mod].tested++;
+  });
+  const moduleRows = Object.entries(moduleStats)
+    .map(([mod,s]:[string,any]) => ({ mod, total:s.total, tested:s.tested, pct: s.total>0?Math.round((s.tested/s.total)*100):0 }))
+    .sort((a,b) => a.pct - b.pct);
+
+  function pctColor(pct) { return pct>=80?"#10B981":pct>=50?"#F59E0B":"#EF4444"; }
+
+  function table(headers, rows) {
+    const ths = headers.map(h=>`<th>${h}</th>`).join("");
+    const trs = rows.map((r,i)=>`<tr class="${i%2?"even":""}">${r.map(c=>`<td>${c??""}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório de Cobertura — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .header{background:linear-gradient(135deg,#0F766E,#0D9488);color:white;padding:32px 40px;}
+  .header h1{font-size:26px;margin-bottom:6px;}
+  .header p{opacity:.85;font-size:14px;}
+  .filter-badge{background:#F0FDFA;border:1px solid #99F6E4;border-radius:8px;padding:8px 16px;margin:16px 40px 0;font-size:13px;color:#0F766E;}
+  .container{max-width:1200px;margin:0 auto;padding:32px 24px;}
+  h2{font-size:20px;color:#0F766E;margin:32px 0 16px;border-bottom:3px solid #0D9488;padding-bottom:8px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:32px;}
+  .card{background:white;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .card .val{font-size:30px;font-weight:700;margin:8px 0;}
+  .card .lbl{font-size:12px;color:#64748B;}
+  .bar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .bar-label{width:180px;font-size:13px;text-align:right;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bar-track{flex:1;height:16px;background:#F1F5F9;border-radius:4px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;}
+  .bar-pct{width:70px;font-size:13px;font-weight:600;}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;margin-bottom:24px;}
+  thead tr{background:#0F766E;color:white;}
+  th,td{padding:10px 14px;text-align:left;}
+  tr.even td{background:#F8FAFC;}
+  .footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px;}
+  .no-print{}
+  @media print{
+    .no-print{display:none!important}
+    body{background:white}
+    .card{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid;}
+    thead{display:table-header-group;}
+    tr{break-inside:avoid;page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📈 Relatório de Cobertura — ${projectName||"Projeto"}</h1>
+  <p>Gerado em ${now}</p>
+</div>
+${fLabel?`<div class="filter-badge">🔍 ${fLabel} — cobertura considera todo o histórico, filtro de período não se aplica aqui</div>`:""}
+<div class="container">
+  <h2>Resumo</h2>
+  <div class="cards">
+    <div class="card"><div class="val" style="color:#2563EB">${totalCases}</div><div class="lbl">Casos cadastrados</div></div>
+    <div class="card"><div class="val" style="color:#10B981">${testedCount}</div><div class="lbl">Já testados</div></div>
+    <div class="card"><div class="val" style="color:${pctColor(coveragePct)}">${coveragePct}%</div><div class="lbl">Cobertura geral</div></div>
+    <div class="card"><div class="val" style="color:${untested.length>0?"#EF4444":"#10B981"}">${untested.length}</div><div class="lbl">Nunca testados</div></div>
+  </div>
+
+  <h2>Cobertura por Módulo</h2>
+  ${moduleRows.map(m => `
+    <div class="bar-row">
+      <div class="bar-label">${m.mod}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${m.pct}%;background:${pctColor(m.pct)}"></div></div>
+      <div class="bar-pct" style="color:${pctColor(m.pct)}">${m.pct}% (${m.tested}/${m.total})</div>
+    </div>`).join("") || `<p style="color:#999">Sem módulos com casos cadastrados.</p>`}
+
+  <h2>Casos Nunca Testados${untested.length ? ` (${untested.length})` : ""}</h2>
+  ${untested.length ? table(
+    ["#","Título","Módulo","Prioridade","Responsável","Criado em"],
+    untested.map(tc => [tc.id, tc.title, tc.module||"—", PL[tc.priority]||tc.priority||"—", tc.assigned_to||"—", fd(tc.created_at)])
+  ) : `<p style="color:#10B981">✅ Todos os casos cadastrados já foram testados ao menos uma vez.</p>`}
+</div>
+<div class="no-print" style="text-align:center;padding:24px">
+  <button onclick="window.print()" style="background:#0F766E;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
+    🖨️ Imprimir / Salvar como PDF
+  </button>
+</div>
+<div class="footer">QA Manager — Relatório de Cobertura gerado em ${now} | ${projectName||"Projeto"}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Relatorio_Cobertura_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Relatório de Regressão ───────────────────────────────────
+async function exportRegressionReport(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const modName = filters?.module_id ? (rawDash.modules||[]).find(m=>String(m.id)===String(filters.module_id))?.name : null;
+  const now = new Date().toLocaleString("pt-BR");
+
+  const bugs   = modName ? (rawData.bugs||[]).filter(b=>b.module===modName)   : (rawData.bugs||[]);
+  const cycles = rawData.cycles||[]; // ciclos não têm módulo próprio — não filtra por modName
+  const execs  = modName ? (rawData.executions||[]).filter(e=>e.module===modName) : (rawData.executions||[]);
+
+  // Reúne todas as versões conhecidas (bugs + ciclos) e ordena numericamente, mais recente primeiro
+  const versions = [...new Set([
+    ...bugs.map(b=>b.version).filter(Boolean),
+    ...cycles.map(c=>c.version).filter(Boolean),
+  ])].sort((a,b)=>String(b).localeCompare(String(a), undefined, {numeric:true}));
+
+  const hasEnoughData = versions.length >= 2;
+  const verNew = versions[0];
+  const verOld = versions[1];
+
+  function statsFor(version) {
+    const vBugs = bugs.filter(b=>b.version===version);
+    const vCycleNames = new Set(cycles.filter(c=>c.version===version).map(c=>c.name));
+    const vExecs = execs.filter(e=>vCycleNames.has(e.cycle));
+    const passed = vExecs.filter(e=>e.status==="passed").length;
+    const failed = vExecs.filter(e=>e.status==="failed").length;
+    const blocked = vExecs.filter(e=>e.status==="blocked").length;
+    const executed = passed+failed+blocked;
+    const successRate = executed>0 ? +((passed/executed)*100).toFixed(1) : null;
+    return {
+      version, bugs:vBugs, executed, successRate,
+      critical: vBugs.filter(b=>b.severity==="critical").length,
+      high: vBugs.filter(b=>b.severity==="high").length,
+      open: vBugs.filter(b=>b.status==="open"||b.status==="in_progress").length,
+      fixed: vBugs.filter(b=>b.status==="fixed"||b.status==="closed").length,
+    };
+  }
+
+  const sNew = hasEnoughData ? statsFor(verNew) : null;
+  const sOld = hasEnoughData ? statsFor(verOld) : null;
+
+  // Heurística de regressão: bug corrigido/fechado na versão anterior, cujo título+módulo
+  // reaparece aberto/em andamento na versão mais nova — ou seja, "voltou".
+  const regressions = hasEnoughData ? sNew.bugs.filter(b =>
+    (b.status==="open"||b.status==="in_progress") &&
+    sOld.bugs.some(ob => (ob.status==="fixed"||ob.status==="closed") && ob.title===b.title && ob.module===b.module)
+  ) : [];
+
+  function delta(newVal, oldVal, unit="") {
+    if (newVal==null || oldVal==null) return { text:"—", color:"#64748B" };
+    const diff = +(newVal-oldVal).toFixed(1);
+    if (diff === 0) return { text:`= 0${unit}`, color:"#64748B" };
+    const positive = diff > 0;
+    return { text:`${positive?"▲":"▼"} ${Math.abs(diff)}${unit}`, color: positive?"#10B981":"#EF4444" };
+  }
+  function deltaInverse(newVal, oldVal, unit="") {
+    // para métricas onde "subir" é ruim (bugs, críticos etc.)
+    if (newVal==null || oldVal==null) return { text:"—", color:"#64748B" };
+    const diff = +(newVal-oldVal).toFixed(1);
+    if (diff === 0) return { text:`= 0${unit}`, color:"#64748B" };
+    const worse = diff > 0;
+    return { text:`${diff>0?"▲":"▼"} ${Math.abs(diff)}${unit}`, color: worse?"#EF4444":"#10B981" };
+  }
+
+  function table(headers, rows) {
+    const ths = headers.map(h=>`<th>${h}</th>`).join("");
+    const trs = rows.map((r,i)=>`<tr class="${i%2?"even":""}">${r.map(c=>`<td>${c??""}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  const compareRows = hasEnoughData ? [
+    ["Taxa de sucesso", sOld.successRate!=null?sOld.successRate+"%":"—", sNew.successRate!=null?sNew.successRate+"%":"—", (()=>{const d=delta(sNew.successRate,sOld.successRate,"%");return `<span style="color:${d.color}">${d.text}</span>`;})()],
+    ["Bugs totais", sOld.bugs.length, sNew.bugs.length, (()=>{const d=deltaInverse(sNew.bugs.length,sOld.bugs.length);return `<span style="color:${d.color}">${d.text}</span>`;})()],
+    ["Bugs críticos", sOld.critical, sNew.critical, (()=>{const d=deltaInverse(sNew.critical,sOld.critical);return `<span style="color:${d.color}">${d.text}</span>`;})()],
+    ["Bugs altos", sOld.high, sNew.high, (()=>{const d=deltaInverse(sNew.high,sOld.high);return `<span style="color:${d.color}">${d.text}</span>`;})()],
+    ["Bugs em aberto", sOld.open, sNew.open, (()=>{const d=deltaInverse(sNew.open,sOld.open);return `<span style="color:${d.color}">${d.text}</span>`;})()],
+    ["Bugs corrigidos", sOld.fixed, sNew.fixed, (()=>{const d=delta(sNew.fixed,sOld.fixed);return `<span style="color:${d.color}">${d.text}</span>`;})()],
+  ] : [];
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório de Regressão — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .header{background:linear-gradient(135deg,#5B21B6,#7C3AED);color:white;padding:32px 40px;}
+  .header h1{font-size:26px;margin-bottom:6px;}
+  .header p{opacity:.85;font-size:14px;}
+  .container{max-width:1100px;margin:0 auto;padding:32px 24px;}
+  h2{font-size:20px;color:#5B21B6;margin:32px 0 16px;border-bottom:3px solid #7C3AED;padding-bottom:8px;}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;margin-bottom:24px;}
+  thead tr{background:#5B21B6;color:white;}
+  th,td{padding:10px 14px;text-align:left;}
+  tr.even td{background:#F8FAFC;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+  .badge-critical{background:#FEE2E2;color:#7F1D1D;}
+  .badge-high{background:#FEE2E2;color:#991B1B;}
+  .badge-medium{background:#FEF3C7;color:#92400E;}
+  .badge-low{background:#F3F4F6;color:#374151;}
+  .warn-box{background:#FEF2F2;border:2px solid #DC2626;border-radius:10px;padding:16px 20px;margin-bottom:24px;}
+  .footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px;}
+  .no-print{}
+  @media print{
+    .no-print{display:none!important}
+    body{background:white}
+    thead{display:table-header-group;}
+    tr{break-inside:avoid;page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🔄 Relatório de Regressão — ${projectName||"Projeto"}</h1>
+  <p>Gerado em ${now}${hasEnoughData?` — comparando v${verOld} → v${verNew}`:""}</p>
+</div>
+<div class="container">
+${!hasEnoughData ? `
+  <p style="color:#64748B;padding:24px;background:white;border-radius:12px">
+    Ainda não há versões suficientes registradas em bugs ou ciclos para comparar (é preciso pelo menos 2 versões diferentes preenchidas no campo "Versão").
+  </p>` : `
+  <h2>Comparação: v${verOld} → v${verNew}</h2>
+  ${table(["Métrica", `v${verOld} (anterior)`, `v${verNew} (atual)`, "Variação"], compareRows)}
+
+  ${regressions.length > 0 ? `
+  <div class="warn-box">
+    <div style="font-size:15px;font-weight:700;color:#7F1D1D">⚠️ ${regressions.length} possível${regressions.length>1?"is":""} regressão${regressions.length>1?"ões":""} detectada${regressions.length>1?"s":""}</div>
+    <div style="font-size:13px;color:#991B1B">Bug${regressions.length>1?"s":""} que estava${regressions.length>1?"m":""} corrigido${regressions.length>1?"s":""} na v${verOld} e voltou${regressions.length>1?"aram":""} a aparecer aberto${regressions.length>1?"s":""} na v${verNew} (mesmo título e módulo).</div>
+  </div>
+  <h2>Bugs Regressivos</h2>
+  ${table(["#","Título","Módulo","Severidade","Status Atual"], regressions.map(b => [
+    b.id, b.title, b.module||"—", `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`, SL[b.status]||b.status
+  ]))}` : `<p style="color:#10B981;padding:0 0 24px">✅ Nenhuma regressão detectada entre as duas versões (nenhum bug corrigido na versão anterior reapareceu na atual).</p>`}
+
+  <h2>Bugs Novos na v${verNew}</h2>
+  ${sNew.bugs.length ? table(["#","Título","Módulo","Severidade","Status"], sNew.bugs
+    .sort((a,b)=>{const o={critical:0,high:1,medium:2,low:3};return (o[a.severity]??9)-(o[b.severity]??9);})
+    .map(b => [b.id, b.title, b.module||"—", `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`, SL[b.status]||b.status])
+  ) : `<p style="color:#999">Nenhum bug registrado com a versão v${verNew}.</p>`}
+`}
+</div>
+<div class="no-print" style="text-align:center;padding:24px">
+  <button onclick="window.print()" style="background:#5B21B6;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
+    🖨️ Imprimir / Salvar como PDF
+  </button>
+</div>
+<div class="footer">QA Manager — Relatório de Regressão gerado em ${now} | ${projectName||"Projeto"}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Relatorio_Regressao_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Daily/Weekly Status ───────────────────────────────────────
+async function exportStatusReport(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const modName = filters?.module_id ? (rawDash.modules||[]).find(m=>String(m.id)===String(filters.module_id))?.name : null;
+  const now = new Date();
+  const nowLabel = now.toLocaleString("pt-BR");
+  const todayStr = now.toISOString().slice(0,10);
+  const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate()-7);
+
+  const bugs  = modName ? (rawData.bugs||[]).filter(b=>b.module===modName)  : (rawData.bugs||[]);
+  const execs = modName ? (rawData.executions||[]).filter(e=>e.module===modName) : (rawData.executions||[]);
+
+  const isToday   = (d) => !!d && d.slice(0,10) === todayStr;
+  const isThisWeek = (d) => { if (!d) return false; const dt = new Date(d); return dt >= weekAgo; };
+
+  const execsToday = execs.filter(e=>isToday(e.executed_at));
+  const execsWeek  = execs.filter(e=>isThisWeek(e.executed_at));
+  const bugsOpenedToday   = bugs.filter(b=>isToday(b.created_at));
+  const bugsOpenedWeek    = bugs.filter(b=>isThisWeek(b.created_at));
+  const bugsResolvedToday = bugs.filter(b=>isToday(b.resolved_at));
+  const bugsResolvedWeek  = bugs.filter(b=>isThisWeek(b.resolved_at));
+
+  function periodCard(execsP, bugsOpenedP, bugsResolvedP) {
+    const passed = execsP.filter(e=>e.status==="passed").length;
+    const failed = execsP.filter(e=>e.status==="failed").length;
+    const blocked = execsP.filter(e=>e.status==="blocked").length;
+    return `
+    <div class="cards">
+      <div class="card"><div class="val">${execsP.length}</div><div class="lbl">Execuções</div></div>
+      <div class="card"><div class="val green">${passed}</div><div class="lbl">Passou</div></div>
+      <div class="card"><div class="val red">${failed}</div><div class="lbl">Falhou</div></div>
+      <div class="card"><div class="val purple">${blocked}</div><div class="lbl">Bloqueado</div></div>
+      <div class="card"><div class="val" style="color:#EF4444">${bugsOpenedP.length}</div><div class="lbl">Bugs abertos</div></div>
+      <div class="card"><div class="val green">${bugsResolvedP.length}</div><div class="lbl">Bugs resolvidos</div></div>
+    </div>`;
+  }
+
+  function bugList(list, emptyMsg) {
+    if (!list.length) return `<p style="color:#999;font-size:13px">${emptyMsg}</p>`;
+    return `<ul class="bug-list">${list.slice(0,15).map(b=>`<li><b>#${b.id}</b> ${b.title} <span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span> <span style="color:#94A3B8">— ${b.module||"—"}</span></li>`).join("")}</ul>${list.length>15?`<p style="font-size:12px;color:#94A3B8">+ ${list.length-15} outro(s)</p>`:""}`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Status QA — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .header{background:linear-gradient(135deg,#1E3A5F,#2563EB);color:white;padding:28px 40px;}
+  .header h1{font-size:24px;margin-bottom:4px;}
+  .header p{opacity:.85;font-size:13px;}
+  .container{max-width:900px;margin:0 auto;padding:28px 24px;}
+  h2{font-size:18px;color:#1E3A5F;margin:28px 0 14px;border-bottom:3px solid #2563EB;padding-bottom:6px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:16px;}
+  .card{background:white;border-radius:10px;padding:14px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .card .val{font-size:22px;font-weight:700;margin:4px 0;}
+  .card .lbl{font-size:11px;color:#64748B;}
+  .green{color:#10B981;}.red{color:#EF4444;}.purple{color:#8B5CF6;}
+  .bug-list{list-style:none;background:white;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:8px 0;margin-bottom:16px;}
+  .bug-list li{padding:8px 16px;font-size:13px;border-bottom:1px solid #F1F5F9;}
+  .bug-list li:last-child{border-bottom:none;}
+  .badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;}
+  .badge-critical{background:#FEE2E2;color:#7F1D1D;}
+  .badge-high{background:#FEE2E2;color:#991B1B;}
+  .badge-medium{background:#FEF3C7;color:#92400E;}
+  .badge-low{background:#F3F4F6;color:#374151;}
+  .footer{text-align:center;padding:24px;color:#94A3B8;font-size:12px;}
+  .no-print{}
+  @media print{.no-print{display:none!important}body{background:white}.card{box-shadow:none;border:1px solid #E2E8F0}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📅 Status QA — ${projectName||"Projeto"}</h1>
+  <p>Gerado em ${nowLabel}</p>
+</div>
+<div class="container">
+  <h2>Hoje (${new Date().toLocaleDateString("pt-BR")})</h2>
+  ${periodCard(execsToday, bugsOpenedToday, bugsResolvedToday)}
+  ${bugsOpenedToday.length ? `<div style="font-size:12px;color:#64748B;margin-bottom:4px">Bugs abertos hoje:</div>${bugList(bugsOpenedToday,"")}` : ""}
+
+  <h2>Últimos 7 dias</h2>
+  ${periodCard(execsWeek, bugsOpenedWeek, bugsResolvedWeek)}
+  <div style="display:flex;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <div style="font-size:12px;color:#64748B;margin-bottom:4px">Bugs abertos na semana:</div>
+      ${bugList(bugsOpenedWeek,"Nenhum bug aberto nos últimos 7 dias. ✅")}
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div style="font-size:12px;color:#64748B;margin-bottom:4px">Bugs resolvidos na semana:</div>
+      ${bugList(bugsResolvedWeek,"Nenhum bug resolvido nos últimos 7 dias.")}
+    </div>
+  </div>
+</div>
+<div class="no-print" style="text-align:center;padding:20px">
+  <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit">
+    🖨️ Imprimir / Salvar como PDF
+  </button>
+</div>
+<div class="footer">QA Manager — Status gerado em ${nowLabel} | ${projectName||"Projeto"}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Status_QA_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Relatório de Métricas ─────────────────────────────────────
+async function exportMetricsReport(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const modName = filters?.module_id ? (rawDash.modules||[]).find(m=>String(m.id)===String(filters.module_id))?.name : null;
+  const now = new Date().toLocaleString("pt-BR");
+
+  const bugs = modName ? (rawData.bugs||[]).filter(b=>b.module===modName) : (rawData.bugs||[]);
+  const cycles = [...(rawData.cycles||[])].sort((a,b)=> new Date(a.created_at||0) - new Date(b.created_at||0));
+
+  function monthKey(d) { if(!d) return null; const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`; }
+  function monthLabel(key) { const [y,m] = key.split("-"); const names=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]; return `${names[parseInt(m)-1]}/${y.slice(2)}`; }
+
+  const monthsSet = new Set();
+  bugs.forEach(b => { if(b.created_at) monthsSet.add(monthKey(b.created_at)); if(b.resolved_at) monthsSet.add(monthKey(b.resolved_at)); });
+  const months = [...monthsSet].sort().slice(-6);
+
+  const monthlyData = months.map(mk => ({
+    label: monthLabel(mk),
+    opened: bugs.filter(b=>monthKey(b.created_at)===mk).length,
+    resolved: bugs.filter(b=>monthKey(b.resolved_at)===mk).length,
+  }));
+  const maxMonthly = Math.max(1, ...monthlyData.map(m=>Math.max(m.opened,m.resolved)));
+
+  const resolvedBugs = bugs.filter(b=>b.resolved_at);
+  function avgDays(list) {
+    const days = list.map(b=>resolutionDays(b)).filter(d=>d!=null);
+    return days.length ? +(days.reduce((a,b)=>a+b,0)/days.length).toFixed(1) : null;
+  }
+  const avgAll = avgDays(resolvedBugs);
+  const avgBySeverity = ["critical","high","medium","low"].map(sev => ({ sev, avg: avgDays(resolvedBugs.filter(b=>b.severity===sev)), count: resolvedBugs.filter(b=>b.severity===sev).length }));
+
+  const cycleTrend = cycles.filter(c=>(c.total||0)>0).slice(-12).map(c => {
+    const exec = (c.total||0)-(c.not_executed||0);
+    const sr = exec>0 ? +((c.passed/exec)*100).toFixed(1) : null;
+    return { name:c.name, version:c.version, date:fd(c.start_date), sr };
+  });
+
+  function table(headers, rows) {
+    const ths = headers.map(h=>`<th>${h}</th>`).join("");
+    const trs = rows.map((r,i)=>`<tr class="${i%2?"even":""}">${r.map(c=>`<td>${c??""}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório de Métricas — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .header{background:linear-gradient(135deg,#78350F,#B45309);color:white;padding:32px 40px;}
+  .header h1{font-size:26px;margin-bottom:6px;}
+  .header p{opacity:.85;font-size:14px;}
+  .container{max-width:1100px;margin:0 auto;padding:32px 24px;}
+  h2{font-size:20px;color:#78350F;margin:32px 0 16px;border-bottom:3px solid #B45309;padding-bottom:8px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;}
+  .card{background:white;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .card .val{font-size:30px;font-weight:700;margin:8px 0;}
+  .card .lbl{font-size:12px;color:#64748B;}
+  .month-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .month-label{width:60px;font-size:13px;color:#475569;}
+  .month-bars{flex:1;display:flex;flex-direction:column;gap:3px;}
+  .month-bar-track{height:12px;background:#F1F5F9;border-radius:3px;overflow:hidden;}
+  .month-bar-fill{height:100%;border-radius:3px;}
+  .month-legend{display:flex;gap:16px;font-size:12px;color:#64748B;margin-bottom:12px;align-items:center;}
+  .month-legend span{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;margin-bottom:24px;}
+  thead tr{background:#78350F;color:white;}
+  th,td{padding:10px 14px;text-align:left;}
+  tr.even td{background:#F8FAFC;}
+  .footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px;}
+  .no-print{}
+  @media print{
+    .no-print{display:none!important}
+    body{background:white}
+    .card{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid;}
+    thead{display:table-header-group;}
+    tr{break-inside:avoid;page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📊 Relatório de Métricas — ${projectName||"Projeto"}</h1>
+  <p>Gerado em ${now} — tendências ao longo do tempo (histórico completo do projeto)</p>
+</div>
+<div class="container">
+  <h2>Tempo de Resolução</h2>
+  <div class="cards">
+    <div class="card"><div class="val" style="color:#2563EB">${avgAll!=null?avgAll+" dias":"—"}</div><div class="lbl">Média geral</div></div>
+    ${avgBySeverity.map(s=>`<div class="card"><div class="val" style="color:${s.sev==="critical"?"#DC2626":s.sev==="high"?"#EF4444":s.sev==="medium"?"#F59E0B":"#9CA3AF"}">${s.avg!=null?s.avg+"d":"—"}</div><div class="lbl">${SVL[s.sev]} (${s.count})</div></div>`).join("")}
+  </div>
+
+  <h2>Bugs Abertos vs Resolvidos por Mês</h2>
+  <div class="month-legend"><span style="background:#EF4444"></span>Abertos <span style="background:#10B981"></span>Resolvidos</div>
+  ${monthlyData.length ? monthlyData.map(m => `
+    <div class="month-row">
+      <div class="month-label">${m.label}</div>
+      <div class="month-bars">
+        <div class="month-bar-track"><div class="month-bar-fill" style="width:${(m.opened/maxMonthly*100).toFixed(0)}%;background:#EF4444"></div></div>
+        <div class="month-bar-track"><div class="month-bar-fill" style="width:${(m.resolved/maxMonthly*100).toFixed(0)}%;background:#10B981"></div></div>
+      </div>
+      <div style="width:90px;font-size:12px;color:#64748B">${m.opened} / ${m.resolved}</div>
+    </div>`).join("") : `<p style="color:#999">Sem dados suficientes de datas para montar a tendência mensal.</p>`}
+
+  <h2>Tendência de Sucesso por Ciclo</h2>
+  ${cycleTrend.length ? table(["Ciclo","Versão","Data","% Sucesso"], cycleTrend.map(c => [
+    c.name, c.version?`v${c.version}`:"—", c.date,
+    c.sr!=null ? `<span style="color:${c.sr>=80?"#10B981":c.sr>=50?"#F59E0B":"#EF4444"};font-weight:600">${c.sr}%</span>` : "—"
+  ])) : `<p style="color:#999">Sem ciclos com execuções registradas.</p>`}
+</div>
+<div class="no-print" style="text-align:center;padding:24px">
+  <button onclick="window.print()" style="background:#78350F;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
+    🖨️ Imprimir / Salvar como PDF
+  </button>
+</div>
+<div class="footer">QA Manager — Relatório de Métricas gerado em ${now} | ${projectName||"Projeto"}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Relatorio_Metricas_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Relatório de Risco ────────────────────────────────────────
+async function exportRiskReport(projectName, projectId, filters) {
+  const rawData = await fetchData(projectId);
+  const rawDash = await fetchDashboard(projectId, filters);
+  const modName = filters?.module_id ? (rawDash.modules||[]).find(m=>String(m.id)===String(filters.module_id))?.name : null;
+  const now = new Date().toLocaleString("pt-BR");
+
+  const allCases = modName ? (rawData.testCases||[]).filter(tc=>tc.module===modName) : (rawData.testCases||[]);
+  const allExecs = modName ? (rawData.executions||[]).filter(e=>e.module===modName) : (rawData.executions||[]);
+  const bugs     = modName ? (rawData.bugs||[]).filter(b=>b.module===modName)       : (rawData.bugs||[]);
+
+  const testedTcIds = new Set(allExecs.filter(e=>e.status!=="not_executed").map(e=>e.tc_id));
+  const untested = allCases.filter(tc=>!testedTcIds.has(tc.id))
+    .sort((a,b)=> (PL[b.priority]?1:0) - (PL[a.priority]?1:0));
+
+  const moduleStats: Record<string, any> = {};
+  allCases.forEach(tc => {
+    const mod = tc.module || "—";
+    if (!moduleStats[mod]) moduleStats[mod] = { total:0, tested:0 };
+    moduleStats[mod].total++;
+    if (testedTcIds.has(tc.id)) moduleStats[mod].tested++;
+  });
+  const lowCoverageModules = Object.entries(moduleStats)
+    .map(([mod,s]:[string,any]) => ({ mod, total:s.total, tested:s.tested, pct: s.total>0?Math.round((s.tested/s.total)*100):0 }))
+    .filter(m => m.pct < 50)
+    .sort((a,b) => a.pct - b.pct);
+
+  const criticalOpen = bugs.filter(b => b.severity==="critical" && (b.status==="open"||b.status==="in_progress"));
+  const highOpen      = bugs.filter(b => b.severity==="high"     && (b.status==="open"||b.status==="in_progress"));
+  const prodOpen = bugs.filter(b => /prod/i.test(b.environment||"") && (b.status==="open"||b.status==="in_progress"));
+
+  // Índice de risco simples combinando os fatores acima
+  const riskPoints =
+    criticalOpen.length * 10 +
+    highOpen.length * 4 +
+    prodOpen.length * 6 +
+    untested.length * 1 +
+    lowCoverageModules.length * 3;
+  const riskLevel = riskPoints >= 40 ? { label:"ALTO", color:"#EF4444" } :
+    riskPoints >= 15 ? { label:"MÉDIO", color:"#F59E0B" } :
+    { label:"BAIXO", color:"#10B981" };
+
+  function table(headers, rows) {
+    const ths = headers.map(h=>`<th>${h}</th>`).join("");
+    const trs = rows.map((r,i)=>`<tr class="${i%2?"even":""}">${r.map(c=>`<td>${c??""}</td>`).join("")}</tr>`).join("");
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relatório de Risco — ${projectName||"Projeto"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#1E293B;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .header{background:linear-gradient(135deg,#7C2D12,#B91C1C);color:white;padding:32px 40px;}
+  .header h1{font-size:26px;margin-bottom:6px;}
+  .header p{opacity:.85;font-size:14px;}
+  .container{max-width:1100px;margin:0 auto;padding:32px 24px;}
+  h2{font-size:20px;color:#7C2D12;margin:32px 0 16px;border-bottom:3px solid #B91C1C;padding-bottom:8px;}
+  .risk-card{background:white;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.08);display:flex;align-items:center;gap:24px;margin-bottom:24px;flex-wrap:wrap;}
+  .risk-badge{width:100px;height:100px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+  .risk-num{font-size:26px;font-weight:800;}
+  .risk-lbl{font-size:11px;font-weight:700;letter-spacing:.05em;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;}
+  .card{background:white;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .card .val{font-size:28px;font-weight:700;margin:8px 0;}
+  .card .lbl{font-size:12px;color:#64748B;}
+  table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;margin-bottom:24px;}
+  thead tr{background:#7C2D12;color:white;}
+  th,td{padding:10px 14px;text-align:left;}
+  tr.even td{background:#F8FAFC;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+  .badge-critical{background:#FEE2E2;color:#7F1D1D;}
+  .badge-high{background:#FEE2E2;color:#991B1B;}
+  .footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px;}
+  .no-print{}
+  @media print{
+    .no-print{display:none!important}
+    body{background:white}
+    .card,.risk-card{box-shadow:none;border:1px solid #E2E8F0;break-inside:avoid;}
+    thead{display:table-header-group;}
+    tr{break-inside:avoid;page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🚨 Relatório de Risco — ${projectName||"Projeto"}</h1>
+  <p>Gerado em ${now}</p>
+</div>
+<div class="container">
+  <div class="risk-card">
+    <div class="risk-badge" style="background:${riskLevel.color}20;border:3px solid ${riskLevel.color}">
+      <div class="risk-num" style="color:${riskLevel.color}">${riskLevel.label}</div>
+      <div class="risk-lbl" style="color:${riskLevel.color}">RISCO</div>
+    </div>
+    <div style="flex:1;font-size:14px;color:#475569">
+      Avaliação combinando bugs críticos/altos em aberto, bugs em produção, casos nunca testados e módulos com baixa cobertura.
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="val" style="color:#DC2626">${criticalOpen.length}</div><div class="lbl">Críticos abertos</div></div>
+    <div class="card"><div class="val" style="color:#EF4444">${highOpen.length}</div><div class="lbl">Altos abertos</div></div>
+    <div class="card"><div class="val" style="color:#DC2626">${prodOpen.length}</div><div class="lbl">Abertos em produção</div></div>
+    <div class="card"><div class="val" style="color:#F59E0B">${untested.length}</div><div class="lbl">Casos nunca testados</div></div>
+    <div class="card"><div class="val" style="color:#F59E0B">${lowCoverageModules.length}</div><div class="lbl">Módulos com cobertura &lt; 50%</div></div>
+  </div>
+
+  <h2>Bugs Críticos e Altos em Aberto</h2>
+  ${(criticalOpen.length+highOpen.length) ? table(["#","Título","Módulo","Severidade","Status","Ambiente"], [...criticalOpen,...highOpen].map(b => [
+    b.id, b.title, b.module||"—", `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`, SL[b.status]||b.status, envLabel(b.environment)
+  ])) : `<p style="color:#10B981">✅ Nenhum bug crítico ou alto em aberto.</p>`}
+
+  <h2>Módulos com Cobertura Abaixo de 50%</h2>
+  ${lowCoverageModules.length ? table(["Módulo","Casos","Testados","Cobertura"], lowCoverageModules.map(m => [
+    m.mod, m.total, m.tested, `<span style="color:#EF4444;font-weight:600">${m.pct}%</span>`
+  ])) : `<p style="color:#10B981">✅ Nenhum módulo com cobertura abaixo de 50%.</p>`}
+
+  <h2>Casos Nunca Testados${untested.length ? ` (${untested.length})` : ""}</h2>
+  ${untested.length ? table(["#","Título","Módulo","Prioridade"], untested.slice(0,50).map(tc => [
+    tc.id, tc.title, tc.module||"—", PL[tc.priority]||tc.priority||"—"
+  ])) : `<p style="color:#10B981">✅ Todos os casos já foram testados ao menos uma vez.</p>`}
+  ${untested.length > 50 ? `<p style="font-size:12px;color:#94A3B8">+ ${untested.length-50} outro(s) caso(s) não exibido(s) — veja o Relatório de Cobertura completo.</p>` : ""}
+</div>
+<div class="no-print" style="text-align:center;padding:24px">
+  <button onclick="window.print()" style="background:#7C2D12;color:white;border:none;padding:12px 32px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit">
+    🖨️ Imprimir / Salvar como PDF
+  </button>
+</div>
+<div class="footer">QA Manager — Relatório de Risco gerado em ${now} | ${projectName||"Projeto"}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Relatorio_Risco_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Componente ────────────────────────────────────────────────
 export function ExportButton({ style, filters }: ExportButtonProps) {
   const { currentProject } = useProject();
@@ -1258,6 +1956,11 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
       if (type === "bugs") await exportBugReport(currentProject?.name, currentProject?.id, filters);
       if (type === "executive") await exportExecutive(currentProject?.name, currentProject?.id, filters); // Quality Gate Report
       if (type === "release") await exportReleaseNotes(currentProject?.name, currentProject?.id, filters);
+      if (type === "coverage") await exportCoverageReport(currentProject?.name, currentProject?.id, filters);
+      if (type === "regression") await exportRegressionReport(currentProject?.name, currentProject?.id, filters);
+      if (type === "status") await exportStatusReport(currentProject?.name, currentProject?.id, filters);
+      if (type === "metrics") await exportMetricsReport(currentProject?.name, currentProject?.id, filters);
+      if (type === "risk") await exportRiskReport(currentProject?.name, currentProject?.id, filters);
     } catch(e) {
       console.error(e);
       setError(e.message || "Erro ao exportar. Tente novamente.");
@@ -1331,6 +2034,51 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
                 style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
                 📋 Release Notes de QA
+              </button>
+              <button onClick={()=>{setShowMenu(false);handle("status");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                📅 Daily/Weekly Status
+              </button>
+
+              {/* Time de QA — avançado (admin/manager) */}
+              <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
+                🔍 Análises (Admin/Gerente)
+              </div>
+              <button onClick={()=>{setShowMenu(false);handle("coverage");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                📈 Relatório de Cobertura
+              </button>
+              <button onClick={()=>{setShowMenu(false);handle("regression");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                🔄 Relatório de Regressão
+              </button>
+
+              {/* Processo */}
+              <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
+                ⚙️ Processo
+              </div>
+              <button onClick={()=>{setShowMenu(false);handle("metrics");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                📊 Relatório de Métricas
+              </button>
+              <button onClick={()=>{setShowMenu(false);handle("risk");}}
+                onMouseEnter={e=>(e.currentTarget.style.background="#EEF2F7")}
+                onMouseLeave={e=>(e.currentTarget.style.background="#ffffff")}
+                style={{display:"block",width:"100%",padding:"9px 16px",textAlign:"left",
+                  background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
+                🚨 Relatório de Risco
               </button>
               </>
               )}

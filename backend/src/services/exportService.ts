@@ -11,12 +11,18 @@ export async function getExportData({ project_id, user_id, user_role }: ExportPa
   const pM = pid ? `AND m.project_id = ${pid}` : "";
   const pC = pid ? `AND c.project_id = ${pid}` : "";
   const pB = pid ? `AND b.project_id = ${pid}` : "";
-  const [tc, cy, ex, bg, md] = await Promise.all([
+  const [tc, cy, ex, bg, md, resolvedRows] = await Promise.all([
     query(`SELECT tc.id,tc.title,tc.priority,tc.description,tc.preconditions,tc.steps,tc.expected_result,m.name AS module,u.name AS assigned_to,tc.created_at FROM test_cases tc JOIN modules m ON m.id=tc.module_id LEFT JOIN users u ON u.id=tc.assigned_to_id WHERE 1=1 ${pM} ORDER BY tc.id`),
     query(`SELECT c.*,COUNT(e.id) AS total,SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END) AS passed,SUM(CASE WHEN e.status='failed' THEN 1 ELSE 0 END) AS failed,SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END) AS blocked,SUM(CASE WHEN e.status='not_executed' THEN 1 ELSE 0 END) AS not_executed FROM test_cycles c LEFT JOIN test_executions e ON e.cycle_id=c.id WHERE 1=1 ${pC} GROUP BY c.id ORDER BY c.created_at DESC`),
     query(`SELECT e.id,e.cycle_id,c.name AS cycle,c.version,tc.id AS tc_id,tc.title AS test_case,m.name AS module,e.status,e.comment,e.evidence_url,e.notes,eu.name AS executed_by,au.name AS assigned_to,b.title AS bug_title,b.id AS bug_id,e.executed_at FROM test_executions e JOIN test_cycles c ON c.id=e.cycle_id JOIN test_cases tc ON tc.id=e.test_case_id JOIN modules m ON m.id=tc.module_id LEFT JOIN users eu ON eu.id=e.executed_by_id LEFT JOIN users au ON au.id=e.assigned_to_id LEFT JOIN bugs b ON b.id=e.bug_id WHERE 1=1 ${pC} ORDER BY c.name,m.name,tc.id`),
     query(`SELECT b.id,b.title,b.severity,b.status,b.environment,b.version,m.name AS module,tc.id AS tc_id,tc.title AS test_case,b.comment,b.description,b.tracker_url,u.name AS created_by,b.created_at FROM bugs b LEFT JOIN modules m ON m.id=b.module_id LEFT JOIN test_cases tc ON tc.id=b.test_case_id LEFT JOIN users u ON u.id=b.created_by_id WHERE 1=1 ${pB} ORDER BY b.created_at DESC`),
     query(`SELECT m.name AS module,(SELECT COUNT(*) FROM test_cases tc WHERE tc.module_id=m.id) AS total_cases,COUNT(DISTINCT e.id) AS total_executions,SUM(CASE WHEN e.status='passed' THEN 1 ELSE 0 END) AS passed,SUM(CASE WHEN e.status='failed' THEN 1 ELSE 0 END) AS failed,SUM(CASE WHEN e.status='blocked' THEN 1 ELSE 0 END) AS blocked,(SELECT COUNT(*) FROM bugs b WHERE b.module_id=m.id) AS total_bugs,(SELECT COUNT(*) FROM bugs b WHERE b.module_id=m.id AND b.status='open') AS open_bugs FROM modules m LEFT JOIN test_cases tc ON tc.module_id=m.id LEFT JOIN test_executions e ON e.test_case_id=tc.id WHERE 1=1 ${pM} GROUP BY m.id ORDER BY m.name`),
+    // Data em que o bug entrou em fixed/closed pela última vez, a partir do log de atividades
+    // já existente (bug_activity) — evita precisar de coluna nova para medir tempo de resolução.
+    query(`SELECT bug_id, MAX(created_at) AS resolved_at FROM bug_activity WHERE action='alterou o status' AND (detail LIKE '%→ fixed' OR detail LIKE '%→ closed') GROUP BY bug_id`).catch(() => []),
   ]);
-  return { testCases: tc, cycles: cy, executions: ex, bugs: bg, modules: md };
+  const resolvedMap: Record<number, string> = {};
+  (resolvedRows as any[]).forEach((r: any) => { resolvedMap[r.bug_id] = r.resolved_at; });
+  const bgWithResolution = (bg as any[]).map((b: any) => ({ ...b, resolved_at: resolvedMap[b.id] || null }));
+  return { testCases: tc, cycles: cy, executions: ex, bugs: bgWithResolution, modules: md };
 }
