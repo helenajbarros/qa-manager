@@ -216,6 +216,22 @@ const SVL={low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
 const PL={low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
 const fd = d => { try { return d ? new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("pt-BR") : "—"; } catch { return d || "—"; } };
 
+// ── Ambiente ────────────────────────────────────────────────────
+// O ambiente do bug é um texto livre/customizável por projeto (não um enum fixo),
+// mas bugs antigos foram salvos com os valores em inglês do formulário padrão
+// (production/staging/homologation/development). Aqui normalizamos só esses
+// tokens conhecidos para PT-BR — qualquer nome customizado passa direto, sem alteração.
+const ENV_TRANSLATIONS: Record<string,string> = {
+  production: "Produção", prod: "Produção",
+  homologation: "Homologação", homolog: "Homologação", staging: "Staging", stage: "Staging",
+  development: "Desenvolvimento", dev: "Desenvolvimento",
+};
+function envLabel(raw?: string | null) {
+  if (!raw || !raw.trim()) return "Não informado";
+  const key = raw.trim().toLowerCase();
+  return ENV_TRANSLATIONS[key] || raw.trim();
+}
+
 function applyStyles(ws,headers,rows,bg) {
   const XLSX=window.XLSX;
   ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length,c:headers.length-1}});
@@ -266,8 +282,8 @@ async function exportExcel(projectName, projectId, filters) {
     ["Corrigidos",data.bugs.filter(b=>b.status==="fixed").length],
     ["Fechados",data.bugs.filter(b=>b.status==="closed").length],[""],
     ["BUGS POR AMBIENTE",""],
-    ...[...new Set(data.bugs.map(b=>b.environment||"Não informado"))].map(env => {
-      const envBugs = data.bugs.filter(b=>(b.environment||"Não informado")===env);
+    ...[...new Set(data.bugs.map(b=>envLabel(b.environment)))].map(env => {
+      const envBugs = data.bugs.filter(b=>envLabel(b.environment)===env);
       return [env, envBugs.length, `${envBugs.filter(b=>b.status==="open").length} abertos`];
     }).filter(r=>r[1]>0),[""],
 
@@ -554,9 +570,9 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
   ${(()=>{
     const envPalette = ["#2563EB","#8B5CF6","#0EA5E9","#D97706","#14B8A6","#6366F1"];
     const isProdEnv = (env) => /prod/i.test(env||"");
-    const envNames = [...new Set(data.bugs.map(b=>b.environment||"Não informado"))];
+    const envNames = [...new Set(data.bugs.map(b=>envLabel(b.environment)))];
     const envData = envNames.map((env,i)=>{
-      const envBugs = data.bugs.filter(b=>(b.environment||"Não informado")===env);
+      const envBugs = data.bugs.filter(b=>envLabel(b.environment)===env);
       return {env, color: isProdEnv(env) ? "#EF4444" : envPalette[i % envPalette.length], total:envBugs.length, open:envBugs.filter(b=>b.status==="open").length};
     }).filter(e=>e.total>0).sort((a,b)=>b.total-a.total);
     if(!envData.length) return "";
@@ -834,7 +850,7 @@ async function exportBugReport(projectName, projectId, filters) {
   bugs.forEach(b => {
     if (b.severity in bySeverity) bySeverity[b.severity]++;
     if (b.status   in byStatus)   byStatus[b.status]++;
-    const env = b.environment || "Não informado";
+    const env = envLabel(b.environment);
     byEnv[env] = (byEnv[env]||0) + 1;
     const mod = b.module || "—";
     if (!byModule[mod]) byModule[mod] = { total:0, open:0, fixed:0 };
@@ -1018,7 +1034,7 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
       b.tc_id?`#${b.tc_id}`:"—",
       `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
       `<span class="badge badge-${b.status}">${SL[b.status]||b.status}</span>`,
-      isProdEnv(b.environment) ? `<b style="color:#DC2626">${b.environment}</b>` : (b.environment||"Não informado"),
+      isProdEnv(b.environment) ? `<b style="color:#DC2626">${envLabel(b.environment)}</b>` : envLabel(b.environment),
       `<span class="desc-cell">${b.description||b.comment||"—"}</span>`,
       b.created_by||"—",
       fd(b.created_at),
@@ -1188,7 +1204,7 @@ async function exportReleaseNotes(projectName, projectId, filters) {
     <div class="card" style="padding:0;overflow:hidden">
       ${table(["#","Título","Módulo","Versão","Ambiente","Severidade","Status","Observação"], knownIssues.map(b => [
         b.id, b.title, b.module||"—", b.version||"—",
-        isProdEnv(b.environment) ? `<b style="color:#DC2626">${b.environment}</b>` : (b.environment||"Não informado"),
+        isProdEnv(b.environment) ? `<b style="color:#DC2626">${envLabel(b.environment)}</b>` : envLabel(b.environment),
         `<span class="badge badge-${b.severity}">${SVL[b.severity]||b.severity}</span>`,
         SL[b.status]||b.status,
         b.comment||b.description||"—"
