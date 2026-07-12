@@ -1,5 +1,6 @@
 import { useState, CSSProperties } from "react";
 import { useProject } from "../context/ProjectContext.js";
+import { useAuth } from "../context/AuthContext.js";
 
 interface ExportFilters {
   date_from?: string;
@@ -1226,6 +1227,8 @@ async function exportReleaseNotes(projectName, projectId, filters) {
 // ── Componente ────────────────────────────────────────────────
 export function ExportButton({ style, filters }: ExportButtonProps) {
   const { currentProject } = useProject();
+  const { isAdmin, isManager } = useAuth();
+  const canViewManagementReports = isAdmin || isManager; // Quality Gate e Release Notes são restritos a gestão
   const [loading, setLoading] = useState<string | null>(null);
   const [error,   setError]   = useState("");
 
@@ -1293,7 +1296,9 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
                 🐛 Relatório de Defeitos
               </button>
 
-              {/* Gestão / Cliente */}
+              {/* Gestão / Cliente — visível só para admin/manager */}
+              {canViewManagementReports && (
+              <>
               <div style={{padding:"6px 16px 4px",fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:".08em",borderBottom:"1px solid #F3F4F6",borderTop:"1px solid #F3F4F6"}}>
                 🏢 Para Gestão / Cliente
               </div>
@@ -1311,6 +1316,8 @@ export function ExportButton({ style, filters }: ExportButtonProps) {
                   background:"#ffffff",border:"none",cursor:"pointer",fontSize:13,color:"#111827"}}>
                 📋 Release Notes de QA
               </button>
+              </>
+              )}
             </div>
             </>
           )}
