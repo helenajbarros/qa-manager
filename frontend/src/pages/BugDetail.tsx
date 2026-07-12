@@ -727,7 +727,6 @@ export default function BugDetail() {
       environment:    bug.environment    || null,
       environment_id: bug.environment_id || null,
       version:        (bug as any).version || "",
-      version:        (bug as any).version || "",
       actual_result:  bug.actual_result  || "",
       expected_result: bug.expected_result || "",
     });

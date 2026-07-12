@@ -164,7 +164,6 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     assigned_to_id: initial.assigned_to_id || "",
     environment:    initial.environment    || null,
     environment_id: initial.environment_id || null,
-    version:        initial.version        || "",
     version:        (initial as any).version || "",
     actual_result:  initial.actual_result  || "",
     expected_result: initial.expected_result || "",
