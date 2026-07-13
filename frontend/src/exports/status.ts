@@ -122,3 +122,5 @@ export async function exportStatusReport(projectName, projectId, filters) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// ── Relatório de Métricas ─────────────────────────────────────
