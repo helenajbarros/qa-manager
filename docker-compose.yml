@@ -1,0 +1,55 @@
+# Sobe o QA Manager inteiro (banco + backend + frontend) com um único comando:
+#   docker compose up --build
+#
+# Antes de rodar, copie .env.docker.example para .env e ajuste as senhas/segredos.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qa_manager}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qa_manager}
+      POSTGRES_DB: ${POSTGRES_DB:-qa_manager}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"   # só para inspecionar o banco de fora se precisar (ex: pgAdmin)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qa_manager}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      # NODE_ENV=production faria o backend exigir conexão SSL com o banco
+      # (ver backend/src/database/connection.ts). O Postgres deste compose
+      # é uma imagem simples, sem SSL configurado — por isso mantemos
+      # "development" aqui mesmo rodando via Docker.
+      NODE_ENV: development
+      JWT_SECRET: ${JWT_SECRET:-troque_este_segredo}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qa_manager}:${POSTGRES_PASSWORD:-qa_manager}@db:5432/${POSTGRES_DB:-qa_manager}
+      FRONTEND_URL: http://localhost:8080
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "3002:3001"   # acesso direto à API, útil pra depurar
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:
+  uploads_data:
