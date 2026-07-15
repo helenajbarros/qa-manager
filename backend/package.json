@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon src/server.js",
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/docs/openapi.yaml','dist/docs/openapi.yaml')\""
     "typecheck": "tsc --noEmit",
     "dev:ts": "nodemon --exec ts-node src/server.ts"
   },
