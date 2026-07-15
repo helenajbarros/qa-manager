@@ -76,6 +76,7 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 ## 🛠 Tecnologias
 
 ### Backend
+
 | Tecnologia | Uso |
 |---|---|
 | **Node.js** | Runtime |
@@ -89,6 +90,7 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 | **ts-node** | Execução TypeScript em desenvolvimento |
 
 ### Frontend
+
 | Tecnologia | Uso |
 |---|---|
 | **React 18** | Interface de usuário |
@@ -99,11 +101,13 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 | **SheetJS (xlsx)** | Exportação para Excel |
 
 ### Infraestrutura
+
 | Serviço | Uso |
 |---|---|
 | **Render** | Hospedagem do backend — build `tsc` + `node dist/server.js` |
 | **Render PostgreSQL** | Banco de dados em produção |
 | **GitHub Pages** | Frontend estático — deploy automático via GitHub Actions |
+| **Docker / Docker Compose** | Ambiente local completo (banco + backend + frontend) com um único comando |
 
 ---
 
@@ -115,18 +119,21 @@ Sistema completo de gerenciamento de testes de QA com cadastro de casos de teste
 - Git
 
 ### 1. Clone o repositório
+
 ```bash
 git clone https://github.com/helenajbarros/qa-manager.git
 cd qa-manager
 ```
 
 ### 2. Backend
+
 ```bash
 cd backend
 npm install
 ```
 
 Crie o arquivo `.env`:
+
 ```env
 PORT=3002
 DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/qa_manager
@@ -135,11 +142,13 @@ NODE_ENV=development
 ```
 
 Crie o banco local:
+
 ```bash
 psql -U postgres -c "CREATE DATABASE qa_manager;"
 ```
 
 Inicie o servidor em modo desenvolvimento:
+
 ```bash
 npm run dev:ts
 ```
@@ -147,17 +156,20 @@ npm run dev:ts
 API disponível em: `http://localhost:3002`
 
 ### 3. Frontend
+
 ```bash
 cd frontend
 npm install
 ```
 
 Crie o arquivo `.env.local`:
+
 ```env
 VITE_API_URL=http://localhost:3002
 ```
 
 Inicie o servidor de desenvolvimento:
+
 ```bash
 npm run dev
 ```
@@ -166,9 +178,45 @@ App disponível em: `http://localhost:5173/qa-manager/`
 
 ---
 
+## 🐳 Instalação com Docker
+
+Alternativa ao passo a passo manual acima: sobe banco, backend e frontend juntos com um único comando.
+
+### Pré-requisitos
+- Docker e Docker Compose instalados
+
+### Passo a passo
+
+```bash
+git clone https://github.com/helenajbarros/qa-manager.git
+cd qa-manager
+cp .env.docker.example .env
+```
+
+Abra o `.env` e troque `POSTGRES_PASSWORD` e `JWT_SECRET` pelos seus próprios valores. Depois:
+
+```bash
+docker compose up --build
+```
+
+| Serviço | URL |
+|---|---|
+| **Frontend** | http://localhost:8080 |
+| **Backend API** | http://localhost:3002 |
+| **PostgreSQL** (opcional, para inspecionar com pgAdmin etc.) | `localhost:5434` |
+
+As migrations rodam automaticamente na subida do backend — não é preciso nenhum passo manual de banco.
+
+Para parar tudo: `docker compose down` (os dados do banco e os uploads persistem entre execuções, guardados nos volumes `db_data` e `uploads_data`). Para apagar tudo, incluindo os dados: `docker compose down -v`.
+
+> O Postgres do compose roda com `NODE_ENV=development` no backend (sem SSL), diferente da produção no Render — isso é só uma particularidade do ambiente local em Docker, não afeta o comportamento da aplicação.
+
+---
+
 ## ⚙ Scripts disponíveis
 
 ### Backend
+
 | Script | Descrição |
 |---|---|
 | `npm run dev:ts` | Desenvolvimento com ts-node (hot reload) |
@@ -177,6 +225,7 @@ App disponível em: `http://localhost:5173/qa-manager/`
 | `npm run typecheck` | Verifica tipos sem compilar |
 
 ### Frontend
+
 | Script | Descrição |
 |---|---|
 | `npm run dev` | Servidor de desenvolvimento |
@@ -187,6 +236,7 @@ App disponível em: `http://localhost:5173/qa-manager/`
 ## ⚙ Variáveis de ambiente
 
 ### Backend (`.env`)
+
 ```env
 PORT=3002
 DATABASE_URL=postgresql://usuario:senha@host/banco
@@ -195,8 +245,18 @@ NODE_ENV=development
 ```
 
 ### Frontend (`.env.local`)
+
 ```env
 VITE_API_URL=http://localhost:3002
+```
+
+### Docker (`.env`, a partir de `.env.docker.example`)
+
+```env
+POSTGRES_USER=qa_manager
+POSTGRES_PASSWORD=troque_esta_senha
+POSTGRES_DB=qa_manager
+JWT_SECRET=troque_este_segredo_por_algo_aleatorio_e_unico
 ```
 
 ---
@@ -209,7 +269,12 @@ qa-manager/
 │   └── workflows/
 │       └── deploy.yml             # CI/CD — build e deploy automático no GitHub Pages
 │
+├── docker-compose.yml             # Sobe banco + backend + frontend com um comando
+├── .env.docker.example            # Modelo de variáveis para o docker-compose.yml
+│
 ├── backend/
+│   ├── Dockerfile
+│   ├── .dockerignore
 │   ├── src/
 │   │   ├── server.ts              # Entrada da aplicação
 │   │   ├── types/
@@ -228,19 +293,22 @@ qa-manager/
 │   └── package.json
 │
 ├── frontend/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── .dockerignore
 │   ├── src/
 │   │   ├── App.tsx                # Roteamento principal
 │   │   ├── main.tsx               # Entrada React
 │   │   ├── types/
 │   │   │   └── index.ts           # Tipos TypeScript centrais (Bug, Cycle, User...)
-│   │   ├── context/               # AuthContext.tsx, ProjectContext.tsx
-│   │   ├── pages/                 # Dashboard, Bugs, BugDetail, Ciclos, Módulos...
-│   │   ├── components/            # Sidebar, UI, FileUpload, ExportButton
+│   │   ├── context/                # AuthContext.tsx, ProjectContext.tsx
+│   │   ├── pages/                  # Dashboard, Bugs, BugDetail, Ciclos, Módulos...
+│   │   ├── components/             # Sidebar, UI, FileUpload, ExportButton
 │   │   ├── services/
-│   │   │   ├── api.ts             # Cliente HTTP com generics
-│   │   │   └── resources.ts       # Recursos da API tipados
+│   │   │   ├── api.ts              # Cliente HTTP com generics
+│   │   │   └── resources.ts        # Recursos da API tipados
 │   │   └── hooks/
-│   │       └── useAsync.ts        # Hook genérico useAsync<T>
+│   │       └── useAsync.ts         # Hook genérico useAsync<T>
 │   ├── tsconfig.json
 │   └── package.json
 ```
