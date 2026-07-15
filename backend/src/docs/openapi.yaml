@@ -1,0 +1,869 @@
+openapi: 3.0.3
+info:
+  title: QA Manager API
+  description: |
+    API do QA Manager — cadastro de casos de teste, execução por ciclos,
+    gestão de bugs, dashboard de métricas, backup e exportação.
+
+    A maioria das rotas exige autenticação via JWT (header `Authorization: Bearer <token>`),
+    obtido em `POST /api/users/login`.
+  version: "1.8.0"
+  contact:
+    name: QA Manager
+    url: https://github.com/helenajbarros/qa-manager
+
+servers:
+  - url: https://qa-manager-api.onrender.com
+    description: Produção (Render)
+  - url: http://localhost:3002
+    description: Local
+
+tags:
+  - name: Auth
+    description: Login e usuário logado
+  - name: Users
+    description: Gestão de usuários e vínculo com projetos
+  - name: Projects
+    description: Projetos
+  - name: Environments
+    description: Ambientes customizados por projeto
+  - name: Modules
+    description: Módulos (áreas funcionais)
+  - name: Test Cases
+    description: Casos de teste
+  - name: Cycles
+    description: Ciclos de teste e execuções
+  - name: Bugs
+    description: Bugs e comentários
+  - name: Notifications
+    description: Notificações do usuário
+  - name: Dashboard
+    description: Métricas e indicadores
+  - name: Export
+    description: Exportação de dados
+  - name: Backup
+    description: Backup e restauração do banco (Admin)
+  - name: Share
+    description: Compartilhamento público de bugs
+  - name: Health
+    description: Status da API
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    projectIdQuery:
+      name: project_id
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: Filtra pelo projeto (obrigatório para a maioria das rotas de conteúdo)
+    idPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, gerente, colaborador, visualizador]
+        default_project_id:
+          type: integer
+          nullable: true
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Environment:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+          example: "#6B7280"
+        sort_order:
+          type: integer
+
+    Module:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        name:
+          type: string
+
+    TestCase:
+      type: object
+      properties:
+        id:
+          type: integer
+        module_id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        preconditions:
+          type: string
+        steps:
+          type: string
+        expected_result:
+          type: string
+        priority:
+          type: string
+          enum: [baixa, media, alta, critica]
+        assigned_to_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Cycle:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        test_type:
+          type: string
+          enum: [funcional, regressao, integracao, performance, seguranca, usabilidade, smoke, sanidade, exploratorio, aceitacao, api, automacao]
+        archived:
+          type: boolean
+        total:
+          type: integer
+        passed:
+          type: integer
+        failed:
+          type: integer
+        blocked:
+          type: integer
+        not_executed:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Execution:
+      type: object
+      properties:
+        id:
+          type: integer
+        cycle_id:
+          type: integer
+        test_case_id:
+          type: integer
+        status:
+          type: string
+          enum: [passed, failed, blocked, not_executed]
+        comment:
+          type: string
+        evidence_url:
+          type: string
+        notes:
+          type: string
+        bug_id:
+          type: integer
+          nullable: true
+        executed_by_id:
+          type: integer
+          nullable: true
+        assigned_to_id:
+          type: integer
+          nullable: true
+        executed_at:
+          type: string
+          format: date-time
+
+    Bug:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        module_id:
+          type: integer
+        test_case_id:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+          enum: [open, in_progress, fixed, closed]
+        environment:
+          type: string
+        environment_id:
+          type: integer
+          nullable: true
+        version:
+          type: string
+          nullable: true
+        business_impact:
+          type: string
+        evidence_url:
+          type: string
+        tracker_url:
+          type: string
+        pr_url:
+          type: string
+        os:
+          type: string
+        browser:
+          type: string
+        comment:
+          type: string
+        created_by_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    BugComment:
+      type: object
+      properties:
+        id:
+          type: integer
+        bug_id:
+          type: integer
+        user_id:
+          type: integer
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        message:
+          type: string
+        read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: API no ar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                  env:
+                    type: string
+
+  /api/users/login:
+    post:
+      tags: [Auth]
+      summary: Autenticação (retorna JWT)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "200":
+          description: Login OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        "401":
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "429":
+          description: Muitas tentativas — limite de 10 a cada 15 min
+
+  /api/users/me:
+    get:
+      tags: [Auth]
+      summary: Usuário logado
+      responses:
+        "200":
+          description: Dados do usuário autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/users/mentions:
+    get:
+      tags: [Users]
+      summary: Lista usuários para @mentions
+      responses:
+        "200":
+          description: Lista de usuários (id, name)
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: Lista usuários (Admin/Gerente)
+      responses:
+        "200":
+          description: Lista de usuários
+    post:
+      tags: [Users]
+      summary: Cria usuário (Admin/Gerente)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        "201":
+          description: Usuário criado
+
+  /api/projects:
+    get:
+      tags: [Projects]
+      summary: Lista projetos do usuário
+      responses:
+        "200":
+          description: Lista de projetos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      tags: [Projects]
+      summary: Cria projeto
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Project'
+      responses:
+        "201":
+          description: Projeto criado
+
+  /api/projects/{projectId}/environments:
+    get:
+      tags: [Environments]
+      summary: Lista ambientes customizados do projeto
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de ambientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Environment'
+    post:
+      tags: [Environments]
+      summary: Cria ambiente customizado
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Environment'
+      responses:
+        "201":
+          description: Ambiente criado
+
+  /api/modules:
+    get:
+      tags: [Modules]
+      summary: Lista módulos
+      parameters:
+        - $ref: '#/components/parameters/projectIdQuery'
+      responses:
+        "200":
+          description: Lista de módulos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Module'
+    post:
+      tags: [Modules]
+      summary: Cria módulo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Module'
+      responses:
+        "201":
+          description: Módulo criado
+
+  /api/modules/{id}:
+    delete:
+      tags: [Modules]
+      summary: Exclui módulo (Admin/Gerente)
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      responses:
+        "204":
+          description: Excluído
+        "403":
+          description: Sem permissão
+
+  /api/test-cases:
+    get:
+      tags: [Test Cases]
+      summary: Lista casos de teste
+      parameters:
+        - $ref: '#/components/parameters/projectIdQuery'
+      responses:
+        "200":
+          description: Lista de casos de teste
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TestCase'
+    post:
+      tags: [Test Cases]
+      summary: Cria caso de teste
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestCase'
+      responses:
+        "201":
+          description: Caso de teste criado
+
+  /api/test-cases/{id}:
+    delete:
+      tags: [Test Cases]
+      summary: Exclui caso de teste (Admin/Gerente)
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      responses:
+        "204":
+          description: Excluído
+
+  /api/test-cases/{id}/activity:
+    get:
+      tags: [Test Cases]
+      summary: Histórico de alterações do caso de teste
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      responses:
+        "200":
+          description: Linha do tempo de alterações
+
+  /api/cycles:
+    get:
+      tags: [Cycles]
+      summary: Lista ciclos de teste
+      parameters:
+        - $ref: '#/components/parameters/projectIdQuery'
+      responses:
+        "200":
+          description: Lista de ciclos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cycle'
+    post:
+      tags: [Cycles]
+      summary: Cria ciclo de teste
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cycle'
+      responses:
+        "201":
+          description: Ciclo criado
+
+  /api/cycles/{id}:
+    put:
+      tags: [Cycles]
+      summary: Edita ciclo (arquivar fecha bugs vinculados automaticamente)
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cycle'
+      responses:
+        "200":
+          description: Ciclo atualizado
+    delete:
+      tags: [Cycles]
+      summary: Exclui ciclo (Admin/Gerente)
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      responses:
+        "204":
+          description: Excluído
+
+  /api/cycles/{id}/executions:
+    post:
+      tags: [Cycles]
+      summary: Adiciona casos de teste ao ciclo
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                test_case_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        "201":
+          description: Execuções criadas
+
+  /api/cycles/{id}/executions/{execId}:
+    put:
+      tags: [Cycles]
+      summary: Atualiza execução (status, comentário, evidência, bug vinculado)
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+        - name: execId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Execution'
+      responses:
+        "200":
+          description: Execução atualizada
+
+  /api/bugs:
+    get:
+      tags: [Bugs]
+      summary: Lista bugs
+      parameters:
+        - $ref: '#/components/parameters/projectIdQuery'
+      responses:
+        "200":
+          description: Lista de bugs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bug'
+    post:
+      tags: [Bugs]
+      summary: Cria bug
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bug'
+      responses:
+        "201":
+          description: Bug criado
+
+  /api/bugs/{id}:
+    delete:
+      tags: [Bugs]
+      summary: Exclui bug (Admin/Gerente)
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      responses:
+        "204":
+          description: Excluído
+
+  /api/bugs/{id}/files:
+    post:
+      tags: [Bugs]
+      summary: Upload de arquivo/evidência do bug
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Arquivo enviado
+
+  /api/bugs/{id}/share:
+    post:
+      tags: [Share]
+      summary: Gera link público de compartilhamento do bug
+      parameters:
+        - $ref: '#/components/parameters/idPath'
+      responses:
+        "201":
+          description: Link gerado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  url:
+                    type: string
+
+  /api/share/{token}:
+    get:
+      tags: [Share]
+      summary: Visualiza bug público (sem login)
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dados públicos do bug
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bug'
+        "404":
+          description: Link inválido ou expirado
+
+  /api/bugs/{bugId}/comments:
+    get:
+      tags: [Bugs]
+      summary: Lista comentários do bug
+      parameters:
+        - name: bugId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de comentários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BugComment'
+    post:
+      tags: [Bugs]
+      summary: Adiciona comentário ao bug
+      parameters:
+        - name: bugId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BugComment'
+      responses:
+        "201":
+          description: Comentário criado
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Lista notificações do usuário logado
+      responses:
+        "200":
+          description: Lista de notificações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+  /api/dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Métricas em tempo real (execuções, bugs, tendência por ciclo)
+      parameters:
+        - $ref: '#/components/parameters/projectIdQuery'
+        - name: cycle_id
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Métricas do dashboard
+
+  /api/export:
+    get:
+      tags: [Export]
+      summary: Dados completos para exportação (Excel/HTML)
+      parameters:
+        - $ref: '#/components/parameters/projectIdQuery'
+      responses:
+        "200":
+          description: Dados brutos para exportação (test cases, cycles, executions, bugs, modules)
+
+  /api/backup/download:
+    get:
+      tags: [Backup]
+      summary: Download do banco de dados (Admin)
+      responses:
+        "200":
+          description: Arquivo de backup
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/backup/restore:
+    post:
+      tags: [Backup]
+      summary: Restaura o banco de dados a partir de um backup (Admin)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Banco restaurado

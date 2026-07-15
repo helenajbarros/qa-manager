@@ -22,6 +22,7 @@ import { runSeed }                from "./database/seed";
 import requestLogger              from "./middlewares/requestLogger";
 import errorHandler               from "./middlewares/errorHandler";
 import { authenticate }           from "./middlewares/auth";
+import { mountSwagger }           from "./docs/swagger";
 
 import bugsRouter         from "./routes/bugs";
 import modulesRouter      from "./routes/modules";
@@ -64,6 +65,9 @@ app.use(express.json());
 app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/api", apiLimiter);
+
+// Documentação interativa da API — não exige autenticação
+mountSwagger(app);
 
 // Rotas que ainda são JS puro (não migradas para TS)
 app.use("/api/users",                userProjectsRouter);
