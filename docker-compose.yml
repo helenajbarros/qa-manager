@@ -34,7 +34,7 @@ services:
       # é uma imagem simples, sem SSL configurado — por isso mantemos
       # "development" aqui mesmo rodando via Docker.
       NODE_ENV: development
-      JWT_SECRET: ${JWT_SECRET:-troque_este_segredo}
+      JWT_SECRET: ${ada2e02ccc7e93c4e7149c289718dee143b1b5ecdf80263e7dbe26aa0f72e9bd}
       DATABASE_URL: postgresql://${POSTGRES_USER:-qa_manager}:${POSTGRES_PASSWORD:-qa_manager}@db:5432/${POSTGRES_DB:-qa_manager}
       FRONTEND_URL: http://localhost:8080
     volumes:
