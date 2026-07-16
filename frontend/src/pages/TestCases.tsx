@@ -223,13 +223,22 @@ export default function TestCases() {
     <div style="text-align:center;margin-top:24px">
       <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:10px 28px;border-radius:6px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
     </div></body></html>`;
+
+    // Abre em nova aba para visualização, em vez de forçar o download do
+    // .html direto. Quem estiver vendo decide se quer guardar uma cópia
+    // usando o botão de imprimir que já está na própria página gerada.
+    // Se o navegador bloquear a nova aba (pop-up), cai de volta pro
+    // download direto, como era antes.
     const blob = new Blob([html], {type:"text/html;charset=utf-8"});
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Casos_de_Teste_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const win = window.open(url, "_blank");
+    if (!win) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Casos_de_Teste_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
+      a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
     setShowExport(false);
   }
   const [saving,    setSaving]    = useState(false);
