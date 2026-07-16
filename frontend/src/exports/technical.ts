@@ -1,4 +1,4 @@
-import { fetchData,fetchDashboard,applyExportFilters,SL,SVL,envLabel,filterLabel } from "./shared";
+import { fetchData,fetchDashboard,applyExportFilters,SL,SVL,envLabel,filterLabel,openReport } from "./shared";
 
 export async function exportHTML(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
@@ -283,13 +283,5 @@ ${fLabel?`<div class="filter-badge">🔍 ${fLabel}</div>`:""}
 </body>
 </html>`;
 
-  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download=`QA_Relatorio_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
+  openReport(html, `QA_Relatorio_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`);
 }
-
-// ── Relatório Executivo ──────────────────────────────────────

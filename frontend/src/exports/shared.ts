@@ -44,12 +44,11 @@ export async function fetchDashboard(projectId, filters?) {
 export function applyExportFilters(data, dash, filters) {
   const { date_from, date_to, module_id, status, cycle_id } = filters || {};
 
-  // Filtra ciclos por período ou ciclo específico
   const from = date_from ? new Date(date_from) : null;
   const to   = date_to   ? new Date(date_to+"T23:59:59") : null;
   const filteredCycles = (data.cycles || []).filter(c => {
     if (cycle_id && cycle_id !== "no_cycle") return String(c.id) === String(cycle_id);
-    if (cycle_id === "no_cycle") return false; // no_cycle não filtra por ciclo
+    if (cycle_id === "no_cycle") return false;
     const cStart = c.start_date ? new Date(c.start_date + "T12:00:00") : null;
     const cEnd   = c.end_date   ? new Date(c.end_date   + "T12:00:00") : null;
     if (from && cEnd   && cEnd   < from) return false;
@@ -57,10 +56,8 @@ export function applyExportFilters(data, dash, filters) {
     return true;
   });
 
-  // Nomes dos ciclos filtrados
   const cycleNames = new Set(filteredCycles.map(c => c.name));
 
-  // Filtra execuções: por ciclo + status + módulo
   let filteredExec = (data.executions || []).filter(e => {
     if (cycle_id && cycle_id !== "no_cycle" && String(e.cycle_id) !== String(cycle_id) && !cycleNames.has(e.cycle)) return false;
     if (!cycle_id && cycleNames.size > 0 && !cycleNames.has(e.cycle)) return false;
@@ -72,15 +69,10 @@ export function applyExportFilters(data, dash, filters) {
     return true;
   });
 
-  // Filtra módulo pelo nome
   const modName = module_id ? dash.modules?.find(m => String(m.id) === String(module_id))?.name : null;
   const filteredTC   = modName ? data.testCases?.filter(tc => tc.module === modName) : data.testCases;
   const filteredMods = modName ? data.modules?.filter(m => m.name === modName) : data.modules;
 
-  // Filtra bugs conforme o tipo de filtro:
-  // - no_cycle: só bugs exploratórios (sem vínculo com nenhuma execução)
-  // - cycle_id específico: só bugs vinculados às execuções desse ciclo
-  // - sem filtro: todos os bugs do projeto
   const bugIdsInAnyCycle = new Set((data.executions || []).filter(e => e.bug_id).map(e => e.bug_id));
   let filteredBugs = data.bugs || [];
   if (cycle_id === "no_cycle") {
@@ -89,7 +81,6 @@ export function applyExportFilters(data, dash, filters) {
     const bugIdsInCycle = new Set(filteredExec.filter(e => e.bug_id).map(e => e.bug_id));
     filteredBugs = filteredBugs.filter(b => bugIdsInCycle.has(b.id));
   }
-  // sem filtro: só bugs vinculados a algum ciclo (excluir exploratórios)
   if (!cycle_id) {
     filteredBugs = filteredBugs.filter(b => bugIdsInAnyCycle.has(b.id));
   }
@@ -97,10 +88,8 @@ export function applyExportFilters(data, dash, filters) {
     filteredBugs = filteredBugs.filter(b => b.module === modName);
   }
 
-  // Recalcula módulos a partir das execuções E bugs filtrados
   const moduleMap: Record<string, any> = {};
 
-  // Popula moduleMap a partir das execuções
   filteredExec.forEach(e => {
     if (!e.module) return;
     if (!moduleMap[e.module]) {
@@ -113,7 +102,6 @@ export function applyExportFilters(data, dash, filters) {
     else if (e.status === "not_executed") { m.not_executed++; }
   });
 
-  // finalMods para no_cycle: construído a partir dos bugs exploratórios
   const noCycleMap: Record<string, any> = {};
   if (cycle_id === "no_cycle") {
     filteredBugs.forEach(b => {
@@ -125,8 +113,6 @@ export function applyExportFilters(data, dash, filters) {
       if (b.status === "open")  noCycleMap[b.module].open_bugs++;
       if (b.status === "fixed") noCycleMap[b.module].fixed_bugs++;
     });
-    // Adiciona TODOS os módulos ao noCycleMap (mesmo sem bugs)
-    // para que total_cases apareça corretamente no relatório
     (data.modules || []).forEach((m: any) => {
       const key = m.name || m.module;
       if (!key) return;
@@ -137,7 +123,6 @@ export function applyExportFilters(data, dash, filters) {
     });
   }
 
-  // total_cases vem dos dados originais de módulo
   (data.modules || []).forEach((m: any) => {
     const key = m.name || m.module;
     if (key && moduleMap[key]) moduleMap[key].total_cases = m.total_cases || 0;
@@ -146,7 +131,6 @@ export function applyExportFilters(data, dash, filters) {
   const recalcMods = Object.values(moduleMap);
   const finalMods = cycle_id === "no_cycle" ? Object.values(noCycleMap) : recalcMods;
 
-  // Recalcula summary a partir das execuções filtradas
   const passed   = filteredExec.filter(e=>e.status==="passed").length;
   const failed   = filteredExec.filter(e=>e.status==="failed").length;
   const blocked  = filteredExec.filter(e=>e.status==="blocked").length;
@@ -154,7 +138,6 @@ export function applyExportFilters(data, dash, filters) {
   const total    = filteredExec.length;
   const executed = total - notExec;
 
-  // Recalcula bugs a partir dos bugs filtrados
   const bugsOpen       = filteredBugs.filter(b=>b.status==="open").length;
   const bugsInProgress = filteredBugs.filter(b=>b.status==="in_progress").length;
   const bugsFixed      = filteredBugs.filter(b=>b.status==="fixed").length;
@@ -164,9 +147,6 @@ export function applyExportFilters(data, dash, filters) {
     ...dash,
     summary: {
       ...(dash.summary||{}),
-      // total_cases do backend não é filtrado por módulo (só por projeto) — recalcula
-      // aqui a partir dos casos já filtrados para não inflar a base de cobertura/taxas
-      // quando um módulo específico está selecionado.
       total_cases:  (filteredTC||[]).length,
       passed, failed, blocked, not_executed: notExec,
       total_executions: executed,
@@ -186,11 +166,23 @@ export function applyExportFilters(data, dash, filters) {
   return {
     data: { ...data, cycles: filteredCycles, executions: filteredExec, testCases: filteredTC||[], bugs: filteredBugs||[], modules: recalcMods.length > 0 ? recalcMods : (filteredMods||data.modules||[]) },
     dash: filteredDash,
-    finalMods, // só usado no modo no_cycle
+    finalMods,
   };
 }
 
-// ── XLSX ──────────────────────────────────────────────────────
+export function openReport(html: string, fallbackFilename: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (!win) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fallbackFilename;
+    a.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export async function loadXLSX() {
   if (window.XLSX) return window.XLSX;
   return new Promise((resolve, reject) => {
@@ -215,11 +207,6 @@ export const SVL={low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
 export const PL={low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
 export const fd = d => { try { return d ? new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("pt-BR") : "—"; } catch { return d || "—"; } };
 
-// ── Ambiente ────────────────────────────────────────────────────
-// O ambiente do bug é um texto livre/customizável por projeto (não um enum fixo),
-// mas bugs antigos foram salvos com os valores em inglês do formulário padrão
-// (production/staging/homologation/development). Aqui normalizamos só esses
-// tokens conhecidos para PT-BR — qualquer nome customizado passa direto, sem alteração.
 export const ENV_TRANSLATIONS: Record<string,string> = {
   production: "Produção", prod: "Produção",
   homologation: "Homologação", homolog: "Homologação", staging: "Staging", stage: "Staging",
@@ -231,7 +218,6 @@ export function envLabel(raw?: string | null) {
   return ENV_TRANSLATIONS[key] || raw.trim();
 }
 
-// ── Datas / tempo ───────────────────────────────────────────────
 export function daysBetween(from?: string | null, to?: string | null) {
   if (!from || !to) return null;
   const d1 = new Date(from.length === 10 ? from + "T12:00:00" : from);
@@ -261,4 +247,3 @@ export function filterLabel(filters) {
   if (filters.status) parts.push(`Status: ${SL[filters.status]||filters.status}`);
   return parts.length ? `Filtros: ${parts.join(" | ")}` : "";
 }
-

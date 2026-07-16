@@ -1,4 +1,4 @@
-import { fetchData,fetchDashboard,applyExportFilters,SVL,filterLabel } from "./shared";
+import { fetchData,fetchDashboard,applyExportFilters,SVL,filterLabel,openReport } from "./shared";
 
 export async function exportExecutive(projectName, projectId, filters) {
   const rawData = await fetchData(projectId);
@@ -207,13 +207,5 @@ export async function exportExecutive(projectName, projectId, filters) {
 </body>
 </html>`;
 
-  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Relatorio_Executivo_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
+  openReport(html, `Relatorio_Executivo_${(projectName||"Export").replace(/\s+/g,"_")}_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.html`);
 }
-
-// ── Relatório de Defeitos ─────────────────────────────────────
