@@ -17,12 +17,10 @@ import { addActivityTables }      from "./database/migrations_activity";
 import { addBugTestType }         from "./database/migrations_bug_test_type";
 import { addNotificationsTable }  from "./database/migrations_notifications";
 import { addBugsV150Fields }       from "./database/migrations_bugs_v150";
-import { addEnvironmentsTable }    from "./database/migrations_environments";
 import { runSeed }                from "./database/seed";
 import requestLogger              from "./middlewares/requestLogger";
 import errorHandler               from "./middlewares/errorHandler";
 import { authenticate }           from "./middlewares/auth";
-import { mountSwagger }           from "./docs/swagger";
 
 import bugsRouter         from "./routes/bugs";
 import modulesRouter      from "./routes/modules";
@@ -38,6 +36,7 @@ import exportRouter       from "./routes/export";
 import shareRouter        from "./routes/shareRoutes";
 import backupRouter       from "./routes/backup";
 import environmentsRouter from "./routes/environments";
+import testPlansRouter    from "./routes/testPlans";
 
 const UPLOAD_DIR = process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads");
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch(_) {}
@@ -66,15 +65,13 @@ app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/api", apiLimiter);
 
-// Documentação interativa da API — não exige autenticação
-mountSwagger(app);
-
 // Rotas que ainda são JS puro (não migradas para TS)
 app.use("/api/users",                userProjectsRouter);
 app.use("/api/users/login",          loginLimiter);
 app.use("/api/users",                usersRouter);
 app.use("/api/projects",             projectsRouter);
 app.use("/api/projects/:projectId/environments", authenticate, environmentsRouter);
+app.use("/api/cycles/:cycleId/test-plan", authenticate, testPlansRouter);
 app.use("/api/modules",              authenticate, modulesRouter);
 app.use("/api/test-cases",           authenticate, testCasesRouter);
 app.use("/api/cycles",               authenticate, cyclesRouter);
@@ -104,7 +101,6 @@ async function start(): Promise<void> {
   await addBugTestType();
   await addNotificationsTable();
   await addBugsV150Fields();
-  await addEnvironmentsTable();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);

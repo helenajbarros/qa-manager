@@ -63,6 +63,11 @@ export const testCasesApi = {
   getActivity: (id: number)            => api.get<unknown[]>(`/test-cases/${id}/activity`),
 };
 
+export const testPlansApi = {
+  get:    (cycle_id: number|string) => api.get(`/cycles/${cycle_id}/test-plan`),
+  save:   (cycle_id: number|string, data: any) => api.put(`/cycles/${cycle_id}/test-plan`, data),
+};
+
 export const environmentsApi = {
   list:   (project_id: number|string) => api.get(`/projects/${project_id}/environments`),
   create: (project_id: number|string, data: any) => api.post(`/projects/${project_id}/environments`, data),
