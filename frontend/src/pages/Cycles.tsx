@@ -39,7 +39,6 @@ type CycleModalState = { mode: "create"; item?: null } | { mode: "edit"; item: C
 
 const CYCLE_STATUS = [{value:"active",label:"Ativo"},{value:"completed",label:"Concluído"},{value:"archived",label:"Arquivado"}];
 const EXEC_STATUS  = [{value:"not_executed",label:"Não executado"},{value:"passed",label:"Passou"},{value:"failed",label:"Falhou"},{value:"blocked",label:"Bloqueado"}];
-const PRIORITY_LABEL: Record<string,string> = {low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
 const TEST_TYPES   = ["Funcional","Regressão","Integração","Performance","Segurança","Usabilidade","Smoke","Sanidade","Exploratório","Aceitação","API","Automação"];
 const PAGE_SIZE    = 10;
 
@@ -245,7 +244,7 @@ function ExecutionModal({ cycleId, execution, onClose, onSaved }) {
   return (
     <Modal title={`▶ #${execution.test_case_id} — ${execution.test_case_title}`} onClose={onClose}>
       <div style={{background:"var(--bg)",borderRadius:6,padding:"8px 12px",marginBottom:14,fontSize:12,color:"var(--text-muted)"}}>
-        <strong>Módulo:</strong> {execution.module_name} &nbsp;|&nbsp; <strong>Prioridade:</strong> {PRIORITY_LABEL[execution.priority] || execution.priority}
+        <strong>Módulo:</strong> {execution.module_name} &nbsp;|&nbsp; <strong>Prioridade:</strong> {execution.priority}
       </div>
       <Field label="Status *">
         <Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={EXEC_STATUS} />
@@ -569,6 +568,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
 export default function Cycles() {
   const { user }           = useAuth();
   const { currentProject } = useProject();
+  const navigate           = useNavigate();
   const pid      = currentProject?.id;
   const isViewer  = user?.role === "viewer";
   const canManage = user?.role === "admin" || user?.role === "manager";
@@ -763,6 +763,7 @@ export default function Cycles() {
                         <td>
                           <div className="actions">
                             <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
+                            <button className="btn btn-sm" onClick={()=>navigate(`/cycles/${c.id}/test-plan`)} style={{fontSize:11}}>📝 Plano</button>
                             {!isViewer && (
                               <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
                             )}
