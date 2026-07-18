@@ -52,13 +52,16 @@ export default function TestPlan() {
 
   useEffect(() => {
     if (!cycleId) return;
-    Promise.all([
-      cyclesApi.get(cycleId),
-      modulesApi.list(pid ? {project_id: pid} : {}),
-      bugsApi.list(pid ? {project_id: pid} : {}),
-      testPlansApi.get(cycleId),
-    ]).then(([cycleRes, modsRes, bugsRes, planRes]: any) => {
-      const c = cycleRes?.data ?? cycleRes;
+    cyclesApi.get(cycleId).then(async (cycleRaw: any) => {
+      const c = cycleRaw?.data ?? cycleRaw;
+      const cyclePid = c?.project_id || pid;
+      const [modsRes, bugsRes, planRes] = await Promise.all([
+        modulesApi.list(cyclePid ? {project_id: cyclePid} : {}),
+        bugsApi.list(cyclePid ? {project_id: cyclePid} : {}),
+        testPlansApi.get(cycleId),
+      ]);
+      // dummy to keep same structure
+      const cycleRes = cycleRaw;
       const mods = modsRes?.data ?? modsRes ?? [];
       const bugsData = bugsRes?.data ?? bugsRes ?? [];
       const p = planRes?.data ?? planRes;
@@ -181,7 +184,7 @@ export default function TestPlan() {
       </div>
 
       {/* 1. Identificação */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:14,textTransform:"uppercase",letterSpacing:".05em"}}>
           1. Identificação
         </h2>
@@ -203,7 +206,7 @@ export default function TestPlan() {
       </div>
 
       {/* 2. Objetivo */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>
           2. Objetivo
         </h2>
@@ -215,7 +218,7 @@ export default function TestPlan() {
       </div>
 
       {/* 3. Escopo */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>
           3. Escopo dos Testes
         </h2>
@@ -264,7 +267,7 @@ export default function TestPlan() {
       </div>
 
       {/* 4. Critérios de Entrada */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>
           4. Critérios de Entrada
         </h2>
@@ -276,7 +279,7 @@ export default function TestPlan() {
       </div>
 
       {/* 5. Critérios de Saída */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>
           5. Critérios de Saída (Quality Gate)
         </h2>
@@ -288,7 +291,7 @@ export default function TestPlan() {
       </div>
 
       {/* 6. Estratégia */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>
           6. Estratégia de Teste
         </h2>
@@ -300,7 +303,7 @@ export default function TestPlan() {
       </div>
 
       {/* 7. Riscos */}
-      <div className="card" style={{marginBottom:16,padding:"18px 20px"}}>
+      <div className="card" style={{marginBottom:12,padding:"14px 16px"}}>
         <h2 style={{fontSize:14,fontWeight:700,color:"var(--accent)",marginBottom:12,textTransform:"uppercase",letterSpacing:".05em"}}>
           7. Riscos
         </h2>
