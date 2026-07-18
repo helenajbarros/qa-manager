@@ -9,6 +9,7 @@ import TestCases  from "./pages/TestCases.js";
 import Cycles     from "./pages/Cycles.js";
 import Bugs       from "./pages/Bugs.js";
 import BugDetail  from "./pages/BugDetail.js";
+import TestPlan   from "./pages/TestPlan.js";
 import ShareBug   from "./pages/ShareBug.js";
 import Users      from "./pages/Users.js";
 import Projects   from "./pages/Projects.js";
@@ -86,6 +87,7 @@ export default function App() {
           <Route path="/cycles"       element={<Guard><Cycles /></Guard>} />
           <Route path="/bugs"         element={<Guard><Bugs /></Guard>} />
           <Route path="/bugs/:id"     element={<Guard><BugDetail /></Guard>} />
+          <Route path="/cycles/:id/test-plan" element={<Guard><TestPlan /></Guard>} />
           <Route path="/projects"     element={<Guard managerOk><Projects /></Guard>} />
           <Route path="/users"        element={<Guard managerOk><Users /></Guard>} />
           <Route path="/backup"       element={<Guard adminOnly><Backup /></Guard>} />
