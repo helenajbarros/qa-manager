@@ -72,10 +72,105 @@ export default function TestPlan() {
     entry_criteria: DEF_ENTRY, exit_criteria: DEF_EXIT,
     strategy: DEF_STRATEGY, risks: "",
     approver_qa: "", approver_manager: "",
+    date_qa: "", date_manager: "",
     modules_scope: [] as any[],
   });
 
   const set = (k: string) => (v: any) => setForm(f => ({...f, [k]: v}));
+  const [planSaved, setPlanSaved] = useState(false);
+
+  function downloadHTML() {
+    const fmtBR = (d: string) => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "___/___/______";
+    const rC = (r: string) => r==="ALTO"?"#EF4444":r==="MÉDIO"?"#F59E0B":"#10B981";
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Plano de Teste — ${currentProject?.name||""}${cycle?.version?` v${cycle.version}`:""}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',Arial,sans-serif;color:#1E293B;padding:40px;max-width:900px;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      h1{font-size:22px;font-weight:700;margin-bottom:4px}
+      .sub{font-size:13px;color:#64748B;margin-bottom:28px}
+      .section{margin-bottom:20px;break-inside:avoid}
+      .section-title{font-size:12px;font-weight:700;color:#1E3A5F;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #E2E8F0;padding-bottom:6px;margin-bottom:12px}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:0}
+      .field{padding:8px 10px;background:#F8FAFC;border-radius:6px;border:1px solid #E2E8F0}
+      .field-label{font-size:10px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+      .field-val{font-size:12px;font-weight:500}
+      pre{font-size:12px;line-height:1.7;white-space:pre-wrap;font-family:inherit}
+      .mod{border:1px solid #E2E8F0;border-radius:6px;padding:8px 10px;margin-bottom:6px}
+      .mod-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+      .badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px}
+      .reason{font-size:11px;color:#64748B;margin-top:2px}
+      .approval{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+      .appr-box{border:1px solid #E2E8F0;border-radius:6px;padding:12px}
+      .appr-name{font-size:13px;font-weight:600;min-height:20px;border-bottom:1px solid #1E293B;padding-bottom:4px;margin-bottom:4px;margin-top:20px}
+      .appr-date{font-size:11px;color:#64748B}
+      @media print{body{padding:20px}}
+    </style></head><body>
+    <h1>📝 Plano de Teste — ${currentProject?.name||""}${cycle?.version?` — v${cycle.version}`:""}</h1>
+    <div class="sub">Ciclo: ${cycle?.name||"—"} | ${cycle?.start_date?`${fmtBR(cycle.start_date)} → ${cycle.end_date?fmtBR(cycle.end_date):"em aberto"}`:"—"}</div>
+
+    <div class="section">
+      <div class="section-title">1. Identificação</div>
+      <div class="grid">
+        <div class="field"><div class="field-label">Projeto</div><div class="field-val">${currentProject?.name||"—"}</div></div>
+        <div class="field"><div class="field-label">Ciclo</div><div class="field-val">${cycle?.name||"—"}</div></div>
+        <div class="field"><div class="field-label">Versão</div><div class="field-val">${cycle?.version?`v${cycle.version}`:"—"}</div></div>
+        <div class="field"><div class="field-label">Período</div><div class="field-val">${cycle?.start_date?`${fmtBR(cycle.start_date)} → ${cycle.end_date?fmtBR(cycle.end_date):"em aberto"}`:"—"}</div></div>
+        <div class="field"><div class="field-label">Tipos</div><div class="field-val">${(cycle?.types||[]).join(", ")||"—"}</div></div>
+        <div class="field"><div class="field-label">Total de Casos</div><div class="field-val">${form.modules_scope.filter(m=>m.included).reduce((a,m)=>a+m.total_cases,0)} casos</div></div>
+      </div>
+    </div>
+
+    <div class="section"><div class="section-title">2. Objetivo</div><pre>${form.objective||"—"}</pre></div>
+
+    <div class="section">
+      <div class="section-title">3. Escopo dos Testes</div>
+      ${form.modules_scope.filter(m=>m.included).map(m=>`
+        <div class="mod">
+          <div class="mod-header">
+            <strong style="font-size:12px">${m.name}</strong>
+            <span style="font-size:11px;color:#64748B">${m.total_cases} casos</span>
+            <span style="font-size:11px;color:#64748B">${m.bugs} bug(s)</span>
+            <span class="badge" style="background:${rC(m.risk)}20;color:${rC(m.risk)}">${m.risk}</span>
+          </div>
+          <div class="reason">Por que será testado: ${m.reason}</div>
+        </div>`).join("")}
+      ${form.out_of_scope ? `<div style="margin-top:10px"><strong style="font-size:11px">Fora do escopo:</strong><br><pre style="font-size:11px">${form.out_of_scope}</pre></div>` : ""}
+    </div>
+
+    <div class="section"><div class="section-title">4. Critérios de Entrada</div><pre>${form.entry_criteria}</pre></div>
+    <div class="section"><div class="section-title">5. Critérios de Saída (Quality Gate)</div><pre>${form.exit_criteria}</pre></div>
+    <div class="section"><div class="section-title">6. Estratégia de Teste</div><pre>${form.strategy}</pre></div>
+    <div class="section"><div class="section-title">7. Riscos</div><pre>${form.risks||"—"}</pre></div>
+
+    <div class="section">
+      <div class="section-title">8. Aprovação</div>
+      <div class="approval">
+        <div class="appr-box">
+          <div class="field-label">Elaborado por (QA)</div>
+          <div class="appr-name">${form.approver_qa||""}</div>
+          <div class="appr-date">Data: ${fmtBR((form as any).date_qa)}</div>
+        </div>
+        <div class="appr-box">
+          <div class="field-label">Aprovado por (Gestor)</div>
+          <div class="appr-name">${form.approver_manager||""}</div>
+          <div class="appr-date">Data: ${fmtBR((form as any).date_manager)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:28px" class="no-print">
+      <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
+    </div>
+    </body></html>`;
+    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Plano_de_Teste_${(currentProject?.name||"").replace(/\s+/g,"_")}${cycle?.version?`_v${cycle.version}`:""}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   useEffect(() => {
     if (!cycleId) return;
@@ -128,6 +223,7 @@ export default function TestPlan() {
           entry_criteria: p.entry_criteria||DEF_ENTRY, exit_criteria: p.exit_criteria||DEF_EXIT,
           strategy: p.strategy||DEF_STRATEGY, risks: p.risks||"",
           approver_qa: p.approver_qa||"", approver_manager: p.approver_manager||"",
+          date_qa: p.date_qa||"", date_manager: p.date_manager||"",
           modules_scope: p.modules_scope||modulesScope,
         });
       } else {
@@ -154,6 +250,7 @@ export default function TestPlan() {
     try {
       await testPlansApi.save(cycleId, form);
       setSaved(true);
+      setPlanSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } finally { setSaving(false); }
   }
@@ -166,9 +263,17 @@ export default function TestPlan() {
 
   const totalCases = form.modules_scope.filter(m=>m.included).reduce((a,m)=>a+m.total_cases,0);
   const saveBtn = (
-    <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{minWidth:90}}>
-      {saving ? "⏳ Salvando..." : saved ? "✅ Salvo!" : "💾 Salvar"}
-    </button>
+    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+      <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{minWidth:90}}>
+        {saving ? "⏳ Salvando..." : saved ? "✅ Salvo!" : "💾 Salvar"}
+      </button>
+      {planSaved && (
+        <button className="btn" onClick={downloadHTML}
+          style={{fontSize:12,background:"#F0FDF4",color:"#065F46",border:"1px solid #BBF7D0"}}>
+          📄 PDF
+        </button>
+      )}
+    </div>
   );
 
   return (
@@ -272,23 +377,33 @@ export default function TestPlan() {
       <Section num="8" title="Aprovação">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           {[
-            ["Elaborado por (QA)", "approver_qa", "Nome do QA responsável"],
-            ["Aprovado por (Gestor)", "approver_manager", "Nome do gestor/cliente"],
-          ].map(([label, field, placeholder]) => (
+            ["Elaborado por (QA)", "approver_qa", "Nome do QA responsável", "date_qa"],
+            ["Aprovado por (Gestor)", "approver_manager", "Nome do gestor/cliente", "date_manager"],
+          ].map(([label, field, placeholder, dateField]) => (
             <div key={field} style={{border:"1px solid var(--border)",borderRadius:6,padding:"10px 12px"}}>
               <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:700,textTransform:"uppercase",marginBottom:6}}>{label}</div>
               {canEdit ? (
                 <input value={(form as any)[field]} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))}
                   placeholder={placeholder as string}
-                  style={{width:"100%",padding:"5px 8px",borderRadius:4,border:"1px solid var(--border)",fontSize:12}} />
+                  style={{width:"100%",padding:"5px 8px",borderRadius:4,border:"1px solid var(--border)",fontSize:12,marginBottom:8}} />
               ) : (
-                <div style={{fontSize:12,fontWeight:500,minHeight:20}}>
+                <div style={{fontSize:12,fontWeight:500,minHeight:20,marginBottom:8}}>
                   {(form as any)[field] || <span style={{color:"var(--text-muted)"}}>Não preenchido</span>}
                 </div>
               )}
-              <div style={{borderTop:"1px solid var(--border)",marginTop:16,paddingTop:4,
-                fontSize:10,color:"var(--text-muted)"}}>
-                Assinatura / Data: ___/___/______
+              <div style={{borderTop:"1px solid var(--border)",paddingTop:8,marginTop:4}}>
+                <div style={{fontSize:10,color:"var(--text-muted)",fontWeight:600,marginBottom:3}}>Data:</div>
+                {canEdit ? (
+                  <input type="date" value={(form as any)[dateField]}
+                    onChange={e=>setForm(f=>({...f,[dateField]:e.target.value}))}
+                    style={{padding:"4px 8px",borderRadius:4,border:"1px solid var(--border)",fontSize:12,width:"100%"}} />
+                ) : (
+                  <div style={{fontSize:12}}>
+                    {(form as any)[dateField]
+                      ? new Date((form as any)[dateField]+"T12:00:00").toLocaleDateString("pt-BR")
+                      : <span style={{color:"var(--text-muted)"}}>___/___/______</span>}
+                  </div>
+                )}
               </div>
             </div>
           ))}
