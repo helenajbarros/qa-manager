@@ -14,15 +14,18 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const { user }                                       = useAuth();
+  const { user, loading: authLoading }                 = useAuth();
   const [projects,       setProjects]       = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
+    // Aguarda o auth terminar de carregar antes de verificar o user
+    if (authLoading) return;
     if (!user) {
       setProjects([]);
       setCurrentProject(null);
+      setLoading(false);
       return;
     }
 
@@ -48,7 +51,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, authLoading]);
 
   function selectProject(id: number | string): void {
     const p = projects.find(x => x.id === Number(id));
