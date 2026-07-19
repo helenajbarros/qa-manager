@@ -78,6 +78,7 @@ export default function TestPlan() {
 
   const set = (k: string) => (v: any) => setForm(f => ({...f, [k]: v}));
   const [planSaved, setPlanSaved] = useState(false);
+  const [usedPrevPlan, setUsedPrevPlan] = useState(false);
 
   function downloadHTML() {
     const fmtBR = (d: string) => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "___/___/______";
@@ -178,6 +179,15 @@ export default function TestPlan() {
       const cpid = c?.project_id || pid;
       setCycle(c);
 
+      // Buscar ciclo anterior (mesmo projeto, diferente do atual)
+      const allCyclesRes = await cyclesApi.list(cpid ? {project_id: cpid} : {});
+      const allCycles = (allCyclesRes as any)?.data ?? allCyclesRes ?? [];
+      const prevCycle = allCycles
+        .filter((c2: any) => String(c2.id) !== String(cycleId))
+        .sort((a: any, b: any) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime())[0] || null;
+      const prevPlanRes = prevCycle ? await testPlansApi.get(prevCycle.id) : null;
+      const prevPlan = prevPlanRes ? ((prevPlanRes as any)?.data ?? prevPlanRes) : null;
+
       const [mR, bR, tcR, pR] = await Promise.all([
         modulesApi.list(cpid ? {project_id: cpid} : {}),
         bugsApi.list(cpid ? {project_id: cpid} : {}),
@@ -237,7 +247,28 @@ export default function TestPlan() {
           .filter((m: any) => m.risk !== "BAIXO")
           .map((m: any) => `• ${m.name}: risco ${m.risk} — ${m.bugs > 5 ? "histórico elevado de bugs" : "bugs anteriores identificados"}`)
           .join("\n") || "• Nenhum risco crítico identificado com base no histórico.";
-        setForm(f => ({...f, objective: obj, risks: autoRisks, modules_scope: modulesScope}));
+
+        // Se tem plano anterior, usar como base (ajustando versão e riscos)
+        if (prevPlan?.objective) {
+          const updatedObj = prevPlan.objective.replace(
+            /versão\s+v?[\d.]+/gi, `versão${ver}`
+          );
+          setUsedPrevPlan(true);
+          setForm(f => ({
+            ...f,
+            objective: updatedObj || obj,
+            out_of_scope: prevPlan.out_of_scope || "",
+            entry_criteria: prevPlan.entry_criteria || DEF_ENTRY,
+            exit_criteria: prevPlan.exit_criteria || DEF_EXIT,
+            strategy: prevPlan.strategy || DEF_STRATEGY,
+            risks: autoRisks, // sempre atualiza riscos com dados atuais
+            approver_qa: prevPlan.approver_qa || "",
+            approver_manager: prevPlan.approver_manager || "",
+            modules_scope: modulesScope, // sempre usa módulos atuais
+          }));
+        } else {
+          setForm(f => ({...f, objective: obj, risks: autoRisks, modules_scope: modulesScope}));
+        }
       }
     }).finally(() => setLoading(false));
   }, [cycleId]);
@@ -288,6 +319,13 @@ export default function TestPlan() {
         </div>
         {canEdit && saveBtn}
       </div>
+      {usedPrevPlan && (
+        <div style={{padding:"8px 12px",background:"#EFF6FF",borderRadius:6,border:"1px solid #BFDBFE",
+          fontSize:12,color:"#1D4ED8",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>ℹ️ Pré-preenchido com base no plano do ciclo anterior. Revise antes de salvar.</span>
+          <button onClick={()=>setUsedPrevPlan(false)} style={{background:"none",border:"none",cursor:"pointer",color:"#1D4ED8",fontWeight:700}}>✕</button>
+        </div>
+      )}
 
       {/* 1. Identificação — grid compacto */}
       <Section num="1" title="Identificação">
@@ -311,6 +349,12 @@ export default function TestPlan() {
 
       {/* 3. Escopo */}
       <Section num="3" title="Escopo dos Testes">
+        {form.modules_scope.length === 0 && (
+          <div style={{padding:"12px",background:"#FEF3C7",borderRadius:6,border:"1px solid #FDE68A",
+            fontSize:12,color:"#92400E",marginBottom:10}}>
+            ⚠️ Nenhum módulo com casos de teste encontrado. Cadastre módulos e casos de teste antes de gerar o plano.
+          </div>
+        )}
         <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
           {form.modules_scope.map((m, idx) => (
             <div key={m.id||idx} style={{border:"1px solid var(--border)",borderRadius:6,padding:"8px 10px",
