@@ -88,7 +88,7 @@ async function fetchUserProjects(userId: number) {
 
 async function saveUserProjects(userId: number, projectIds: number[]) {
   await fetch(`${getBase()}/users/${userId}/projects`, {
-    method: "PUT",
+    method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
     body: JSON.stringify({ project_ids: projectIds }),
   });
