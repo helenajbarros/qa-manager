@@ -82,7 +82,8 @@ async function fetchUserProjects(userId: number) {
     });
     if (!res.ok) return [];
     const json = await res.json();
-    return json.data ?? json ?? [];
+    const ids = json.data ?? json ?? [];
+    return ids.map(Number);
   } catch { return []; }
 }
 
@@ -203,7 +204,8 @@ function ProjectAccessModal({ user, projects, onClose }) {
   }, [user.id]);
 
   function toggle(pid) {
-    setSelected(s => s.includes(pid) ? s.filter(x => x !== pid) : [...s, pid]);
+    const numPid = Number(pid);
+    setSelected(s => s.includes(numPid) ? s.filter(x => x !== numPid) : [...s, numPid]);
   }
 
   async function handleSave() {
@@ -229,7 +231,7 @@ function ProjectAccessModal({ user, projects, onClose }) {
                 border: `1px solid ${selected.includes(p.id) ? "var(--accent)" : "var(--border)"}`,
                 borderRadius:8, cursor:"pointer"
               }}>
-                <input type="checkbox" checked={selected.includes(p.id)}
+                <input type="checkbox" checked={selected.map(Number).includes(Number(p.id))}
                   onChange={() => toggle(p.id)}
                   style={{ width:16, height:16, cursor:"pointer" }} />
                 {p.logo_url && (
