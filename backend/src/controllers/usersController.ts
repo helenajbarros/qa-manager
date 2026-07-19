@@ -1,3 +1,4 @@
+import { query, execute } from "../database/connection";
 import type { Response, NextFunction } from "express";
 import type { AuthRequest } from "../types/index";
 import * as svc from "../services/usersService";
@@ -104,7 +105,25 @@ export const projectsController = async (req: AuthRequest, res: Response, next: 
         if (!req.file) { rr.badRequest(res, "Arquivo não enviado"); return; }
         const data = await svcProj.saveLogo(req.params.id, req.file.buffer, req.file.mimetype);
         rr.ok(res, data);
-      } catch(e){ next(e); }
+   
+export const getProjects = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const rows = await query<{project_id: number}>('SELECT project_id FROM user_projects WHERE user_id = $1', [req.params.id]);
+    r.ok(res, rows.map(row => row.project_id));
+  } catch(e){next(e);}
+};
+
+export const saveProjects = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { project_ids } = req.body;
+    await execute('DELETE FROM user_projects WHERE user_id = $1', [req.params.id]);
+    for (const pid of (project_ids || [])) {
+      await execute('INSERT INTO user_projects (user_id, project_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.id, pid]);
+    }
+    r.ok(res, { saved: true });
+  } catch(e){next(e);}
+};
+   } catch(e){ next(e); }
     });
   } catch(e){next(e);}
 };
