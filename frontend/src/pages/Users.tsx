@@ -489,19 +489,7 @@ export default function Users() {
         <ProjectAccessModal
           user={projectModal}
           projects={projects || []}
-          onClose={async () => {
-            setProjectModal(null);
-            await refetch();
-            // Recarregar projetos dos usuários
-            const users2 = users || [];
-            Promise.all(users2.map((u: any) =>
-              fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) })).catch(() => ({ id: u.id, ids: [] }))
-            )).then(results => {
-              const map: Record<number,number[]> = {};
-              results.forEach(r => { map[r.id] = r.ids; });
-              setUserProjects(map);
-            });
-          }}
+          onClose={() => { setProjectModal(null); refetch(); }}
         />
       )}
     </div>
