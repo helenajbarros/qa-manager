@@ -17,7 +17,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const { user }                                       = useAuth();
   const [projects,       setProjects]       = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [loading,        setLoading]        = useState(false);
+  const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
     if (!user) {
