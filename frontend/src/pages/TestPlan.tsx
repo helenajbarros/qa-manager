@@ -163,13 +163,13 @@ export default function TestPlan() {
       <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
     </div>
     </body></html>`;
-    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Plano_de_Teste_${(currentProject?.name||"").replace(/\s+/g,"_")}${cycle?.version?`_v${cycle.version}`:""}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Abre em nova janela e aciona impressão automaticamente (salvar como PDF)
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      setTimeout(() => win.print(), 500);
+    }
   }
 
   useEffect(() => {
