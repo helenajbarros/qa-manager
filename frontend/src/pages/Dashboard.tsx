@@ -273,22 +273,16 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
 
   // Ao selecionar um ciclo, preenche automaticamente as datas de início e fim
   function setCycle(cycleId) {
-    // O período (date_from/date_to) só deve ficar preenchido automaticamente
-    // enquanto um ciclo ESPECÍFICO estiver selecionado (é ele quem "empresta"
-    // esse período). Ao sair dessa opção — para "Todos os ciclos", "sem vínculo
-    // com ciclo" ou filtro por versão — o período herdado do ciclo anterior
-    // precisa ser limpo, senão ele continua filtrando silenciosamente (inclusive
-    // nos relatórios exportados, que usam esse mesmo objeto de filtros).
     if (!cycleId) {
-      onChange({ ...filters, cycle_id: "", period: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: "" });
       return;
     }
     if (cycleId === "no_cycle") {
-      onChange({ ...filters, cycle_id: "no_cycle", period: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: "no_cycle" });
       return;
     }
     if (cycleId?.startsWith("version:")) {
-      onChange({ ...filters, cycle_id: cycleId, period: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: cycleId });
       return;
     }
     const cycle = cycles.find(c => String(c.id) === String(cycleId));
@@ -368,6 +362,13 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
               fontSize:13, background:"var(--surface)", width:"100%" }}>
             <option value="">Todos os ciclos</option>
             <option value="no_cycle">📋 Bugs sem vínculo com ciclo</option>
+            {(() => {
+              const versions = [...new Set(cycles.filter(c=>c.version).map(c=>c.version))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+              if (!versions.length) return null;
+              return <optgroup label="── Por versão ──">
+                {versions.map(v => <option key={v} value={`version:${v}`}>📦 v{v}</option>)}
+              </optgroup>;
+            })()}
             {cycles.filter(c=>c.status==="active").length > 0 && <optgroup label="── Ativos ──">
               {cycles.filter(c=>c.status==="active").map(c => {
                 const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
@@ -565,8 +566,19 @@ function applyFilters(data, filters) {
 const fmtBR = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "";
 
 export default function Dashboard() {
-  const { currentProject } = useProject();
+  const { currentProject, projects } = useProject();
   const pid = currentProject?.id;
+
+  // Sem projetos vinculados
+  if (!projects?.length) return (
+    <div className="page" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:16}}>
+      <div style={{fontSize:40}}>🔒</div>
+      <h2 style={{fontSize:18,fontWeight:700}}>Sem acesso a projetos</h2>
+      <p style={{fontSize:14,color:"var(--text-muted)",textAlign:"center",maxWidth:400}}>
+        Você ainda não foi vinculado a nenhum projeto. Entre em contato com o administrador para solicitar acesso.
+      </p>
+    </div>
+  );
   const [filters, setFilters] = useState({});
 
   const { data, loading, error } = useAsync(
