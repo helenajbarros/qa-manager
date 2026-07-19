@@ -1,4 +1,4 @@
-import { useState, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAsync } from "../hooks/useAsync.js";
 import { cyclesApi, testCasesApi, bugsApi, usersApi, testPlansApi } from "../services/resources.js";
@@ -578,7 +578,7 @@ export default function Cycles() {
 
   // Verifica quais ciclos têm plano de teste
   const cyclesList = cycles || [];
-  useState(() => {
+  useEffect(() => {
     if (!cyclesList.length) return;
     Promise.all(cyclesList.map((c: any) =>
       testPlansApi.get(c.id).then((r: any) => {
@@ -590,7 +590,7 @@ export default function Cycles() {
       results.forEach(r => { map[r.id] = r.has; });
       setPlansMap(map);
     });
-  });
+  }, [cyclesList.length]);
   const [modal,   setModal]   = useState<CycleModalState | null>(null);
   const [confirm, setConfirm] = useState<CycleWithStats | null>(null);
   const [detail,  setDetail]  = useState<CycleWithStats | null>(null);
