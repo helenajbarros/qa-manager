@@ -332,11 +332,18 @@ export default function Users() {
       }
       if (modal.mode === "create") {
         const created = await usersApi.create(data) as any;
-        setModal(null); refetch();
+        const createdId = (created?.data ?? created)?.id;
+        setModal(null);
+        await refetch();
         // Abrir modal de projetos automaticamente após criar
-        const newUser = created?.data ?? created;
-        if (newUser?.id && !["admin","viewer"].includes(data.role)) {
-          setTimeout(() => setProjectModal({ user: newUser }), 300);
+        if (createdId && !["admin","viewer"].includes(data.role)) {
+          // Busca usuário completo da lista atualizada
+          setTimeout(async () => {
+            const allUsers = await usersApi.list() as any;
+            const usersList = allUsers?.data ?? allUsers ?? [];
+            const newUser = usersList.find((u: any) => u.id === createdId);
+            if (newUser) setProjectModal({ user: newUser });
+          }, 400);
         }
       } else {
         await usersApi.update(modal.item.id, data);
@@ -482,7 +489,19 @@ export default function Users() {
         <ProjectAccessModal
           user={projectModal}
           projects={projects || []}
-          onClose={() => setProjectModal(null)}
+          onClose={async () => {
+            setProjectModal(null);
+            await refetch();
+            // Recarregar projetos dos usuários
+            const users2 = users || [];
+            Promise.all(users2.map((u: any) =>
+              fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) })).catch(() => ({ id: u.id, ids: [] }))
+            )).then(results => {
+              const map: Record<number,number[]> = {};
+              results.forEach(r => { map[r.id] = r.ids; });
+              setUserProjects(map);
+            });
+          }}
         />
       )}
     </div>
