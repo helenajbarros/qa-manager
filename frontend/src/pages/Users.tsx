@@ -339,13 +339,12 @@ export default function Users() {
         await refetch();
         // Abrir modal de projetos automaticamente após criar
         if (createdId && !["admin","viewer"].includes(data.role)) {
-          // Busca usuário completo da lista atualizada
-          setTimeout(async () => {
-            const allUsers = await usersApi.list() as any;
-            const usersList = allUsers?.data ?? allUsers ?? [];
-            const newUser = usersList.find((u: any) => u.id === createdId);
-            if (newUser) setProjectModal({ user: newUser });
-          }, 400);
+          setTimeout(() => {
+            // Busca da lista já carregada após refetch
+            const newUser = (users || []).find((u: any) => u.id === createdId)
+              || { id: createdId, name: data.name, role: data.role };
+            setProjectModal({ user: newUser });
+          }, 600);
         }
       } else {
         await usersApi.update(modal.item.id, data);
@@ -420,8 +419,15 @@ export default function Users() {
                         <span style={{ fontSize:11, color:"var(--text-muted)" }}>Todos</span>
                       ) : (() => {
                         const canManageProjects = isAdmin || String(u.created_by_id) === String(me?.id);
-                        const projectsLoaded = u.id in userProjects;
-                        const hasProjects = (userProjects[u.id]||[]).length > 0;
+                        const isMe = u.id === me?.id;
+                        // Para o próprio usuário logado, usa os projetos já carregados no contexto
+                        const projectsLoaded = isMe ? true : u.id in userProjects;
+                        const hasProjects = isMe
+                          ? (projects?.length > 0)
+                          : (userProjects[u.id]||[]).length > 0;
+                        const projectCount = isMe
+                          ? projects?.length || 0
+                          : (userProjects[u.id]||[]).length;
                         if (!projectsLoaded) return <span style={{fontSize:11,color:"var(--text-muted)"}}>…</span>;
                         return canManageProjects ? (
                           <button className="btn btn-sm"
@@ -432,7 +438,7 @@ export default function Users() {
                               border: `1px solid ${hasProjects ? "#6EE7B7" : "#FDE68A"}`
                             }}>
                             {hasProjects
-                              ? `✅ ${(userProjects[u.id]||[]).length} projeto(s)`
+                              ? `✅ ${projectCount} projeto(s)`
                               : "⚠️ Vincular projeto"}
                           </button>
                         ) : (
@@ -442,7 +448,7 @@ export default function Users() {
                             padding:"2px 8px", borderRadius:6,
                             border: `1px solid ${hasProjects ? "#6EE7B7" : "#FDE68A"}`
                           }}>
-                            {hasProjects ? `✅ ${(userProjects[u.id]||[]).length} projeto(s)` : "⚠️ Sem projeto"}
+                            {hasProjects ? `✅ ${projectCount} projeto(s)` : "⚠️ Sem projeto"}
                           </span>
                         );
                       })()}
