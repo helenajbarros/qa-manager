@@ -252,9 +252,15 @@ function ProjectAccessModal({ user, projects, onClose }) {
             </div>
           )}
 
+          {selected.length === 0 && (
+            <div style={{padding:"8px 12px",background:"#FEE2E2",borderRadius:6,
+              fontSize:12,color:"#991B1B",marginBottom:8}}>
+              ⚠️ Selecione pelo menos 1 projeto para vincular o usuário.
+            </div>
+          )}
           <div className="modal-footer">
             <button className="btn" onClick={onClose}>Cancelar</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving||selected.length===0}>
               {saving ? "Salvando…" : `Salvar (${selected.length} projeto${selected.length !== 1 ? "s" : ""})`}
             </button>
           </div>
@@ -274,6 +280,20 @@ export default function Users() {
   const [page,         setPage]         = useState(1);
   const [confirm,      setConfirm]      = useState<User | null>(null);
   const [projectModal, setProjectModal] = useState<ProjectModalState | null>(null);
+  const [userProjects, setUserProjects] = useState<Record<number,number[]>>({});
+
+  // Buscar projetos de cada usuário
+  useEffect(() => {
+    const users2 = users || [];
+    if (!users2.length) return;
+    Promise.all(users2.map((u: any) =>
+      fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) })).catch(() => ({ id: u.id, ids: [] }))
+    )).then(results => {
+      const map: Record<number,number[]> = {};
+      results.forEach(r => { map[r.id] = r.ids; });
+      setUserProjects(map);
+    });
+  }, [users]);
   const [saving,       setSaving]       = useState(false);
   const [err,          setErr]          = useState<string | null>(null);
 
@@ -310,9 +330,18 @@ export default function Users() {
           setSaving(false); return;
         }
       }
-      if (modal.mode === "create") await usersApi.create(data);
-      else                         await usersApi.update(modal.item.id, data);
-      setModal(null); refetch();
+      if (modal.mode === "create") {
+        const created = await usersApi.create(data) as any;
+        setModal(null); refetch();
+        // Abrir modal de projetos automaticamente após criar
+        const newUser = created?.data ?? created;
+        if (newUser?.id && !["admin","viewer"].includes(data.role)) {
+          setTimeout(() => setProjectModal({ user: newUser }), 300);
+        }
+      } else {
+        await usersApi.update(modal.item.id, data);
+        setModal(null); refetch();
+      }
     } catch(e) { setErr(e.message); }
     finally { setSaving(false); }
   }
@@ -380,13 +409,32 @@ export default function Users() {
                     <td>
                       {!needsProjectLink(u) ? (
                         <span style={{ fontSize:11, color:"var(--text-muted)" }}>Todos</span>
-                      ) : (
-                        <button className="btn btn-sm"
-                          onClick={() => setProjectModal(u)}
-                          style={{ fontSize:11 }}>
-                          🗂 Gerenciar
-                        </button>
-                      )}
+                      ) : (() => {
+                        const canManageProjects = isAdmin || String(u.created_by_id) === String(me?.id);
+                        const hasProjects = (userProjects[u.id]||[]).length > 0;
+                        return canManageProjects ? (
+                          <button className="btn btn-sm"
+                            onClick={() => setProjectModal(u)}
+                            style={{ fontSize:11,
+                              background: hasProjects ? "#D1FAE5" : "#FEF3C7",
+                              color: hasProjects ? "#065F46" : "#92400E",
+                              border: `1px solid ${hasProjects ? "#6EE7B7" : "#FDE68A"}`
+                            }}>
+                            {hasProjects
+                              ? `✅ ${(userProjects[u.id]||[]).length} projeto(s)`
+                              : "⚠️ Vincular projeto"}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize:11,
+                            color: hasProjects ? "#065F46" : "#92400E",
+                            background: hasProjects ? "#D1FAE5" : "#FEF3C7",
+                            padding:"2px 8px", borderRadius:6,
+                            border: `1px solid ${hasProjects ? "#6EE7B7" : "#FDE68A"}`
+                          }}>
+                            {hasProjects ? `✅ ${(userProjects[u.id]||[]).length} projeto(s)` : "⚠️ Sem projeto"}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td style={{ color:"var(--text-muted)" }}>
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
