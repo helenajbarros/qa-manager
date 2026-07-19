@@ -116,7 +116,7 @@ export default function TestPlan() {
         <div class="field"><div class="field-label">Ciclo</div><div class="field-val">${cycle?.name||"—"}</div></div>
         <div class="field"><div class="field-label">Versão</div><div class="field-val">${cycle?.version?`v${cycle.version}`:"—"}</div></div>
         <div class="field"><div class="field-label">Período</div><div class="field-val">${cycle?.start_date?`${fmtBR(cycle.start_date)} → ${cycle.end_date?fmtBR(cycle.end_date):"em aberto"}`:"—"}</div></div>
-        <div class="field"><div class="field-label">Tipos</div><div class="field-val">${(cycle?.types||[]).join(", ")||"—"}</div></div>
+        <div class="field"><div class="field-label">Tipos</div><div class="field-val">${(cycle?.test_types ? (typeof cycle.test_types === 'string' ? cycle.test_types.split(',') : cycle.test_types) : []).join(", ")||"—"}</div></div>
         <div class="field"><div class="field-label">Total de Casos</div><div class="field-val">${form.modules_scope.filter(m=>m.included).reduce((a,m)=>a+m.total_cases,0)} casos</div></div>
       </div>
     </div>
@@ -227,7 +227,7 @@ export default function TestPlan() {
           modules_scope: p.modules_scope||modulesScope,
         });
       } else {
-        const types = c?.types || [];
+        const types = c?.test_types ? (typeof c.test_types === 'string' ? c.test_types.split(',').map((t:string)=>t.trim()) : c.test_types) : [];
         const proj = currentProject?.name || "sistema";
         const ver = c?.version ? ` v${c.version}` : "";
         const obj = types.includes("regression")
@@ -300,7 +300,7 @@ export default function TestPlan() {
           <Field label="Período">
             {cycle?.start_date ? `${fmtDate(cycle.start_date)} → ${cycle.end_date ? fmtDate(cycle.end_date) : "em aberto"}` : "—"}
           </Field>
-          <Field label="Tipos de Teste">{(cycle?.types||[]).join(", ") || "—"}</Field>
+          <Field label="Tipos de Teste">{(cycle?.test_types ? (typeof cycle.test_types === 'string' ? cycle.test_types.split(',').map((t:string)=>t.trim()) : cycle.test_types) : []).join(", ") || "—"}</Field>
           <Field label="Total de Casos (escopo)">{totalCases} casos</Field>
         </div>
       </Section>
