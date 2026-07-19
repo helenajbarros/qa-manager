@@ -159,9 +159,7 @@ export default function TestPlan() {
       </div>
     </div>
 
-    <div style="text-align:center;margin-top:28px" class="no-print">
-      <button onclick="window.print()" style="background:#1E3A5F;color:white;border:none;padding:10px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
-    </div>
+
     </body></html>`;
     // Abre em nova janela e aciona impressão automaticamente (salvar como PDF)
     const win = window.open("", "_blank");
