@@ -420,7 +420,9 @@ export default function Users() {
                         <span style={{ fontSize:11, color:"var(--text-muted)" }}>Todos</span>
                       ) : (() => {
                         const canManageProjects = isAdmin || String(u.created_by_id) === String(me?.id);
+                        const projectsLoaded = u.id in userProjects;
                         const hasProjects = (userProjects[u.id]||[]).length > 0;
+                        if (!projectsLoaded) return <span style={{fontSize:11,color:"var(--text-muted)"}}>…</span>;
                         return canManageProjects ? (
                           <button className="btn btn-sm"
                             onClick={() => setProjectModal(u)}
