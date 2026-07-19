@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth }    from "./context/AuthContext.js";
+import { useProject } from "./context/ProjectContext.js";
 import Sidebar    from "./components/Sidebar.js";
 import Login      from "./pages/Login.js";
 import Dashboard  from "./pages/Dashboard.js";
@@ -23,10 +24,28 @@ interface GuardProps {
 
 function Guard({ children, adminOnly = false, managerOk = false }: GuardProps) {
   const { user, loading, isAdmin, isManager } = useAuth();
-  if (loading) return <div className="loading">Carregando…</div>;
+  const { projects, loading: projectsLoading } = useProject();
+
+  if (loading || projectsLoading) return <div className="loading">Carregando…</div>;
   if (!user)   return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
   if (managerOk && !isAdmin && !isManager) return <Navigate to="/" replace />;
+
+  // Admin vê tudo. Outros perfis precisam de pelo menos 1 projeto vinculado.
+  if (!isAdmin && !projects?.length) {
+    return (
+      <div className="page" style={{display:"flex",flexDirection:"column",alignItems:"center",
+        justifyContent:"center",minHeight:"60vh",gap:16,textAlign:"center"}}>
+        <div style={{fontSize:48}}>🔒</div>
+        <h2 style={{fontSize:18,fontWeight:700}}>Sem acesso a projetos</h2>
+        <p style={{fontSize:14,color:"var(--text-muted)",maxWidth:400}}>
+          Você ainda não foi vinculado a nenhum projeto.<br/>
+          Entre em contato com o administrador para solicitar acesso.
+        </p>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 

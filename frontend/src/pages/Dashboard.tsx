@@ -566,19 +566,8 @@ function applyFilters(data, filters) {
 const fmtBR = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "";
 
 export default function Dashboard() {
-  const { currentProject, projects } = useProject();
+  const { currentProject } = useProject();
   const pid = currentProject?.id;
-
-  // Sem projetos vinculados
-  if (!projects?.length) return (
-    <div className="page" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:16}}>
-      <div style={{fontSize:40}}>🔒</div>
-      <h2 style={{fontSize:18,fontWeight:700}}>Sem acesso a projetos</h2>
-      <p style={{fontSize:14,color:"var(--text-muted)",textAlign:"center",maxWidth:400}}>
-        Você ainda não foi vinculado a nenhum projeto. Entre em contato com o administrador para solicitar acesso.
-      </p>
-    </div>
-  );
   const [filters, setFilters] = useState({});
 
   const { data, loading, error } = useAsync(
