@@ -1,7 +1,7 @@
 import { useState, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAsync } from "../hooks/useAsync.js";
-import { cyclesApi, testCasesApi, bugsApi, usersApi } from "../services/resources.js";
+import { cyclesApi, testCasesApi, bugsApi, usersApi, testPlansApi } from "../services/resources.js";
 import { useAuth }    from "../context/AuthContext.js";
 import { useProject } from "../context/ProjectContext.js";
 import { FileUpload } from "../components/FileUpload.js";
@@ -574,6 +574,23 @@ export default function Cycles() {
   const canManage = user?.role === "admin" || user?.role === "manager";
 
   const { data: cycles, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const [plansMap, setPlansMap] = useState<Record<number,boolean>>({});
+
+  // Verifica quais ciclos têm plano de teste
+  const cyclesList = cycles || [];
+  useState(() => {
+    if (!cyclesList.length) return;
+    Promise.all(cyclesList.map((c: any) =>
+      testPlansApi.get(c.id).then((r: any) => {
+        const p = r?.data ?? r;
+        return { id: c.id, has: !!(p?.objective) };
+      }).catch(() => ({ id: c.id, has: false }))
+    )).then(results => {
+      const map: Record<number,boolean> = {};
+      results.forEach(r => { map[r.id] = r.has; });
+      setPlansMap(map);
+    });
+  });
   const [modal,   setModal]   = useState<CycleModalState | null>(null);
   const [confirm, setConfirm] = useState<CycleWithStats | null>(null);
   const [detail,  setDetail]  = useState<CycleWithStats | null>(null);
@@ -763,7 +780,14 @@ export default function Cycles() {
                         <td>
                           <div className="actions">
                             <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
-                            <button className="btn btn-sm" onClick={()=>navigate(`/cycles/${c.id}/test-plan`)} style={{fontSize:11}}>📝 Plano</button>
+                            <a href={`/qa-manager/cycles/${c.id}/test-plan`} className="btn btn-sm"
+                              style={{fontSize:11,textDecoration:"none",
+                                background:plansMap[c.id]?"#D1FAE5":"#FEF3C7",
+                                color:plansMap[c.id]?"#065F46":"#92400E",
+                                border:`1px solid ${plansMap[c.id]?"#6EE7B7":"#FDE68A"}`}}
+                              title={plansMap[c.id]?"Plano de Teste criado":"Criar Plano de Teste"}>
+                              {plansMap[c.id] ? "✅ Plano" : "⚠️ Plano"}
+                            </a>
                             {!isViewer && (
                               <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
                             )}
