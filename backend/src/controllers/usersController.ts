@@ -106,6 +106,11 @@ export const projectsController = async (req: AuthRequest, res: Response, next: 
         const data = await svcProj.saveLogo(req.params.id, req.file.buffer, req.file.mimetype);
         rr.ok(res, data);
    
+   } catch(e){ next(e); }
+    });
+  } catch(e){next(e);}
+};
+
 export const getProjects = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const rows = await query<{project_id: number}>('SELECT project_id FROM user_projects WHERE user_id = $1', [req.params.id]);
@@ -121,9 +126,5 @@ export const saveProjects = async (req: AuthRequest, res: Response, next: NextFu
       await execute('INSERT INTO user_projects (user_id, project_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.id, pid]);
     }
     r.ok(res, { saved: true });
-  } catch(e){next(e);}
-};
-   } catch(e){ next(e); }
-    });
   } catch(e){next(e);}
 };
