@@ -502,7 +502,7 @@ export default function Users() {
         <ProjectAccessModal
           user={projectModal.user}
           projects={projects || []}
-          onClose={() => { setProjectModal(null); refetch(); setProjectsVersion(v => v+1); }}
+          onClose={() => { setProjectModal(null); setUserProjects({}); refetch(); setProjectsVersion(v => v+1); }}
         />
       )}
     </div>
