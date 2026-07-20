@@ -178,7 +178,7 @@ function NotificationBell() {
 
 export default function Sidebar() {
   const { user, logout, isAdmin, isManager } = useAuth();
-  const { projects, currentProject, selectProject } = useProject();
+  const { projects, currentProject, selectProject, loading: projectsLoading } = useProject();
   const canManage = isAdmin || isManager;
 
   return (
@@ -200,13 +200,13 @@ export default function Sidebar() {
           )}
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {currentProject?.name || "QA System"}
+              {projectsLoading ? "Carregando..." : (currentProject?.name || "QA System")}
             </h1>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Gestão de Testes</span>
           </div>
         </div>
 
-        {projects.length > 1 && (
+        {!projectsLoading && projects.length > 1 && (
           <select
             value={currentProject?.id ?? ""}
             onChange={(e) => selectProject(e.target.value)}
@@ -263,7 +263,7 @@ export default function Sidebar() {
             Sair
           </button>
           <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", marginTop: 8, opacity: 0.5 }}>
-            v1.7.0
+            v1.6.0
           </div>
         </div>
       )}
