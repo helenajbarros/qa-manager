@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function logout(): void {
     localStorage.removeItem("qa_token");
+    localStorage.removeItem("qa_project_id");
     setUser(null);
   }
 

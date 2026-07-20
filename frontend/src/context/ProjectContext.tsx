@@ -34,21 +34,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       .then(list => {
         setProjects(list);
 
-        const saved          = localStorage.getItem("qa_project_id");
-        const savedProject   = saved ? list.find(p => String(p.id) === saved) : null;
-        const defaultProject = user.default_project_id
-          ? list.find(p => String(p.id) === String(user.default_project_id))
-          : null;
-
         if (!list.length) {
           localStorage.removeItem("qa_project_id");
           setCurrentProject(null);
         } else {
-          // Se o projeto salvo não está na lista do usuário, limpa e usa o primeiro
-          if (saved && !savedProject) {
-            localStorage.removeItem("qa_project_id");
-          }
-          setCurrentProject(savedProject || defaultProject || list[0] || null);
+          // Sempre usa o primeiro projeto da lista do usuário
+          // O localStorage só é usado quando o usuário muda manualmente
+          const saved = localStorage.getItem("qa_project_id");
+          const savedProject = saved ? list.find(p => String(p.id) === saved) : null;
+          // Se o projeto salvo não está na lista, limpa
+          if (saved && !savedProject) localStorage.removeItem("qa_project_id");
+          setCurrentProject(savedProject || list[0] || null);
         }
       })
       .catch(() => {})
