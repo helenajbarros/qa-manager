@@ -288,11 +288,13 @@ export default function Users() {
   useEffect(() => {
     const users2 = users || [];
     if (!users2.length) return;
-    Promise.all(users2.map((u: any) =>
-      fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) })).catch(() => ({ id: u.id, ids: [] }))
+    Promise.allSettled(users2.map((u: any) =>
+      fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) }))
     )).then(results => {
       const map: Record<number,number[]> = {};
-      results.forEach(r => { map[r.id] = r.ids; });
+      results.forEach(r => {
+        if (r.status === 'fulfilled') map[r.value.id] = r.value.ids;
+      });
       setUserProjects(map);
     });
   }, [users]);
@@ -431,7 +433,7 @@ export default function Users() {
                         if (!projectsLoaded) return <span style={{fontSize:11,color:"var(--text-muted)"}}>…</span>;
                         return canManageProjects ? (
                           <button className="btn btn-sm"
-                            onClick={() => setProjectModal(u)}
+                            onClick={() => setProjectModal({ user: u, selectedIds: [] })}
                             style={{ fontSize:11,
                               background: hasProjects ? "#D1FAE5" : "#FEF3C7",
                               color: hasProjects ? "#065F46" : "#92400E",
@@ -497,7 +499,7 @@ export default function Users() {
 
       {projectModal && (
         <ProjectAccessModal
-          user={projectModal}
+          user={projectModal.user}
           projects={projects || []}
           onClose={() => { setProjectModal(null); refetch(); }}
         />
