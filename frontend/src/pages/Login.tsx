@@ -53,15 +53,15 @@ export default function Login() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>E-mail</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+            <input data-testid="input-email" type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="seu@email.com" autoFocus required />
           </div>
           <div className="form-group">
             <label>Senha</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+            <input data-testid="input-password" type="password" value={password} onChange={e => setPassword(e.target.value)}
               placeholder="••••••••" required />
           </div>
-          <button type="submit" className="btn btn-primary"
+          <button data-testid="btn-login" type="submit" className="btn btn-primary"
             style={{ width: "100%", justifyContent: "center", padding: "9px", marginTop: 4 }}
             disabled={loading}>
             {loading ? "Entrando…" : "Entrar"}

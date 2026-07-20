@@ -164,6 +164,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
     assigned_to_id: initial.assigned_to_id || "",
     environment:    initial.environment    || null,
     environment_id: initial.environment_id || null,
+    version:        initial.version        || "",
     version:        (initial as any).version || "",
     actual_result:  initial.actual_result  || "",
     expected_result: initial.expected_result || "",
@@ -173,7 +174,7 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
   return (
     <>
       <Field label="Título *">
-        <input value={form.title} onChange={set("title")} autoFocus
+        <input data-testid="input-bug-titulo" value={form.title} onChange={set("title")} autoFocus
           placeholder="Ex: [Login] Botão Entrar não responde no Safari" />
       </Field>
       <p style={{fontSize:11,color:"var(--text-muted)",marginTop:-8,marginBottom:12}}>
