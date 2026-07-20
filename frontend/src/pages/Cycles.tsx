@@ -782,10 +782,10 @@ export default function Cycles() {
                             <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
                             <a href={`/qa-manager/cycles/${c.id}/test-plan`} className="btn btn-sm"
                               style={{fontSize:11,textDecoration:"none",
-                                background:plansMap[c.id]?"#D1FAE5":"#FEF3C7",
-                                color:plansMap[c.id]?"#065F46":"#92400E",
-                                border:`1px solid ${plansMap[c.id]?"#6EE7B7":"#FDE68A"}`}}
-                              title={plansMap[c.id]?"Plano de Teste criado":"Criar Plano de Teste"}>
+                                background:plansMap===null?"var(--bg)":plansMap[c.id]?"#D1FAE5":"#FEF3C7",
+                                color:plansMap===null?"var(--text-muted)":plansMap[c.id]?"#065F46":"#92400E",
+                                border:`1px solid ${plansMap===null?"var(--border)":plansMap[c.id]?"#6EE7B7":"#FDE68A"}`}}
+                              title={plansMap===null?"Carregando...":plansMap[c.id]?"Plano criado":"Criar Plano de Teste"}>
                               {plansMap === null ? "📝 Plano" : plansMap[c.id] ? "✅ Plano" : "⚠️ Plano"}
                             </a>
                             {!isViewer && (
