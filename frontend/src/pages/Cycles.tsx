@@ -574,7 +574,7 @@ export default function Cycles() {
   const canManage = user?.role === "admin" || user?.role === "manager";
 
   const { data: cycles, loading, error, refetch } = useAsync(()=>cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const [plansMap, setPlansMap] = useState<Record<number,boolean>>({});
+  const [plansMap, setPlansMap] = useState<Record<number,boolean>|null>(null);
 
   // Verifica quais ciclos têm plano de teste
   const cyclesList = cycles || [];
@@ -786,7 +786,7 @@ export default function Cycles() {
                                 color:plansMap[c.id]?"#065F46":"#92400E",
                                 border:`1px solid ${plansMap[c.id]?"#6EE7B7":"#FDE68A"}`}}
                               title={plansMap[c.id]?"Plano de Teste criado":"Criar Plano de Teste"}>
-                              {plansMap[c.id] ? "✅ Plano" : "⚠️ Plano"}
+                              {plansMap === null ? "📝 Plano" : plansMap[c.id] ? "✅ Plano" : "⚠️ Plano"}
                             </a>
                             {!isViewer && (
                               <button className="btn btn-sm" onClick={()=>setModal({mode:"edit",item:c})}>✏</button>
