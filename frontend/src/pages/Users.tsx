@@ -283,6 +283,7 @@ export default function Users() {
   const [confirm,      setConfirm]      = useState<User | null>(null);
   const [projectModal, setProjectModal] = useState<ProjectModalState | null>(null);
   const [userProjects, setUserProjects] = useState<Record<number,number[]>>({});
+  const [projectsVersion, setProjectsVersion] = useState(0);
 
   // Buscar projetos de cada usuário
   useEffect(() => {
@@ -297,7 +298,7 @@ export default function Users() {
       });
       setUserProjects(map);
     });
-  }, [users]);
+  }, [users, projectsVersion]);
   const [saving,       setSaving]       = useState(false);
   const [err,          setErr]          = useState<string | null>(null);
 
@@ -501,7 +502,7 @@ export default function Users() {
         <ProjectAccessModal
           user={projectModal.user}
           projects={projects || []}
-          onClose={() => { setProjectModal(null); refetch(); }}
+          onClose={() => { setProjectModal(null); refetch(); setProjectsVersion(v => v+1); }}
         />
       )}
     </div>
