@@ -505,7 +505,19 @@ export default function Users() {
         <ProjectAccessModal
           user={projectModal.user}
           projects={projects || []}
-          onClose={() => { setProjectModal(null); setUserProjects({}); refetch(); setProjectsVersion(v => v+1); }}
+          onClose={async () => {
+            setProjectModal(null);
+            setUserProjects({});
+            await refetch();
+            // Busca manual após refetch
+            const us = (users || []) as any[];
+            const results = await Promise.allSettled(
+              us.map(u => fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) })))
+            );
+            const map: Record<number,number[]> = {};
+            results.forEach(r => { if (r.status==='fulfilled') map[r.value.id] = r.value.ids; });
+            setUserProjects(map);
+          }}
         />
       )}
     </div>
