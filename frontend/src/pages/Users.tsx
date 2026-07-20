@@ -1,6 +1,7 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { usersApi, projectsApi } from "../services/resources.js";
+import { useProject } from "../context/ProjectContext.js";
 import { useAuth } from "../context/AuthContext.js";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select } from "../components/UI.js";
 import type { User, Project, UserRole } from "../types/index.js";
@@ -275,7 +276,9 @@ function ProjectAccessModal({ user, projects, onClose }) {
 export default function Users() {
   const { user: me, isAdmin } = useAuth();
   const { data: users,    loading:l1, error:e1, refetch } = useAsync(() => usersApi.list());
-  const { data: projects, loading:l2 }                    = useAsync(() => projectsApi.list());
+  const { projects: contextProjects } = useProject();
+  const projects = contextProjects || [];
+  const l2 = false;
 
   const [modal,        setModal]        = useState<ModalState | null>(null);
   const [search,       setSearch]       = useState("");
