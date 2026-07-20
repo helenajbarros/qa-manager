@@ -12,5 +12,5 @@ router.post("/:id/projects", authenticate, requireAdminOrManager, c.saveProjects
 router.get("/:id",      authenticate, requireAdminOrManager, c.show);
 router.post("/",        authenticate, requireAdminOrManager, c.store);
 router.put("/:id",      authenticate, requireAdminOrManager, c.update);
-router.delete("/:id",   authenticate, requireAdmin, c.destroy);
+router.delete("/:id",   authenticate, requireAdminOrManager, c.destroy);
 export default router;
