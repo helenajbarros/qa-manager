@@ -85,9 +85,9 @@ function CycleForm({ initial={}, onSave, onCancel, saving }) {
   const toggle = t => setForm(f => ({...f, test_types: f.test_types.includes(t)?f.test_types.filter(x=>x!==t):[...f.test_types,t]}));
   return (
     <>
-      <Field label="Nome *"><input value={form.name} onChange={set("name")} placeholder="Ex: Sprint 1" autoFocus /></Field>
+      <Field label="Nome *"><input data-testid="input-ciclo-nome" value={form.name} onChange={set("name")} placeholder="Ex: Sprint 1" autoFocus /></Field>
       <div className="form-row">
-        <Field label="Versão"><input value={form.version} onChange={set("version")} placeholder="Ex: 1.2.0" /></Field>
+        <Field label="Versão"><input data-testid="input-ciclo-versao" value={form.version} onChange={set("version")} placeholder="Ex: 1.2.0" /></Field>
         <Field label="Status"><Select value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={CYCLE_STATUS} /></Field>
       </div>
       <div className="form-row">
@@ -779,7 +779,7 @@ export default function Cycles() {
                         </td>
                         <td>
                           <div className="actions">
-                            <button className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
+                            <button data-testid={`btn-abrir-ciclo-${c.id}`} className="btn btn-sm" onClick={()=>setDetail(c)}>▶ Abrir</button>
                             <a href={`/qa-manager/cycles/${c.id}/test-plan`} className="btn btn-sm"
                               style={{fontSize:11,textDecoration:"none",
                                 background:plansMap===null?"var(--bg)":plansMap[c.id]?"#D1FAE5":"#FEF3C7",

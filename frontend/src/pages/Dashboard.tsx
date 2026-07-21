@@ -45,7 +45,7 @@ const PAGE_SIZE  = 5;
 
 function MetricCard({ label, value, sub, color, id }: MetricCardProps) {
   return (
-    <div className="metric-card" id={id}>
+    <div className="metric-card" data-testid="card-metrica" id={id}>
       <div className="metric-label">{label}</div>
       <div className="metric-value" style={color?{color}:{}}>{value}</div>
       {sub && <div className="metric-sub">{sub}</div>}
@@ -273,22 +273,16 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
 
   // Ao selecionar um ciclo, preenche automaticamente as datas de início e fim
   function setCycle(cycleId) {
-    // O período (date_from/date_to) só deve ficar preenchido automaticamente
-    // enquanto um ciclo ESPECÍFICO estiver selecionado (é ele quem "empresta"
-    // esse período). Ao sair dessa opção — para "Todos os ciclos", "sem vínculo
-    // com ciclo" ou filtro por versão — o período herdado do ciclo anterior
-    // precisa ser limpo, senão ele continua filtrando silenciosamente (inclusive
-    // nos relatórios exportados, que usam esse mesmo objeto de filtros).
     if (!cycleId) {
-      onChange({ ...filters, cycle_id: "", period: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: "" });
       return;
     }
     if (cycleId === "no_cycle") {
-      onChange({ ...filters, cycle_id: "no_cycle", period: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: "no_cycle" });
       return;
     }
     if (cycleId?.startsWith("version:")) {
-      onChange({ ...filters, cycle_id: cycleId, period: "", date_from: "", date_to: "" });
+      onChange({ ...filters, cycle_id: cycleId });
       return;
     }
     const cycle = cycles.find(c => String(c.id) === String(cycleId));
@@ -363,11 +357,18 @@ function FiltersBar({ filters, onChange, modules, cycles = [] }) {
         </div>
         <div style={{ flex:"1 1 160px" }}>
           <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", marginBottom:4 }}>CICLO</div>
-          <select value={filters.cycle_id||""} onChange={e=>setCycle(e.target.value)}
+          <select data-testid="select-filtro-ciclo" value={filters.cycle_id||""} onChange={e=>setCycle(e.target.value)}
             style={{ padding:"6px 10px", borderRadius:6, border:"1px solid var(--border)",
               fontSize:13, background:"var(--surface)", width:"100%" }}>
             <option value="">Todos os ciclos</option>
             <option value="no_cycle">📋 Bugs sem vínculo com ciclo</option>
+            {(() => {
+              const versions = [...new Set(cycles.filter(c=>c.version).map(c=>c.version))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+              if (!versions.length) return null;
+              return <optgroup label="── Por versão ──">
+                {versions.map(v => <option key={v} value={`version:${v}`}>📦 v{v}</option>)}
+              </optgroup>;
+            })()}
             {cycles.filter(c=>c.status==="active").length > 0 && <optgroup label="── Ativos ──">
               {cycles.filter(c=>c.status==="active").map(c => {
                 const date = c.start_date ? new Date(c.start_date+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "";
@@ -656,7 +657,7 @@ export default function Dashboard() {
   return (
     <div className="page" id="dashboard-page">
       <div className="page-header">
-        <h1 id="dashboard-title">Dashboard {currentProject ? `— ${currentProject.name}` : ""}</h1>
+        <h1 data-testid="dashboard-title" id="dashboard-title">Dashboard {currentProject ? `— ${currentProject.name}` : ""}</h1>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <ExportButton filters={filters} />
           <span style={{ fontSize:12, color:"var(--text-muted)" }}>

@@ -95,7 +95,7 @@ function TestCaseForm({ initial = {}, modules, users, onSave, onCancel, saving }
             options={modules.map(m=>({value:m.id,label:m.name}))} placeholder="Selecione..." />
         </Field>
         <Field label="Prioridade">
-          <Select value={form.priority} onChange={v => setForm(f=>({...f,priority:v}))} options={PRI_OPTS} />
+          <Select data-testid="select-caso-prioridade" value={form.priority} onChange={v => setForm(f=>({...f,priority:v}))} options={PRI_OPTS} />
         </Field>
       </div>
       <Field label="Título *">
@@ -109,14 +109,14 @@ function TestCaseForm({ initial = {}, modules, users, onSave, onCancel, saving }
         <textarea value={form.description} onChange={set("description")} placeholder="Objetivo do teste..." />
       </Field>
       <Field label="Pré-condições">
-        <textarea value={form.preconditions} onChange={set("preconditions")} placeholder="O que precisa estar configurado..." />
+        <textarea data-testid="textarea-caso-precondicoes" value={form.preconditions} onChange={set("preconditions")} placeholder="O que precisa estar configurado..." />
       </Field>
       <Field label="Passos">
-        <textarea value={form.steps} onChange={set("steps")} style={{minHeight:100}}
+        <textarea data-testid="textarea-caso-passos" value={form.steps} onChange={set("steps")} style={{minHeight:100}}
           placeholder="1. Acesse a página&#10;2. Clique em..." />
       </Field>
       <Field label="Resultado esperado">
-        <textarea value={form.expected_result} onChange={set("expected_result")} placeholder="O que deve acontecer..." />
+        <textarea data-testid="textarea-caso-resultado" value={form.expected_result} onChange={set("expected_result")} placeholder="O que deve acontecer..." />
       </Field>
       <div className="modal-footer">
         <button className="btn" onClick={onCancel}>Cancelar</button>

@@ -136,7 +136,7 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsA
   return (
     <>
       <Field label="Nome completo *">
-        <input value={form.name} onChange={set("name")} placeholder="Ex: João Silva" autoFocus />
+        <input data-testid="input-usuario-nome" value={form.name} onChange={set("name")} placeholder="Ex: João Silva" autoFocus />
       </Field>
       <Field label="E-mail *">
         <input type="email" value={form.email} onChange={set("email")} placeholder="joao@empresa.com" />
@@ -153,7 +153,7 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsA
               ⚠ Este usuário tem perfil Admin — você não pode editar o perfil dele.
             </div>
           )}
-          <Select value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} options={roleOpts} />
+          <Select data-testid="select-usuario-perfil" value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} options={roleOpts} />
         </Field>
         {isEdit && (
           <Field label="Status">
@@ -372,7 +372,7 @@ export default function Users() {
     <div className="page">
       <div className="page-header">
         <h1>Usuários & Permissões</h1>
-        <button className="btn btn-primary" onClick={() => setModal({ mode:"create" })}>
+        <button data-testid="btn-novo-usuario" className="btn btn-primary" onClick={() => setModal({ mode:"create" })}>
           + Novo usuário
         </button>
       </div>
