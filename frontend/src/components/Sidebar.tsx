@@ -263,7 +263,7 @@ export default function Sidebar() {
             Sair
           </button>
           <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center", marginTop: 8, opacity: 0.5 }}>
-            v1.6.0
+            v1.7.0
           </div>
         </div>
       )}
