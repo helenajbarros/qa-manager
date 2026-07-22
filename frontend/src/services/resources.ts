@@ -22,8 +22,8 @@ export const authApi = {
 };
 
 export const usersApi = {
-  list:     ()              => api.get<User[]>("/users"),
-  mentions: ()              => api.get<MentionUser[]>("/users/mentions"),
+list:     (params?: Record<string, any>) => api.get<User[]>("/users", { params }), 
+ mentions: ()              => api.get<MentionUser[]>("/users/mentions"),
   create:   (d: Partial<User>) => api.post<User>("/users", d),
   update:   (id: number, d: Partial<User>) => api.put<User>(`/users/${id}`, d),
   delete:   (id: number)   => api.delete<void>(`/users/${id}`),
