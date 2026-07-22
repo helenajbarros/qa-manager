@@ -269,15 +269,17 @@ function ProjectAccessModal({ user, projects, onClose }) {
 
 export default function Users() {
   const { user: me, isAdmin } = useAuth();
-  const { projects: contextProjects, currentProject } = useProject();
+  const { projects: contextProjects, currentProject, loading: projectsLoading } = useProject();
   const pid = currentProject?.id;
   const projects = contextProjects || [];
-  const l2 = false;
 
-  // Filtra usuários pelo projeto atual
+  // Aguarda projeto carregar antes de buscar usuários
   const { data: users, loading:l1, error:e1, refetch } = useAsync(
-    () => usersApi.list(pid ? { project_id: pid } : {}),
-    [pid]
+    () => {
+      if (!pid) return usersApi.list();
+      return usersApi.list({ project_id: pid });
+    },
+    [String(pid || "")]
   );
 
   const [modal,           setModal]           = useState<ModalState | null>(null);
@@ -288,7 +290,6 @@ export default function Users() {
   const [userProjects,    setUserProjects]    = useState<Record<number,number[]>>({});
   const [projectsVersion, setProjectsVersion] = useState(0);
 
-  // Buscar projetos de cada usuário
   useEffect(() => {
     const users2 = users || [];
     if (!users2.length) return;
@@ -306,8 +307,8 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState<string | null>(null);
 
-  if (l1||l2) return <Loading />;
-  if (e1)     return <ErrorMsg msg={e1} />;
+  if (projectsLoading || l1) return <Loading />;
+  if (e1) return <ErrorMsg msg={e1} />;
 
   const filteredUsers = (users||[]).filter(u =>
     !search ||
@@ -386,7 +387,7 @@ export default function Users() {
       </div>
 
       <div className="card">
-        {!filteredUsers.length ? <Empty icon="👥" text="Nenhum usuário encontrado." /> : (
+        {!filteredUsers.length ? <Empty icon="👥" text="Nenhum usuário encontrado neste projeto." /> : (
           <>
           <div className="table-wrap">
             <table>
