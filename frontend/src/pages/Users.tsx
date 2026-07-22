@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ChangeEvent } from "react";
+import { useState, useEffect, useCallback, useRef, ChangeEvent } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { usersApi, projectsApi } from "../services/resources.js";
 import { useProject } from "../context/ProjectContext.js";
@@ -276,12 +276,17 @@ export default function Users() {
   const [users,   setUsers]   = useState<any[]>([]);
   const [l1,      setL1]      = useState(true);
   const [e1,      setE1]      = useState<string|null>(null);
+  const pidRef = useRef<number|null>(null);
+
+  // Atualiza ref sempre que pid muda
+  useEffect(() => {
+    pidRef.current = pid || Number(localStorage.getItem('qa_project_id')) || null;
+  }, [pid]);
 
   const refetch = useCallback(async () => {
     setL1(true);
     try {
-      // Usa pid do contexto ou do localStorage como fallback
-      const activePid = pid || Number(localStorage.getItem('qa_project_id')) || null;
+      const activePid = pidRef.current || Number(localStorage.getItem('qa_project_id')) || null;
       const res = await (activePid ? usersApi.list({ project_id: activePid }) : usersApi.list()) as any;
       setUsers(res?.data ?? res ?? []);
       setE1(null);
@@ -290,9 +295,18 @@ export default function Users() {
     } finally {
       setL1(false);
     }
-  }, [pid]);
+  }, []);
 
-  useEffect(() => { refetch(); }, [refetch]);
+  useEffect(() => {
+    const activePid = pid || Number(localStorage.getItem('qa_project_id')) || null;
+    pidRef.current = activePid;
+    setL1(true);
+    (activePid ? usersApi.list({ project_id: activePid }) : usersApi.list()).then((res: any) => {
+      setUsers(res?.data ?? res ?? []);
+      setE1(null);
+    }).catch((e: any) => setE1(e.message))
+    .finally(() => setL1(false));
+  }, [pid]);
 
   const [modal,           setModal]           = useState<ModalState | null>(null);
   const [search,          setSearch]          = useState("");
