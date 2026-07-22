@@ -99,27 +99,22 @@ async function saveUserProjects(userId: number, projectIds: number[]) {
 const ROLE_LABELS = { admin:"Admin", manager:"Gerente", editor:"Colaborador / Tester", viewer:"Visualizador" };
 const ROLE_COLORS = { admin:"var(--danger)", manager:"#7C3AED", editor:"var(--accent)", viewer:"var(--text-muted)" };
 
-// Perfis que Admin pode criar
 const ROLE_OPTS_ADMIN = [
   { value:"admin",   label:"Admin — acesso total" },
   { value:"manager", label:"Gerente — tudo exceto backup" },
   { value:"editor",  label:"Colaborador / Tester — pode criar e editar" },
   { value:"viewer",  label:"Visualizador — somente leitura" },
 ];
-// Perfis que Gerente pode criar (não pode criar Admin)
 const ROLE_OPTS_MANAGER = [
   { value:"manager", label:"Gerente — tudo exceto backup" },
   { value:"editor",  label:"Colaborador / Tester — pode criar e editar" },
   { value:"viewer",  label:"Visualizador — somente leitura" },
 ];
 
-// Perfis que NÃO precisam de vinculação de projeto (veem tudo)
 const NO_PROJECT_ROLES = ["admin"];
 
 function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsAdmin, projects=[] }) {
   const roleOpts = currentUserIsAdmin ? ROLE_OPTS_ADMIN : ROLE_OPTS_MANAGER;
-  // Se o gerente estiver editando um usuário com perfil fora das suas opções (ex: admin),
-  // força o valor inicial para "editor" para evitar envio silencioso de role inválido
   const allowedValues = roleOpts.map(o => o.value);
   const roleWasDowngraded = !currentUserIsAdmin && !allowedValues.includes(initial.role);
   const safeRole = allowedValues.includes(initial.role) ? initial.role : (allowedValues[0] || "editor");
@@ -139,7 +134,7 @@ function UserForm({ initial={}, onSave, onCancel, saving, isEdit, currentUserIsA
         <input data-testid="input-usuario-nome" value={form.name} onChange={set("name")} placeholder="Ex: João Silva" autoFocus />
       </Field>
       <Field label="E-mail *">
-        <input type="email" value={form.email} onChange={set("email")} placeholder="joao@empresa.com" />
+        <input data-testid="input-usuario-email" type="email" value={form.email} onChange={set("email")} placeholder="joao@empresa.com" />
       </Field>
       <Field label={isEdit ? "Nova senha (deixe em branco para não alterar)" : "Senha *"}>
         <input type="password" value={form.password} onChange={set("password")}
@@ -195,7 +190,6 @@ function ProjectAccessModal({ user, projects, onClose }) {
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
 
-  // BUG 7 CORRIGIDO: useState não re-executa quando user.id muda; useEffect correto
   useEffect(() => {
     setLoading(true);
     fetchUserProjects(user.id).then(ids => {
@@ -275,17 +269,23 @@ function ProjectAccessModal({ user, projects, onClose }) {
 
 export default function Users() {
   const { user: me, isAdmin } = useAuth();
-  const { data: users,    loading:l1, error:e1, refetch } = useAsync(() => usersApi.list());
-  const { projects: contextProjects } = useProject();
+  const { projects: contextProjects, currentProject } = useProject();
+  const pid = currentProject?.id;
   const projects = contextProjects || [];
   const l2 = false;
 
-  const [modal,        setModal]        = useState<ModalState | null>(null);
-  const [search,       setSearch]       = useState("");
-  const [page,         setPage]         = useState(1);
-  const [confirm,      setConfirm]      = useState<User | null>(null);
-  const [projectModal, setProjectModal] = useState<ProjectModalState | null>(null);
-  const [userProjects, setUserProjects] = useState<Record<number,number[]>>({});
+  // Filtra usuários pelo projeto atual
+  const { data: users, loading:l1, error:e1, refetch } = useAsync(
+    () => usersApi.list(pid ? { project_id: pid } : {}),
+    [pid]
+  );
+
+  const [modal,           setModal]           = useState<ModalState | null>(null);
+  const [search,          setSearch]          = useState("");
+  const [page,            setPage]            = useState(1);
+  const [confirm,         setConfirm]         = useState<User | null>(null);
+  const [projectModal,    setProjectModal]    = useState<ProjectModalState | null>(null);
+  const [userProjects,    setUserProjects]    = useState<Record<number,number[]>>({});
   const [projectsVersion, setProjectsVersion] = useState(0);
 
   // Buscar projetos de cada usuário
@@ -302,8 +302,9 @@ export default function Users() {
       setUserProjects(map);
     });
   }, [users, projectsVersion]);
-  const [saving,       setSaving]       = useState(false);
-  const [err,          setErr]          = useState<string | null>(null);
+
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState<string | null>(null);
 
   if (l1||l2) return <Loading />;
   if (e1)     return <ErrorMsg msg={e1} />;
@@ -321,12 +322,10 @@ export default function Users() {
     try {
       const data = { ...form };
       if (modal.mode === "edit" && !data.password) delete data.password;
-      // Gerente não pode criar/promover para Admin
       if (!isAdmin && data.role === "admin") {
         setErr("Gerentes não podem criar usuários Admin.");
         setSaving(false); return;
       }
-      // Gerente não pode editar usuário Admin nem usuário que não criou
       if (!isAdmin && modal.mode === "edit") {
         const target = modal.item;
         if (target.role === "admin") {
@@ -343,13 +342,11 @@ export default function Users() {
         const createdId = (created?.data ?? created)?.id;
         setModal(null);
         await refetch();
-        // Abrir modal de projetos automaticamente após criar
         if (createdId && !["admin","viewer"].includes(data.role)) {
           setTimeout(() => {
-            // Busca da lista já carregada após refetch
             const newUser = (users || []).find((u: any) => u.id === createdId)
               || { id: createdId, name: data.name, role: data.role };
-            setProjectModal({ user: newUser });
+            setProjectModal({ user: newUser, selectedIds: [] });
           }, 600);
         }
       } else {
@@ -365,7 +362,6 @@ export default function Users() {
     catch(e) { setErr(e.message); }
   }
 
-  // Perfis que precisam de vinculação de projeto
   const needsProjectLink = u => !NO_PROJECT_ROLES.includes(u.role);
 
   return (
@@ -426,7 +422,6 @@ export default function Users() {
                       ) : (() => {
                         const canManageProjects = isAdmin || String(u.created_by_id) === String(me?.id);
                         const isMe = u.id === me?.id;
-                        // Para o próprio usuário logado, usa os projetos já carregados no contexto
                         const projectsLoaded = isMe ? true : u.id in userProjects;
                         const hasProjects = isMe
                           ? (projects?.length > 0)
@@ -464,7 +459,6 @@ export default function Users() {
                     </td>
                     <td>
                       <div className="actions">
-                        {/* Gerente só edita a si mesmo ou usuários que criou (não admins) */}
                         {(isAdmin || u.id === me?.id || (!isAdmin && u.role !== "admin" && String(u.created_by_id) === String(me?.id))) && (
                           <button className="btn btn-sm"
                             onClick={() => setModal({ mode:"edit", item:u })}>✏ Editar</button>
@@ -509,7 +503,6 @@ export default function Users() {
             setProjectModal(null);
             setUserProjects({});
             await refetch();
-            // Busca manual após refetch
             const us = (users || []) as any[];
             const results = await Promise.allSettled(
               us.map(u => fetchUserProjects(u.id).then(ids => ({ id: u.id, ids: ids.map(Number) })))
@@ -517,6 +510,7 @@ export default function Users() {
             const map: Record<number,number[]> = {};
             results.forEach(r => { if (r.status==='fulfilled') map[r.value.id] = r.value.ids; });
             setUserProjects(map);
+            setProjectsVersion(v => v+1);
           }}
         />
       )}

@@ -24,10 +24,35 @@ export const me = async (req: AuthRequest, res: Response, next: NextFunction): P
 export const index = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { role, id } = req.user!;
-    if (role === "admin") { r.ok(res, await svc.findAll()); }
-    else {
+    const project_id = req.query.project_id ? Number(req.query.project_id) : null;
+
+    if (role === "admin") {
+      // Admin com projeto selecionado → só usuários desse projeto
+      if (project_id) {
+        const rows = await query(
+          `SELECT DISTINCT u.* FROM users u
+           JOIN user_projects up ON up.user_id = u.id
+           WHERE up.project_id = $1
+           ORDER BY u.name`, [project_id]
+        );
+        r.ok(res, rows);
+      } else {
+        // Admin sem filtro → todos os usuários
+        r.ok(res, await svc.findAll());
+      }
+    } else {
+      // Gerente → usuários que ele criou, filtrados pelo projeto se necessário
       const users = await svc.findByCreator(id) as any[];
-      r.ok(res, users.filter((u: any) => u.role !== "admin"));
+      const filtered = users.filter((u: any) => u.role !== "admin");
+      if (project_id) {
+        const projectUsers = await query<{user_id: number}>(
+          `SELECT user_id FROM user_projects WHERE project_id = $1`, [project_id]
+        );
+        const projectUserIds = projectUsers.map((r: any) => r.user_id);
+        r.ok(res, filtered.filter((u: any) => projectUserIds.includes(u.id)));
+      } else {
+        r.ok(res, filtered);
+      }
     }
   } catch(e){next(e);}
 };
@@ -90,24 +115,6 @@ export const mentions = async (req: AuthRequest, res: Response, next: NextFuncti
   try {
     const rows = await svc.findAllForMentions();
     res.json({ success: true, data: rows });
-  } catch(e){next(e);}
-};
-
-export const projectsController = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const svcProj = require("../services/projectsService");
-    const multer  = require("multer");
-    const rr      = require("../utils/response");
-    const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5*1024*1024 } });
-    upload.single("logo")(req as any, res, async (err: any) => {
-      if (err) { next(err); return; }
-      try {
-        if (!req.file) { rr.badRequest(res, "Arquivo não enviado"); return; }
-        const data = await svcProj.saveLogo(req.params.id, req.file.buffer, req.file.mimetype);
-        rr.ok(res, data);
-   
-   } catch(e){ next(e); }
-    });
   } catch(e){next(e);}
 };
 
