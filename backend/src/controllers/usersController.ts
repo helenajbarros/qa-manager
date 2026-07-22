@@ -26,32 +26,33 @@ export const index = async (req: AuthRequest, res: Response, next: NextFunction)
     const { role, id } = req.user!;
     const project_id = req.query.project_id ? Number(req.query.project_id) : null;
 
-    if (role === "admin") {
-      // Admin com projeto selecionado → só usuários desse projeto
-      if (project_id) {
-        const rows = await query(
-          `SELECT DISTINCT u.* FROM users u
-           JOIN user_projects up ON up.user_id = u.id
-           WHERE up.project_id = $1
-           ORDER BY u.name`, [project_id]
-        );
-        r.ok(res, rows);
-      } else {
-        // Admin sem filtro → todos os usuários
-        r.ok(res, await svc.findAll());
-      }
+    if (project_id) {
+      // Sempre filtra por projeto quando project_id enviado — Admin ou não
+      const rows = await query(
+        `SELECT DISTINCT u.* FROM users u
+         JOIN user_projects up ON up.user_id = u.id
+         WHERE up.project_id = $1
+         ORDER BY u.name`, [project_id]
+      );
+      // Admins sempre aparecem mesmo sem vínculo explícito
+      const admins = await query(
+        `SELECT * FROM users WHERE role = 'admin' ORDER BY name`
+      );
+      // Merge: admins + usuários do projeto (sem duplicatas)
+      const projectIds = new Set((rows as any[]).map((u: any) => u.id));
+      const merged = [...(rows as any[])];
+      (admins as any[]).forEach((a: any) => {
+        if (!projectIds.has(a.id)) merged.push(a);
+      });
+      merged.sort((a: any, b: any) => a.name.localeCompare(b.name));
+      r.ok(res, merged);
     } else {
-      // Gerente → usuários que ele criou, filtrados pelo projeto se necessário
-      const users = await svc.findByCreator(id) as any[];
-      const filtered = users.filter((u: any) => u.role !== "admin");
-      if (project_id) {
-        const projectUsers = await query<{user_id: number}>(
-          `SELECT user_id FROM user_projects WHERE project_id = $1`, [project_id]
-        );
-        const projectUserIds = projectUsers.map((r: any) => r.user_id);
-        r.ok(res, filtered.filter((u: any) => projectUserIds.includes(u.id)));
+      // Sem projeto — Admin vê todos, Gerente vê os que criou
+      if (role === "admin") {
+        r.ok(res, await svc.findAll());
       } else {
-        r.ok(res, filtered);
+        const users = await svc.findByCreator(id) as any[];
+        r.ok(res, users.filter((u: any) => u.role !== "admin"));
       }
     }
   } catch(e){next(e);}
