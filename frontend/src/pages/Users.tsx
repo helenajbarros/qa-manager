@@ -280,7 +280,9 @@ export default function Users() {
   const refetch = useCallback(async () => {
     setL1(true);
     try {
-      const res = await (pid ? usersApi.list({ project_id: pid }) : usersApi.list()) as any;
+      // Usa pid do contexto ou do localStorage como fallback
+      const activePid = pid || Number(localStorage.getItem('qa_project_id')) || null;
+      const res = await (activePid ? usersApi.list({ project_id: activePid }) : usersApi.list()) as any;
       setUsers(res?.data ?? res ?? []);
       setE1(null);
     } catch(e: any) {
