@@ -1,4 +1,4 @@
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { useAsync } from "../hooks/useAsync.js";
 import { usersApi, projectsApi } from "../services/resources.js";
 import { useProject } from "../context/ProjectContext.js";
@@ -273,14 +273,24 @@ export default function Users() {
   const pid = currentProject?.id;
   const projects = contextProjects || [];
 
-  // Aguarda projeto carregar antes de buscar usuários
-  const { data: users, loading:l1, error:e1, refetch } = useAsync(
-    () => {
-      if (!pid) return usersApi.list();
-      return usersApi.list({ project_id: pid });
-    },
-    [String(pid || "")]
-  );
+  const [users,   setUsers]   = useState<any[]>([]);
+  const [l1,      setL1]      = useState(true);
+  const [e1,      setE1]      = useState<string|null>(null);
+
+  const refetch = useCallback(async () => {
+    setL1(true);
+    try {
+      const res = await (pid ? usersApi.list({ project_id: pid }) : usersApi.list()) as any;
+      setUsers(res?.data ?? res ?? []);
+      setE1(null);
+    } catch(e: any) {
+      setE1(e.message);
+    } finally {
+      setL1(false);
+    }
+  }, [pid]);
+
+  useEffect(() => { refetch(); }, [refetch]);
 
   const [modal,           setModal]           = useState<ModalState | null>(null);
   const [search,          setSearch]          = useState("");
