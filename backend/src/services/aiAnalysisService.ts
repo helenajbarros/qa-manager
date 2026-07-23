@@ -85,18 +85,51 @@ export async function analyzeTestCases(project_id: number) {
       .filter((b: any) => b.module_name === mod.name)
       .map((b: any) => b.bug_title?.toLowerCase() || '');
 
+    // Sinônimos para melhorar detecção
+    const SINONIMOS: Record<string, string[]> = {
+      'inválido': ['invalido', 'incorreto', 'erro', 'errado', 'invalid'],
+      'limite':   ['maximo', 'máximo', 'tamanho', 'length', 'max', 'exceder'],
+      'permissão': ['permissao', 'acesso', 'negado', 'proibido', 'restrito', 'autoriza'],
+      'obrigatório': ['obrigatorio', 'required', 'vazio', 'branco', 'em branco'],
+      'upload':   ['envio', 'arquivo', 'anexo', 'file', 'documento'],
+      'excluir':  ['deletar', 'remover', 'apagar', 'delete'],
+      'editar':   ['alterar', 'atualizar', 'modificar', 'update'],
+      'busca':    ['pesquisa', 'filtro', 'search', 'procurar'],
+      'expirado': ['vencido', 'expirou', 'prazo', 'timeout'],
+      'duplica':  ['duplicado', 'repetido', 'ja existe', 'já existe'],
+      'cancelar': ['cancelamento', 'desistir', 'voltar'],
+      'bloqueio': ['bloquear', 'bloquear', 'tentativas', 'bloqueado'],
+      'corrompido': ['corrompido', 'danificado', 'invalido', 'quebrado'],
+    };
+
+    function expandirSinonimos(palavra: string): string[] {
+      const resultado = [palavra.toLowerCase()];
+      Object.entries(SINONIMOS).forEach(([base, sinonimos]) => {
+        if (palavra.toLowerCase().includes(base)) {
+          resultado.push(...sinonimos);
+        }
+        sinonimos.forEach(sin => {
+          if (palavra.toLowerCase().includes(sin)) {
+            resultado.push(base, ...sinonimos);
+          }
+        });
+      });
+      return [...new Set(resultado)];
+    }
+
     // Para cada tipo de cenário, verificar se já está coberto
     CENARIOS_COMUNS.forEach(cenario => {
-      // Verificar se o módulo tem casos desse tipo
       const temCenario = modCases.some(title =>
         cenario.keywords.some(kw => title.includes(kw))
       );
 
       if (temCenario) {
-        // Tem o cenário — verificar se cobre os casos negativos
         cenario.sugestoes.forEach(sug => {
+          const palavrasSug = sug.split(' ').filter(w => w.length > 3);
+          const todasPalavras = palavrasSug.flatMap(p => expandirSinonimos(p));
+
           const jaTemSugestao = modCases.some(title =>
-            sug.split(' ').filter(w => w.length > 3).some(w => title.includes(w))
+            todasPalavras.some(w => title.includes(w))
           );
           if (!jaTemSugestao) {
             suggestions.push(`**${mod.name}** — Adicionar caso para: ${sug}`);
