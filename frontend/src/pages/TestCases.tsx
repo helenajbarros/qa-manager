@@ -531,9 +531,11 @@ export default function TestCases() {
                     ["📋","Módulos",aiAnalysis.summary?.total_modules],
                     ["🔢","Casos",aiAnalysis.summary?.total_cases],
                     ["🐛","Bugs",aiAnalysis.summary?.total_bugs],
-                    ["⏳","Não exec.",aiAnalysis.summary?.never_executed],
-                  ].map(([icon,label,val]) => (
-                    <div key={label as string} style={{textAlign:"center",padding:"10px 8px",background:"var(--bg)",borderRadius:8,border:"1px solid var(--border)"}}>
+                    ["⏳","Não exec.",aiAnalysis.summary?.never_executed,"Casos que nunca foram executados em nenhum ciclo de teste"],
+                  ].map(([icon,label,val,tooltip]) => (
+                    <div key={label as string} title={tooltip as string || ""}
+                      style={{textAlign:"center",padding:"10px 8px",background:"var(--bg)",borderRadius:8,
+                        border:"1px solid var(--border)",cursor:tooltip?"help":"default"}}>
                       <div style={{fontSize:20}}>{icon}</div>
                       <div style={{fontSize:18,fontWeight:700}}>{val}</div>
                       <div style={{fontSize:11,color:"var(--text-muted)"}}>{label}</div>
