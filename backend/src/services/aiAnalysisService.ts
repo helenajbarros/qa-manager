@@ -148,8 +148,9 @@ export async function analyzeTestCases(project_id: number) {
     }
   });
 
-  // Sugestões gerais se não houver específicas
-  if (suggestions.length === 0) {
+  // Sugestões gerais só se houver módulos e casos cadastrados
+  const totalCasesGlobal = (modules as any[]).reduce((a: number, m: any) => a + Number(m.total_cases), 0);
+  if (suggestions.length === 0 && totalCasesGlobal > 0) {
     suggestions.push("Adicionar casos de teste para fluxos de erro em todos os módulos");
     suggestions.push("Criar casos de teste para diferentes perfis de usuário (Admin, Gerente, Colaborador, Visualizador)");
     suggestions.push("Adicionar casos de teste para validação de campos obrigatórios");

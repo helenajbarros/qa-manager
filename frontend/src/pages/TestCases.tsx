@@ -518,6 +518,12 @@ export default function TestCases() {
                 <div style={{fontSize:32,marginBottom:12}}>🤖</div>
                 <div style={{fontSize:14,color:"var(--text-muted)"}}>Gerando relatório de gaps...</div>
               </div>
+            ) : aiAnalysis && aiAnalysis.summary?.total_modules === 0 ? (
+              <div style={{textAlign:"center",padding:32}}>
+                <div style={{fontSize:40,marginBottom:12}}>📭</div>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>Projeto sem módulos</div>
+                <div style={{fontSize:13,color:"var(--text-muted)"}}>Cadastre módulos e casos de teste para gerar o relatório de gaps.</div>
+              </div>
             ) : aiAnalysis ? (
               <div style={{fontSize:13,lineHeight:1.8}}>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}>
