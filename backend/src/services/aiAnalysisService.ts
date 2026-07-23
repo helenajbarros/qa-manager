@@ -150,7 +150,7 @@ export async function analyzeTestCases(project_id: number) {
 
   // Sugestões gerais só se houver módulos e casos cadastrados
   const totalCasesGlobal = (modules as any[]).reduce((a: number, m: any) => a + Number(m.total_cases), 0);
-  if (suggestions.length === 0 && totalCasesGlobal > 0) {
+  if (suggestions.length === 0 && totalCasesGlobal > 0 && gaps.length === 0) {
     suggestions.push("Adicionar casos de teste para fluxos de erro em todos os módulos");
     suggestions.push("Criar casos de teste para diferentes perfis de usuário (Admin, Gerente, Colaborador, Visualizador)");
     suggestions.push("Adicionar casos de teste para validação de campos obrigatórios");
@@ -169,11 +169,15 @@ export async function analyzeTestCases(project_id: number) {
   );
 
   lowCoverage.forEach((m: any) => {
-    gaps.push(`Módulo **${m.name}** tem apenas ${m.total_cases} caso(s) de teste — pode estar subrepresentado`);
+    if (Number(m.total_cases) > 0) {
+      gaps.push(`Módulo **${m.name}** tem apenas ${m.total_cases} caso(s) de teste — pode estar subrepresentado`);
+    }
   });
   criticalModules.forEach((m: any) => {
-    if (Number(m.total_cases) < 5) {
+    if (Number(m.total_cases) > 0 && Number(m.total_cases) < 5) {
       gaps.push(`Módulo **${m.name}** é crítico mas tem apenas ${m.total_cases} caso(s) — recomenda-se ampliar a cobertura`);
+    } else if (Number(m.total_cases) === 0) {
+      gaps.push(`Módulo **${m.name}** é crítico e ainda não tem nenhum caso de teste — cadastre casos urgentemente`);
     }
   });
   if (neverExecuted.length > 0) {
