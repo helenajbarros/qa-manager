@@ -569,6 +569,7 @@ export default function TestCases() {
                     ))}
                   </div>
                 )}
+                {(aiAnalysis.suggestions?.length > 0 || (aiAnalysis.summary?.total_cases > 0 && aiAnalysis.summary?.total_modules > 0)) && (
                 <div>
                   <div style={{fontWeight:700,color:"#10B981",marginBottom:8}}>💡 Sugestões</div>
                   {aiAnalysis.suggestions?.length > 0 ? (
@@ -584,6 +585,7 @@ export default function TestCases() {
                     </div>
                   ) : null}
                 </div>
+                )}
               </div>
             ) : (
               <div style={{textAlign:"center",padding:24,color:"var(--text-muted)"}}>Erro ao carregar análise.</div>
