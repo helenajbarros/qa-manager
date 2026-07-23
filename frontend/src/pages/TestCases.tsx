@@ -563,15 +563,21 @@ export default function TestCases() {
                     ))}
                   </div>
                 )}
-                {aiAnalysis.suggestions?.length > 0 && (
-                  <div>
-                    <div style={{fontWeight:700,color:"#10B981",marginBottom:8}}>💡 Sugestões</div>
-                    {aiAnalysis.suggestions.map((s: string,i: number) => (
+                <div>
+                  <div style={{fontWeight:700,color:"#10B981",marginBottom:8}}>💡 Sugestões</div>
+                  {aiAnalysis.suggestions?.length > 0 ? (
+                    aiAnalysis.suggestions.map((s: string,i: number) => (
                       <div key={i} style={{padding:"6px 12px",background:"#F0FDF4",borderRadius:6,marginBottom:4,borderLeft:"3px solid #10B981",fontSize:12}}
                         dangerouslySetInnerHTML={{__html: s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}} />
-                    ))}
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div style={{padding:"16px",background:"#F0FDF4",borderRadius:8,border:"1px solid #6EE7B7",textAlign:"center"}}>
+                      <div style={{fontSize:28,marginBottom:8}}>🏆</div>
+                      <div style={{fontWeight:700,color:"#065F46",fontSize:14}}>Cobertura excelente!</div>
+                      <div style={{fontSize:12,color:"#047857",marginTop:4}}>Nenhuma sugestão de melhoria encontrada. Continue assim!</div>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div style={{textAlign:"center",padding:24,color:"var(--text-muted)"}}>Erro ao carregar análise.</div>
