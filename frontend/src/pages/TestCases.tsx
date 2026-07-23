@@ -154,6 +154,9 @@ export default function TestCases() {
   const [page,      setPage]      = useState(1);
   const [pageSize,  setPageSize]  = useState(10);
   const [showExport, setShowExport] = useState(false);
+  const [showAI,     setShowAI]     = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [aiLoading,  setAiLoading]  = useState(false);
 
   function exportExcel() {
     const XLSX = (window as any).XLSX;
@@ -193,7 +196,26 @@ export default function TestCases() {
     exportExcel();
   }
 
-  function exportHTML() {
+  async function analyzeWithAI() {
+    setShowAI(true);
+    setAiLoading(true);
+    setAiAnalysis(null);
+    try {
+      const base = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
+      const token = localStorage.getItem("qa_token");
+      const res = await fetch(`${base}/ai/analyze?project_id=${pid}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await res.json();
+      setAiAnalysis(json.data ?? json);
+    } catch(e: any) {
+      setAiAnalysis(null);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+    function exportHTML() {
     const pri: Record<string,string> = {low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
     const rows = filtered.map(tc => {
       const mod = (modules as Module[])?.find(m => m.id === tc.module_id)?.name || "—";
@@ -311,6 +333,10 @@ export default function TestCases() {
               </>
             )}
           </div>
+          <button className="btn" onClick={analyzeWithAI}
+            style={{background:"#7C3AED",color:"white",border:"none",fontWeight:600}}>
+            🎯 Relatório de Gaps
+          </button>
           {!isViewer && (
             <button data-testid="btn-novo-caso" className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
           )}
@@ -482,6 +508,81 @@ export default function TestCases() {
       {confirm && (
         <ConfirmModal message={`Excluir "${confirm.title}"?`}
           onConfirm={() => handleDelete(confirm.id)} onCancel={() => setConfirm(null)} />
+      )}
+
+      {showAI && (
+        <Modal title="🎯 Relatório de Gaps — Casos de Teste" onClose={()=>{ setShowAI(false); setAiAnalysis(null); }}>
+          <div style={{maxHeight:"60vh",overflowY:"auto",padding:"8px 0"}}>
+            {aiLoading ? (
+              <div style={{textAlign:"center",padding:40}}>
+                <div style={{fontSize:32,marginBottom:12}}>🤖</div>
+                <div style={{fontSize:14,color:"var(--text-muted)"}}>Gerando relatório de gaps...</div>
+              </div>
+            ) : aiAnalysis ? (
+              <div style={{fontSize:13,lineHeight:1.8}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}>
+                  {[
+                    ["📋","Módulos",aiAnalysis.summary?.total_modules],
+                    ["🔢","Casos",aiAnalysis.summary?.total_cases],
+                    ["🐛","Bugs",aiAnalysis.summary?.total_bugs],
+                    ["⏳","Não exec.",aiAnalysis.summary?.never_executed],
+                  ].map(([icon,label,val]) => (
+                    <div key={label as string} style={{textAlign:"center",padding:"10px 8px",background:"var(--bg)",borderRadius:8,border:"1px solid var(--border)"}}>
+                      <div style={{fontSize:20}}>{icon}</div>
+                      <div style={{fontSize:18,fontWeight:700}}>{val}</div>
+                      <div style={{fontSize:11,color:"var(--text-muted)"}}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                {aiAnalysis.high_priority?.length > 0 && (
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontWeight:700,color:"#EF4444",marginBottom:8}}>🔴 Alta Prioridade</div>
+                    {aiAnalysis.high_priority.map((m: any,i: number) => (
+                      <div key={i} style={{padding:"8px 12px",background:"#FEF2F2",borderRadius:6,marginBottom:6,borderLeft:"3px solid #EF4444",fontSize:12}}>
+                        <strong>{m.module}</strong> — {m.cases} casos — {m.reason}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {aiAnalysis.never_executed?.length > 0 && (
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontWeight:700,color:"#6B7280",marginBottom:8}}>⏳ Nunca executados</div>
+                    {aiAnalysis.never_executed.map((tc: any,i: number) => (
+                      <div key={i} style={{padding:"6px 12px",background:"var(--bg)",borderRadius:6,marginBottom:4,borderLeft:"3px solid #6B7280",fontSize:12}}>
+                        [{tc.module}] {tc.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {aiAnalysis.gaps?.length > 0 && (
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontWeight:700,color:"#2563EB",marginBottom:8}}>🔍 Gaps Identificados</div>
+                    {aiAnalysis.gaps.map((g: string,i: number) => (
+                      <div key={i} style={{padding:"6px 12px",background:"#EFF6FF",borderRadius:6,marginBottom:4,borderLeft:"3px solid #2563EB",fontSize:12}}
+                        dangerouslySetInnerHTML={{__html: g.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}} />
+                    ))}
+                  </div>
+                )}
+                {aiAnalysis.suggestions?.length > 0 && (
+                  <div>
+                    <div style={{fontWeight:700,color:"#10B981",marginBottom:8}}>💡 Sugestões</div>
+                    {aiAnalysis.suggestions.map((s: string,i: number) => (
+                      <div key={i} style={{padding:"6px 12px",background:"#F0FDF4",borderRadius:6,marginBottom:4,borderLeft:"3px solid #10B981",fontSize:12}}
+                        dangerouslySetInnerHTML={{__html: s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{textAlign:"center",padding:24,color:"var(--text-muted)"}}>Erro ao carregar análise.</div>
+            )}
+          </div>
+          {!aiLoading && (
+            <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}>
+              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); }}>Fechar</button>
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );

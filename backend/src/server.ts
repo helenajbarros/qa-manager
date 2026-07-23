@@ -36,6 +36,7 @@ import exportRouter       from "./routes/export";
 import shareRouter        from "./routes/shareRoutes";
 import backupRouter       from "./routes/backup";
 import environmentsRouter from "./routes/environments";
+import aiRouter from "./routes/ai";
 import testPlansRouter    from "./routes/testPlans";
 
 const UPLOAD_DIR = process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads");
@@ -71,6 +72,7 @@ app.use("/api/users/login",          loginLimiter);
 app.use("/api/users",                usersRouter);
 app.use("/api/projects",             projectsRouter);
 app.use("/api/projects/:projectId/environments", authenticate, environmentsRouter);
+app.use("/api/ai", aiRouter);
 app.use("/api/cycles/:cycleId/test-plan", authenticate, testPlansRouter);
 app.use("/api/modules",              authenticate, modulesRouter);
 app.use("/api/test-cases",           authenticate, testCasesRouter);
