@@ -24,6 +24,19 @@ export async function analyzeTestCases(project_id: number) {
   `, [project_id]);
 
   // 3. Buscar casos nunca executados
+  // Contar total de casos nunca executados
+  const neverExecutedCount = await query<any>(`
+    SELECT COUNT(*) AS total
+    FROM test_cases tc
+    WHERE tc.module_id IN (SELECT id FROM modules WHERE project_id = $1)
+    AND tc.id NOT IN (
+      SELECT DISTINCT e.test_case_id FROM test_executions e
+      WHERE e.test_case_id IS NOT NULL
+    )
+  `, [project_id]);
+  const totalNeverExecuted = Number((neverExecutedCount[0] as any)?.total || 0);
+
+  // Buscar exemplos (limitado a 10)
   const neverExecuted = await query<any>(`
     SELECT tc.id, tc.title, m.name AS module_name
     FROM test_cases tc
@@ -172,8 +185,8 @@ export async function analyzeTestCases(project_id: number) {
       gaps.push(`Módulo **${m.name}** é crítico e ainda não tem nenhum caso de teste — cadastre casos urgentemente`);
     }
   });
-  if (neverExecuted.length > 0) {
-    gaps.push(`${neverExecuted.length} caso(s) de teste **nunca foram executados** em nenhum ciclo`);
+  if (totalNeverExecuted > 0) {
+    gaps.push(`${totalNeverExecuted} caso(s) de teste **nunca foram executados** em nenhum ciclo`);
   }
 
   // Sugestões gerais só se houver módulos com casos e sem gaps específicos
@@ -203,7 +216,7 @@ export async function analyzeTestCases(project_id: number) {
       total_modules: modules.length,
       total_cases: (modules as any[]).reduce((a: number, m: any) => a + Number(m.total_cases), 0),
       total_bugs: (modules as any[]).reduce((a: number, m: any) => a + Number(m.total_bugs), 0),
-      never_executed: neverExecuted.length,
+      never_executed: totalNeverExecuted,
     },
     high_priority: highPriority,
     always_fail: (alwaysFail as any[]).map((tc: any) => ({
