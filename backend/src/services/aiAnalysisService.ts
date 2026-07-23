@@ -148,14 +148,6 @@ export async function analyzeTestCases(project_id: number) {
     }
   });
 
-  // Sugestões gerais só se houver módulos e casos cadastrados
-  const totalCasesGlobal = (modules as any[]).reduce((a: number, m: any) => a + Number(m.total_cases), 0);
-  if (suggestions.length === 0 && totalCasesGlobal > 0 && gaps.length === 0) {
-    suggestions.push("Adicionar casos de teste para fluxos de erro em todos os módulos");
-    suggestions.push("Criar casos de teste para diferentes perfis de usuário (Admin, Gerente, Colaborador, Visualizador)");
-    suggestions.push("Adicionar casos de teste para validação de campos obrigatórios");
-  }
-
   // Limitar sugestões para não ficar longo demais
   const topSuggestions = suggestions.slice(0, 10);
 
@@ -182,6 +174,14 @@ export async function analyzeTestCases(project_id: number) {
   });
   if (neverExecuted.length > 0) {
     gaps.push(`${neverExecuted.length} caso(s) de teste **nunca foram executados** em nenhum ciclo`);
+  }
+
+  // Sugestões gerais só se houver módulos com casos e sem gaps específicos
+  const totalCasesGlobal = (modules as any[]).reduce((a: number, m: any) => a + Number(m.total_cases), 0);
+  if (topSuggestions.length === 0 && totalCasesGlobal > 0 && gaps.length === 0) {
+    topSuggestions.push("Adicionar casos de teste para fluxos de erro em todos os módulos");
+    topSuggestions.push("Criar casos de teste para diferentes perfis de usuário (Admin, Gerente, Colaborador, Visualizador)");
+    topSuggestions.push("Adicionar casos de teste para validação de campos obrigatórios");
   }
 
   // Alta prioridade
