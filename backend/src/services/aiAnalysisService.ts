@@ -73,6 +73,14 @@ export async function analyzeTestCases(project_id: number) {
   `, [project_id]);
 
   // Analisar cobertura por módulo
+  // Sugestões que pertencem a módulos específicos independente de onde o cenário foi detectado
+  const LOGIN_SUGGESTIONS = ['acesso sem login', 'sessão expirada', 'bloqueio após múltiplas tentativas', 'recuperação de senha', 'login com credenciais inválidas', 'troca de perfil'];
+  const USER_SUGGESTIONS  = ['ação de admin por usuário comum', 'acesso negado para perfil restrito'];
+
+  // Encontrar módulo de Login e Usuários no projeto
+  const loginModule  = (modules as any[]).find((m: any) => ['login', 'auth', 'autenticacao', 'autenticação'].some(k => m.name.toLowerCase().includes(k)));
+  const userModule   = (modules as any[]).find((m: any) => ['usuario', 'usuário', 'user', 'permiss'].some(k => m.name.toLowerCase().includes(k)));
+
   const CENARIOS_COMUNS = [
     { keywords: ['login', 'senha', 'acesso', 'autenti'], tipo: 'autenticação', sugestoes: ['login com credenciais inválidas', 'bloqueio após múltiplas tentativas', 'recuperação de senha', 'sessão expirada'] },
     { keywords: ['cadastr', 'criar', 'novo', 'adicionar', 'insert'], tipo: 'cadastro', sugestoes: ['campos obrigatórios em branco', 'dados inválidos', 'duplicidade de registro', 'limite de caracteres'] },
@@ -145,7 +153,17 @@ export async function analyzeTestCases(project_id: number) {
             todasPalavras.some(w => title.includes(w))
           );
           if (!jaTemSugestao) {
-            suggestions.push(`**${mod.name}** — Adicionar caso para: ${sug}`);
+            // Redirecionar sugestões para o módulo correto
+            let targetMod = mod.name;
+            if (LOGIN_SUGGESTIONS.some(ls => sug.toLowerCase().includes(ls.toLowerCase())) && loginModule) {
+              targetMod = loginModule.name;
+            } else if (USER_SUGGESTIONS.some(us => sug.toLowerCase().includes(us.toLowerCase())) && userModule) {
+              targetMod = userModule.name;
+            }
+            const key = `${targetMod}::${sug}`;
+            if (!suggestions.includes(`**${targetMod}** — Adicionar caso para: ${sug}`)) {
+              suggestions.push(`**${targetMod}** — Adicionar caso para: ${sug}`);
+            }
           }
         });
       }
