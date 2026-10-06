@@ -119,7 +119,8 @@ function CycleForm({ initial={}, onSave, onCancel, saving }) {
 }
 
 function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
-  const { data: allCases, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId}:{}), [projectId]);
+  const { data: allCasesRaw, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId, limit:9999}:{}), [projectId]);
+  const allCases = (allCasesRaw as any)?.data ?? allCasesRaw ?? [];
   const [selected, setSelected] = useState([]);
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState("");
