@@ -126,7 +126,7 @@ function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
   const [filterMod,setFilterMod]= useState("");
 
   const available = (allCases||[]).filter(c => {
-    if (existingIds.includes(c.id)) return false;
+    if (existingIds.includes(Number(c.id))) return false;
     if (search && !c.title.toLowerCase().includes(search.toLowerCase()) && !String(c.id).includes(search)) return false;
     if (filterMod && String(c.module_id) !== filterMod) return false;
     return true;
@@ -412,7 +412,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
   const [activeTab, setActiveTab] = useState("execucoes");
   const { currentProject } = useProject();
 
-  const existingIds = (execs||[]).map(e=>e.test_case_id);
+  const existingIds = (execs||[]).map(e=>Number(e.test_case_id));
   const filtered    = (execs||[]).filter(e => {
     if (filter && e.status !== filter) return false;
     if (search && !e.test_case_title.toLowerCase().includes(search.toLowerCase()) &&
