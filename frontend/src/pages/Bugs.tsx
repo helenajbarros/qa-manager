@@ -277,7 +277,8 @@ export default function Bugs() {
 
   const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid, location.state?.refresh]);
   const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
+  const { data: testCasesRaw }                               = useAsync(() => testCasesApi.list(pid ? {project_id:pid, limit:9999} : {}), [pid]);
+  const testCases = (testCasesRaw as any)?.data ?? testCasesRaw ?? [];
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: users }                                       = useAsync(() => usersApi.mentions(), []);
   const { data: envsRaw }  = useAsync(() => pid ? environmentsApi.list(pid) : Promise.resolve([]), [pid], { noCache: true });

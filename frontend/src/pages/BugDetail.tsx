@@ -672,7 +672,8 @@ export default function BugDetail() {
 
   const { data: bug,        loading: l1, error: e1, refetch } = useAsync(() => bugsApi.get(id), [id]);
   const { data: modules }   = useAsync(() => modulesApi.list(pid?{project_id:pid}:{}), [pid]);
-  const { data: testCases } = useAsync(() => testCasesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: testCasesRaw } = useAsync(() => testCasesApi.list(pid?{project_id:pid, limit:9999}:{}), [pid]);
+  const testCases = (testCasesRaw as any)?.data ?? testCasesRaw ?? [];
   const { data: users, refetch: refetchUsers } = useAsync(() => usersApi.mentions().catch(() => usersApi.list()), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
   const bugPid = (bug as any)?.project_id || pid;
