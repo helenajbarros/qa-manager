@@ -512,7 +512,13 @@ export default function Bugs() {
           {key:"fixed",     label:"Corrigidos",    color:"var(--success)"},
           {key:"closed",    label:"Fechados",      color:"var(--text-muted)"}
         ].map(({key,label,color}) => (
-          <div key={key} onClick={() => setFilterSt(f => f===key ? "" : key)}
+          <div key={key} onClick={() => {
+            const next = filterSt === key ? "" : key;
+            setFilterSt(next);
+            if (next === "fixed" || next === "closed") setActiveTab("finalizados");
+            if (next === "open" || next === "in_progress") setActiveTab("ativos");
+            setPage(1);
+          }}
             style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:8,padding:"10px 18px",cursor:"pointer",
               outline:filterSt===key ? `2px solid ${color}` : undefined}}>
