@@ -83,8 +83,14 @@ export async function create(data: any) {
     environment, actual_result, expected_result, os, browser, impact, evidence_url } = data;
   const mod = module_id || await extractModuleId(title);
   const { environment_id } = data;
-  const rows = await query<{id: number}>(`INSERT INTO bugs (title,description,comment,tracker_url,severity,priority,status,module_id,test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive,environment,environment_id,actual_result,expected_result,os,browser,impact,evidence_url,version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id`,
-    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false, environment||null, environment_id||null, actual_result||null, expected_result||null, os||null, browser||null, impact||null, evidence_url||null, data.version||null]);
+  // Se cycle_id fornecido, busca o nome do ciclo para salvar junto
+  let cycle_name: string | null = null;
+  if (data.cycle_id) {
+    const cycleRows = await query<{name: string, version: string}>("SELECT name, version FROM test_cycles WHERE id=$1", [data.cycle_id]);
+    if (cycleRows[0]) cycle_name = cycleRows[0].name + (cycleRows[0].version ? ` (v${cycleRows[0].version})` : "");
+  }
+  const rows = await query<{id: number}>(`INSERT INTO bugs (title,description,comment,tracker_url,severity,priority,status,module_id,test_case_id,created_by_id,project_id,assigned_to_id,pr_url,steps,closed_by_archive,environment,environment_id,actual_result,expected_result,os,browser,impact,evidence_url,version,cycle_id,cycle_name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING id`,
+    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false, environment||null, environment_id||null, actual_result||null, expected_result||null, os||null, browser||null, impact||null, evidence_url||null, data.version||null, data.cycle_id||null, cycle_name]);
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
   return bug;
@@ -99,8 +105,19 @@ export async function update(id: number | string, data: any, userId?: number) {
   const mod  = module_id || await extractModuleId(title);
   const archiveVal = closed_by_archive === true ? true : closed_by_archive === false ? false : prev?.closed_by_archive || false;
   const environment_id2 = data.environment_id;
-  await execute(`UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,environment=$14,environment_id=$15,actual_result=$16,expected_result=$17,closed_by_archive=$18,os=$19,browser=$20,impact=$21,evidence_url=$22,version=$23 WHERE id=$24`,
-    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, assigned_to_id||null, pr_url||null, steps||null, test_type||null, environment||null, environment_id2||null, actual_result||null, expected_result||null, archiveVal, os||null, browser||null, impact||null, evidence_url||null, data.version||null, id]);
+  // Se cycle_id foi alterado, atualiza o cycle_name também
+  let cycle_name_new: string | null = prev?.cycle_name || null;
+  if (data.cycle_id !== undefined) {
+    if (data.cycle_id) {
+      const cycleRows = await query<{name: string, version: string}>("SELECT name, version FROM test_cycles WHERE id=$1", [data.cycle_id]);
+      if (cycleRows[0]) cycle_name_new = cycleRows[0].name + (cycleRows[0].version ? ` (v${cycleRows[0].version})` : "");
+    } else {
+      cycle_name_new = null;
+    }
+  }
+  const cycle_id_val = data.cycle_id !== undefined ? (data.cycle_id || null) : (prev?.cycle_id || null);
+  await execute(`UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,environment=$14,environment_id=$15,actual_result=$16,expected_result=$17,closed_by_archive=$18,os=$19,browser=$20,impact=$21,evidence_url=$22,version=$23,cycle_id=$24,cycle_name=$25 WHERE id=$26`,
+    [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, assigned_to_id||null, pr_url||null, steps||null, test_type||null, environment||null, environment_id2||null, actual_result||null, expected_result||null, archiveVal, os||null, browser||null, impact||null, evidence_url||null, data.version||null, cycle_id_val, cycle_name_new, id]);
   if (prev) {
     if (prev.status !== status) await logActivity(id, userId ?? null, "alterou o status", `${prev.status} → ${status}`);
     if (prev.assigned_to_id !== (assigned_to_id || null)) {

@@ -52,6 +52,8 @@ export async function runMigrations(): Promise<void> {
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS actual_result TEXT"); } catch(_) {}
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS expected_result TEXT"); } catch(_) {}
     try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS closed_by_archive BOOLEAN DEFAULT false"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS cycle_id INTEGER"); } catch(_) {}
+    try { await execute("ALTER TABLE bugs ADD COLUMN IF NOT EXISTS cycle_name TEXT"); } catch(_) {}
   } else {
     const tables = [
       `CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, description TEXT, logo_url TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')))`,

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAsync }   from "../hooks/useAsync.js";
-import { bugsApi, modulesApi, testCasesApi, usersApi, environmentsApi } from "../services/resources.js";
+import { bugsApi, modulesApi, testCasesApi, usersApi, environmentsApi, cyclesApi } from "../services/resources.js";
 import { useAuth }    from "../context/AuthContext.js";
 import { useProject } from "../context/ProjectContext.js";
 import { Loading, ErrorMsg, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.js";
@@ -676,6 +676,8 @@ export default function BugDetail() {
   const testCases = (testCasesRaw as any)?.data ?? testCasesRaw ?? [];
   const { data: users, refetch: refetchUsers } = useAsync(() => usersApi.mentions().catch(() => usersApi.list()), []);
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
+  const { data: cyclesRaw } = useAsync(() => cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
+  const cycles = (cyclesRaw as any) || [];
   const bugPid = (bug as any)?.project_id || pid;
   const [envOpts, setEnvOpts] = useState<{value:string,label:string,color:string}[]>([]);
   useEffect(() => {
@@ -728,9 +730,30 @@ export default function BugDetail() {
       environment:    bug.environment    || null,
       environment_id: bug.environment_id || null,
       version:        (bug as any).version || "",
+      cycle_id:       String((bug as any).cycle_id || ""),
       actual_result:  bug.actual_result  || "",
       expected_result: bug.expected_result || "",
     });
+  }
+
+  // Vincula versão ao ciclo selecionado
+  function handleCycleChange(cycleId: string) {
+    const cycle = (cycles as any[]).find(c => String(c.id) === cycleId);
+    setForm(f => ({
+      ...f,
+      cycle_id: cycleId,
+      version: f.version || (cycle?.version || ""),
+    }));
+  }
+
+  // Vincula ciclo pela versão digitada
+  function handleVersionChange(v: string) {
+    let newCycleId = (form as any).cycle_id || "";
+    if (!newCycleId) {
+      const match = (cycles as any[]).find(c => c.version && c.version === v.trim());
+      if (match) newCycleId = String(match.id);
+    }
+    setForm(f => ({...f, version: v, cycle_id: newCycleId}));
   }
 
   async function handleSave() {
@@ -926,7 +949,15 @@ export default function BugDetail() {
                 placeholder="Ex: 1.2.0" style={{width:"100%"}} />
             </Field>
             <Field label="Ambiente"><Select value={String(form.environment_id||'')} onChange={v=>{ const env=envOpts.find(e=>e.value===v); setForm(f=>({...f,environment_id:v?Number(v):null,environment:env?.label||null})); }} options={envOpts.length>0?envOpts:[{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}]} /></Field>
-            <Field label="Versão"><input value={(form as any).version||""} onChange={e=>setForm(f=>({...f,version:e.target.value}))} placeholder="Ex: 1.2.0" /></Field>
+            <Field label="Versão"><input value={(form as any).version||""} onChange={e=>handleVersionChange(e.target.value)} placeholder="Ex: 1.2.0" /></Field>
+            <Field label="Ciclo">
+              <Select
+                value={String((form as any).cycle_id||"")}
+                onChange={handleCycleChange}
+                options={(cycles as any[]).map(c=>({value:String(c.id),label:c.name+(c.version?` (v${c.version})`:"")+( c.status==="active"?" ✓":"")}))}
+                placeholder="Nenhum ciclo"
+              />
+            </Field>
             <select value={form.test_type||""} onChange={e=>setForm(f=>({...f,test_type:e.target.value}))}
               style={{padding:"5px 10px",borderRadius:6,border:"1px solid var(--border)",
                 fontSize:12,background:"var(--surface)",color:"var(--text)"}}>
@@ -940,7 +971,8 @@ export default function BugDetail() {
             <Severity  v={bug.severity} />
             {bug.priority && <><span style={{color:"var(--text-muted)",fontSize:12}}>Prioridade:</span> <strong>{bug.priority === "low" ? "Baixa" : bug.priority === "medium" ? "Média" : bug.priority === "high" ? "Alta" : "Crítica"}</strong></>}
             {(bug as any).version && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Versão:</span> <strong>v{(bug as any).version}</strong></>}
-            {(bug.environment_name || bug.environment) && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment_name || bug.environment}</strong></>}
+            {(bug as any).cycle_name && <><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ciclo:</span> <strong style={{color:"var(--accent)"}}>🔁 {(bug as any).cycle_name}</strong></>}
+            {(bug.environment_name || bug.environment) &&<><span style={{color:"var(--text-muted)",fontSize:12,marginLeft:8}}>Ambiente:</span> <strong>{bug.environment_name || bug.environment}</strong></>}
             {bug.module_name && <span className="badge badge-active">{bug.module_name}</span>}
             {bug.test_type && (
               <span style={{fontSize:11,padding:"2px 10px",borderRadius:10,
@@ -1200,6 +1232,32 @@ export default function BugDetail() {
                     : <span style={{fontSize:13}}>{(bug as any).browser||"—"}</span>}
                 </div>
               </>)}
+
+              {/* Versão */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                borderBottom:"1px solid var(--border)",paddingBottom:8,gap:8}}>
+                <span style={{fontSize:11,color:"var(--text-muted)",flexShrink:0}}>Versão</span>
+                {isEditing
+                  ? <input value={(form as any).version||""} onChange={e=>handleVersionChange(e.target.value)}
+                      placeholder="Ex: 1.2.0"
+                      style={{width:120,padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:12}} />
+                  : <span style={{fontSize:13}}>{(bug as any).version || "—"}</span>}
+              </div>
+
+              {/* Ciclo */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                borderBottom:"1px solid var(--border)",paddingBottom:8,gap:8}}>
+                <span style={{fontSize:11,color:"var(--text-muted)",flexShrink:0}}>Ciclo</span>
+                {isEditing
+                  ? <select value={String((form as any).cycle_id||"")} onChange={e=>handleCycleChange(e.target.value)}
+                      style={{padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",fontSize:12,maxWidth:160}}>
+                      <option value="">Nenhum</option>
+                      {(cycles as any[]).map(c=><option key={c.id} value={String(c.id)}>{c.name}{c.version?` (v${c.version})`:""}{c.status==="active"?" ✓":""}</option>)}
+                    </select>
+                  : (bug as any).cycle_name
+                    ? <span style={{fontSize:12,color:"var(--accent)",fontWeight:500,maxWidth:160,textAlign:"right"}}>🔁 {(bug as any).cycle_name}</span>
+                    : <span style={{fontSize:13,color:"var(--text-muted)"}}>—</span>}
+              </div>
 
               {/* PR */}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
