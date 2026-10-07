@@ -678,6 +678,8 @@ export default function BugDetail() {
   const { data: allBugs }   = useAsync(() => bugsApi.list(pid?{project_id:pid}:{}), [pid]);
   const { data: cyclesRaw } = useAsync(() => cyclesApi.list(pid?{project_id:pid}:{}), [pid]);
   const cycles = (cyclesRaw as any) || [];
+  const tcId = (bug as any)?.test_case_id;
+  const { data: tcExecutions } = useAsync(() => tcId ? cyclesApi.getExecutionsByTestCase(tcId) : Promise.resolve([]), [tcId]);
   const bugPid = (bug as any)?.project_id || pid;
   const [envOpts, setEnvOpts] = useState<{value:string,label:string,color:string}[]>([]);
   useEffect(() => {
@@ -1142,6 +1144,47 @@ export default function BugDetail() {
               </div>
             </Accordion>
           )}
+
+          {/* Execuções do caso de teste */}
+          {(tcExecutions as any[])?.length > 0 && (() => {
+            const execs = tcExecutions as any[];
+            const statusCount = execs.reduce((acc, e) => ({...acc, [e.status]: (acc[e.status]||0)+1}), {} as any);
+            const statusColor: any = { passed:"#16a34a", failed:"#dc2626", blocked:"#7c3aed", not_executed:"#6b7280" };
+            const statusLabel: any = { passed:"Passou", failed:"Falhou", blocked:"Bloqueado", not_executed:"Não exec." };
+            return (
+              <Accordion title="Execuções do caso de teste" defaultOpen={false} badge={execs.length}>
+                <div style={{padding:"14px 16px"}}>
+                  {/* Cards resumo */}
+                  <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                    {Object.entries(statusCount).map(([st, cnt]) => (
+                      <div key={st} style={{flex:1,minWidth:70,background:"var(--surface)",border:`1px solid ${statusColor[st]||"var(--border)"}30`,
+                        borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:18,fontWeight:700,color:statusColor[st]||"var(--text)"}}>{cnt as number}</div>
+                        <div style={{fontSize:10,color:"var(--text-muted)",marginTop:2}}>{statusLabel[st]||st}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Lista de execuções */}
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {execs.map((e,i) => (
+                      <div key={e.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",
+                        background:"var(--bg)",borderRadius:6,border:"1px solid var(--border)"}}>
+                        <span style={{fontSize:11,fontWeight:600,color:statusColor[e.status]||"var(--text)",minWidth:60}}>
+                          {statusLabel[e.status]||e.status}
+                        </span>
+                        <span style={{fontSize:12,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"var(--text)"}}>
+                          🔁 {e.cycle_name}{e.cycle_version?` v${e.cycle_version}`:""}
+                        </span>
+                        <span style={{fontSize:11,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
+                          {e.created_at ? new Date(e.created_at).toLocaleDateString("pt-BR") : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Accordion>
+            );
+          })()}
         </div>
 
         {/* Sidebar */}

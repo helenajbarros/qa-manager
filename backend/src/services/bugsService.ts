@@ -1,5 +1,6 @@
 import { query, execute } from "../database/connection";
 import * as notif from "./notificationsService";
+import * as cyclesSvc from "./cyclesService";
 import path from "path";
 import fs   from "fs";
 
@@ -93,6 +94,13 @@ export async function create(data: any) {
     [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false, environment||null, environment_id||null, actual_result||null, expected_result||null, os||null, browser||null, impact||null, evidence_url||null, data.version||null, data.cycle_id||null, cycle_name]);
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
+  // Auto-vincular execução se cycle_id + test_case_id fornecidos
+  if (data.cycle_id && (test_case_id || mod)) {
+    const tcId = test_case_id || null;
+    if (tcId) {
+      try { await cyclesSvc.linkBugToExecution(data.cycle_id, tcId, rows[0].id); } catch(_) {}
+    }
+  }
   return bug;
 }
 
@@ -130,6 +138,12 @@ export async function update(id: number | string, data: any, userId?: number) {
     if (prev.title !== title) await logActivity(id, userId ?? null, "editou o bug", null);
     if (prev.closed_by_archive !== archiveVal)
       await logActivity(id, userId ?? null, archiveVal ? "arquivou o bug" : "desarquivou o bug", null);
+  }
+  // Auto-vincular execução se cycle_id + test_case_id presentes
+  const finalCycleId = cycle_id_val;
+  const finalTcId = test_case_id || prev?.test_case_id;
+  if (finalCycleId && finalTcId) {
+    try { await cyclesSvc.linkBugToExecution(finalCycleId, finalTcId, id); } catch(_) {}
   }
   return findById(id);
 }

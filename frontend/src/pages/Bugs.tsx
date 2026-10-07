@@ -340,17 +340,11 @@ export default function Bugs() {
   const [cycleBugIdsSet, setCycleBugIdsSet] = useState<Set<number> | null>(null);
   useEffect(() => {
     if (!filterCycle || filterCycle === "") {
-      // Todos os ciclos: busca bug_ids vinculados para mostrar só eles
-      cyclesApi.getAllBugIds(pid).then(ids => {
-        setCycleBugIdsSet(new Set((ids || []).map(Number)));
-      }).catch(() => setCycleBugIdsSet(new Set()));
+      setCycleBugIdsSet(null); // sem filtro de ciclo
       return;
     }
     if (filterCycle === "none") {
-      // Busca todos os bug_ids vinculados a algum ciclo para excluí-los
-      cyclesApi.getAllBugIds(pid).then(ids => {
-        setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
-      }).catch(() => setCycleBugIdsSet(new Set()));
+      setCycleBugIdsSet(null); // filtro por cycle_id IS NULL — tratado direto no filter
       return;
     }
     cyclesApi.getBugs(filterCycle).then(ids => {
@@ -388,19 +382,15 @@ export default function Bugs() {
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
-    if (filterCycle && filterCycle !== "none") {
-      if (!cycleBugIdsSet) return true;
-      return cycleBugIdsSet.has(Number(b.id));
-    }
     if (filterCycle === "none") {
-      // Bugs sem vínculo com nenhum ciclo
-      if (!cycleBugIdsSet) return true;
-      return !cycleBugIdsSet.has(Number(b.id));
+      // Bugs sem vínculo com ciclo — usa cycle_id direto no bug
+      return !(b as any).cycle_id;
     }
-    // Todos os ciclos: mostrar só bugs vinculados a algum ciclo
-    // null = ainda carregando, Set vazio = nenhum bug vinculado
-    if (cycleBugIdsSet === null) return true; // carregando
-    return cycleBugIdsSet.has(Number(b.id));
+    if (filterCycle && filterCycle !== "none") {
+      // Filtro por ciclo específico — usa lista de bug_ids via execuções OU cycle_id
+      if (cycleBugIdsSet) return cycleBugIdsSet.has(Number(b.id));
+      return String((b as any).cycle_id) === filterCycle;
+    }
   });
 
   const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
@@ -411,8 +401,9 @@ export default function Bugs() {
   const countArquivados = (bugs || []).filter(b =>
     ["fixed","closed"].includes(b.status) && b.closed_by_archive
   ).length;
-  const totalPages  = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged       = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const sorted      = [...filtered].sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
+  const totalPages  = Math.ceil(sorted.length / PAGE_SIZE);
+  const paged       = sorted.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const activeCycles   = (cycles || []).filter(c => c.status === "active");
   const closedCycles   = (cycles || [])
     .filter(c => c.status !== "active")
