@@ -391,6 +391,7 @@ export default function Bugs() {
       if (cycleBugIdsSet) return cycleBugIdsSet.has(Number(b.id));
       return String((b as any).cycle_id) === filterCycle;
     }
+    return true;
   });
 
   const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
