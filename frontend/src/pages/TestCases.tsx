@@ -264,8 +264,9 @@ export default function TestCases() {
     return true;
   });
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const paged      = filtered.slice((page-1)*pageSize, page*pageSize);
+  const sortedCases = [...filtered].sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
+  const totalPages = Math.ceil(sortedCases.length / pageSize);
+  const paged      = sortedCases.slice((page-1)*pageSize, page*pageSize);
 
   function handleFilterChange(fn) {
     fn();

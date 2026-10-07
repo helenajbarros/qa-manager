@@ -421,8 +421,9 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
         !String(e.test_case_id).includes(search)) return false;
     return true;
   });
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const sortedExecs = [...filtered].sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
+  const totalPages = Math.ceil(sortedExecs.length / PAGE_SIZE);
+  const paged      = sortedExecs.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const stats = (execs||[]).reduce((a,e)=>({...a,[e.status]:(a[e.status]||0)+1}),{});
   const types = cycle.test_types ? cycle.test_types.split(",").filter(Boolean) : [];
 
@@ -618,8 +619,9 @@ export default function Cycles() {
     return true;
   });
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const sortedCycles = [...filtered].sort((a,b) => new Date((b as any).created_at||0).getTime() - new Date((a as any).created_at||0).getTime());
+  const totalPages = Math.ceil(sortedCycles.length / PAGE_SIZE);
+  const paged      = sortedCycles.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
   async function handleSave(form) {
     setSaving(true); setErr(null);
