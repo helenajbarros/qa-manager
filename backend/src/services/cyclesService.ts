@@ -138,3 +138,32 @@ export async function getBugIdsByCycle(cycle_id: number | string) {
   const rows = await query<{bug_id: number}>("SELECT DISTINCT e.bug_id FROM test_executions e WHERE e.cycle_id = $1 AND e.bug_id IS NOT NULL", [cycle_id]);
   return rows.map(r => r.bug_id);
 }
+
+export async function findExecutionsByTestCase(test_case_id: number | string) {
+  const rows = await query(`
+    SELECT e.id, e.cycle_id, e.status, e.executed_at, e.created_at, e.comment,
+      tc2.name AS cycle_name, tc2.version AS cycle_version,
+      eu.name AS executed_by_name
+    FROM test_executions e
+    JOIN test_cycles tc2 ON tc2.id = e.cycle_id
+    JOIN test_cases tc ON tc.id = e.test_case_id
+    LEFT JOIN users eu ON eu.id = e.executed_by_id
+    WHERE e.test_case_id = $1
+    ORDER BY e.created_at DESC
+  `, [test_case_id]);
+  return rows;
+}
+
+export async function linkBugToExecution(cycle_id: number | string, test_case_id: number | string, bug_id: number | string) {
+  const existing = await query<{id: number, status: string}>(
+    "SELECT id, status FROM test_executions WHERE cycle_id=$1 AND test_case_id=$2", [cycle_id, test_case_id]
+  );
+  if (existing[0]) {
+    const newStatus = existing[0].status === "not_executed" ? "failed" : existing[0].status;
+    await execute("UPDATE test_executions SET bug_id=$1, status=$2 WHERE id=$3", [bug_id, newStatus, existing[0].id]);
+  } else {
+    try {
+      await execute("INSERT INTO test_executions (cycle_id, test_case_id, bug_id, status) VALUES ($1,$2,$3,'failed')", [cycle_id, test_case_id, bug_id]);
+    } catch(_) {}
+  }
+}
