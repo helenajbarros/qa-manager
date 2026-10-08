@@ -677,7 +677,7 @@ export default function Dashboard() {
           {filters.cycle_id?.startsWith("version:") && <span>Versão: {filters.cycle_id.replace("version:","")}</span>}
           {filters.cycle_id === "no_cycle" && <span>Bugs sem vínculo com ciclo</span>}
           {filters.module_id && <span>Módulo: {data?.modules?.find(m=>String(m.id)===String(filters.module_id))?.name}</span>}
-          {filters.status    && <span>Status: {filters.status}</span>}
+          {filters.status    && <span>Status: {({open:"Aberto",in_progress:"Em andamento",fixed:"Corrigido",closed:"Fechado",reopened:"Reaberto"} as Record<string,string>)[filters.status] || filters.status}</span>}
           <span style={{ color:"var(--text-muted)" }}>— {cycles?.length || 0} ciclo(s)</span>
         </div>
       )}

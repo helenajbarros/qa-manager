@@ -1,0 +1,82 @@
+import express       from "express";
+import cors          from "cors";
+import path          from "path";
+import fs            from "fs";
+import rateLimit     from "express-rate-limit";
+
+import requestLogger              from "./middlewares/requestLogger";
+import errorHandler               from "./middlewares/errorHandler";
+import { authenticate }           from "./middlewares/auth";
+import { mountSwagger }           from "./docs/swagger";
+
+import bugsRouter         from "./routes/bugs";
+import modulesRouter      from "./routes/modules";
+import testCasesRouter    from "./routes/testCases";
+import cyclesRouter       from "./routes/cycles";
+import projectsRouter     from "./routes/projects";
+import usersRouter        from "./routes/users";
+import dashboardRouter    from "./routes/dashboard";
+import bugCommentsRouter  from "./routes/bugComments";
+import notificationsRouter from "./routes/notifications";
+import userProjectsRouter from "./routes/userProjects";
+import exportRouter       from "./routes/export";
+import shareRouter        from "./routes/shareRoutes";
+import backupRouter       from "./routes/backup";
+import environmentsRouter from "./routes/environments";
+import aiRouter from "./routes/ai";
+import testPlansRouter    from "./routes/testPlans";
+
+const UPLOAD_DIR = process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads");
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch(_) {}
+process.env.QA_UPLOAD_DIR = UPLOAD_DIR;
+
+const app  = express();
+
+app.set("trust proxy", 1);
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 10,
+  message: { success: false, error: "Muitas tentativas de login. Tente novamente em 15 minutos." },
+  standardHeaders: true, legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 300,
+  message: { success: false, error: "Muitas requisições. Tente novamente em instantes." },
+  standardHeaders: true, legacyHeaders: false,
+});
+
+app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
+app.use(express.json());
+app.use(requestLogger);
+app.use("/uploads", express.static(UPLOAD_DIR));
+app.use("/api", apiLimiter);
+
+// Documentação interativa da API (/api/docs) — não exige autenticação
+mountSwagger(app);
+
+// Rotas que ainda são JS puro (não migradas para TS)
+app.use("/api/users",                userProjectsRouter);
+app.use("/api/users/login",          loginLimiter);
+app.use("/api/users",                usersRouter);
+app.use("/api/projects",             projectsRouter);
+app.use("/api/projects/:projectId/environments", authenticate, environmentsRouter);
+app.use("/api/ai", aiRouter);
+app.use("/api/cycles/:cycleId/test-plan", authenticate, testPlansRouter);
+app.use("/api/modules",              authenticate, modulesRouter);
+app.use("/api/test-cases",           authenticate, testCasesRouter);
+app.use("/api/cycles",               authenticate, cyclesRouter);
+app.use("/api/bugs/:bugId/comments", bugCommentsRouter);
+app.use("/api",                      shareRouter);
+app.use("/api/bugs",                 bugsRouter);
+app.use("/api/dashboard",            authenticate, dashboardRouter);
+app.use("/api/export",               authenticate, exportRouter);
+app.use("/api/backup",               backupRouter);
+app.use("/api/notifications",        notificationsRouter);
+
+app.get("/api/health", (_req, res) =>
+  res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })
+);
+app.use(errorHandler);
+
+export default app;

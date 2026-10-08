@@ -1,8 +1,9 @@
-import { useEffect, Component, ReactNode } from "react";
+import { useEffect, ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth }    from "./context/AuthContext.js";
 import { useProject } from "./context/ProjectContext.js";
 import Sidebar    from "./components/Sidebar.js";
+import ErrorBoundary from "./components/ErrorBoundary.js";
 import Login      from "./pages/Login.js";
 import Dashboard  from "./pages/Dashboard.js";
 import Modules    from "./pages/Modules.js";
@@ -15,36 +16,6 @@ import ShareBug   from "./pages/ShareBug.js";
 import Users      from "./pages/Users.js";
 import Projects   from "./pages/Projects.js";
 import Backup     from "./pages/Backup.js";
-
-// Error boundary to catch runtime crashes and show a message instead of white screen
-class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean; error: string}> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: "" };
-  }
-  static getDerivedStateFromError(err: any) {
-    return { hasError: true, error: err?.message || String(err) };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{height:"100vh",display:"flex",flexDirection:"column",
-          alignItems:"center",justifyContent:"center",background:"#F8F9FB",
-          gap:16,fontFamily:"system-ui,sans-serif",padding:24,textAlign:"center"}}>
-          <div style={{fontSize:48}}>⚠️</div>
-          <h2 style={{fontSize:18,fontWeight:700,color:"#111"}}>Algo deu errado</h2>
-          <p style={{fontSize:13,color:"#6B7280",maxWidth:400}}>{this.state.error}</p>
-          <button onClick={()=>window.location.reload()}
-            style={{padding:"8px 20px",background:"#2563EB",color:"#fff",border:"none",
-              borderRadius:8,cursor:"pointer",fontSize:14}}>
-            Recarregar página
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 interface GuardProps {
   children: ReactNode;

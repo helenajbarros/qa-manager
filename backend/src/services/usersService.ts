@@ -5,6 +5,9 @@ import jwt    from "jsonwebtoken";
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET  = process.env.JWT_SECRET || "qa_secret_fallback_change_in_production";
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.warn("[SEGURANÇA] JWT_SECRET não definido em produção — usando segredo padrão inseguro. Defina JWT_SECRET no ambiente.");
+}
 const JWT_EXPIRES = "8h";
 
 function sha256hash(p: string): string {

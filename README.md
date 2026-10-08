@@ -182,3 +182,17 @@ git push origin main
 - ✅ Seletor de itens por página (10/25/50/Todos)
 - ✅ Controle de acesso por projeto (usuário sem projeto bloqueado)
 - ✅ Indicador visual de plano e projetos vinculados
+
+---
+
+## 🧪 Testes e documentação da API
+
+```bash
+cd backend
+npm install
+npm test          # Jest + Supertest (health, Swagger, autenticação e permissões)
+```
+
+- Documentação interativa (Swagger): `http://localhost:3001/api/docs` (ou `/api/docs` na URL da API em produção).
+- O CI (`.github/workflows/ci.yml`) roda build e testes do backend e build do frontend a cada push/PR.
+- Segredos (`JWT_SECRET`, senha do banco) ficam só em variáveis de ambiente/`.env`, nunca no repositório.
