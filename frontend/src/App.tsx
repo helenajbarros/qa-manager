@@ -66,7 +66,21 @@ function RedirectHandler() {
 export default function App() {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="loading" style={{height:"100vh"}}>Carregando…</div>;
+  if (loading) return (
+    <div style={{
+      height:"100vh", display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center",
+      background:"#F8F9FB", gap:16, fontFamily:"system-ui,sans-serif"
+    }}>
+      <div style={{
+        width:40, height:40, borderRadius:"50%",
+        border:"3px solid #E5E7EB", borderTopColor:"#2563EB",
+        animation:"spin 0.8s linear infinite"
+      }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{fontSize:14, color:"#6B7280"}}>Carregando…</div>
+    </div>
+  );
 
   const savedRedirect = sessionStorage.getItem("qa_redirect") || "";
   const currentPath = window.location.pathname.replace("/qa-manager", "") || "/";

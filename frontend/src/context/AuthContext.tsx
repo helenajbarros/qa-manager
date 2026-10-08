@@ -23,8 +23,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem("qa_token");
     if (!token) { setLoading(false); return; }
-    authApi.me()
-      .then(u => setUser(u))
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), 8000)
+    );
+
+    Promise.race([authApi.me(), timeout])
+      .then(u => setUser(u as User))
       .catch(() => localStorage.removeItem("qa_token"))
       .finally(() => setLoading(false));
   }, []);

@@ -103,18 +103,27 @@ export default function ShareBug() {
   const token  = params.token || window.location.pathname.split("/share/")[1]?.split("/")[0];
 
   const { data: bug, loading, error } = useAsync(async () => {
-    const res = await fetch(`${getBase()}/share/${token}`);
-    if (!res.ok) throw new Error("Link inválido ou expirado");
-    const j = await res.json();
-    return j.data ?? j;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch(`${getBase()}/share/${token}`, { signal: controller.signal });
+      if (!res.ok) throw new Error("Link inválido ou expirado");
+      const j = await res.json();
+      return j.data ?? j;
+    } finally {
+      clearTimeout(timer);
+    }
   }, [token]);
 
   if (loading) return (
     <>
-      <style>{STYLES}</style>
-      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
-        background:"#F9FAFB",fontSize:14,color:"#6B7280"}}>
-        Carregando...
+      <style>{STYLES}{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",
+        justifyContent:"center",background:"#F9FAFB",gap:16,fontFamily:"system-ui,sans-serif"}}>
+        <div style={{width:36,height:36,borderRadius:"50%",border:"3px solid #E5E7EB",
+          borderTopColor:"#2563EB",animation:"spin 0.8s linear infinite"}}/>
+        <div style={{fontSize:14,color:"#6B7280"}}>Carregando bug…</div>
+        <div style={{fontSize:12,color:"#9CA3AF"}}>O servidor pode demorar alguns segundos para acordar</div>
       </div>
     </>
   );
