@@ -449,7 +449,16 @@ export default function TestCases() {
       } catch { skipped++; }
     }
     setGenResult({ created, skipped }); setGenLoading(false);
-    if (created > 0) refetch();
+    if (created > 0) {
+      refetch();
+      // Remove created suggestions from the list immediately
+      setAiAnalysis((prev: any) => {
+        if (!prev?.suggestions) return prev;
+        const remaining = prev.suggestions.filter((_: any, i: number) => !indices.includes(i));
+        return { ...prev, suggestions: remaining };
+      });
+      setSelectedSugg(new Set());
+    }
   }
 
   async function handleSave(form: TestCaseFormData) {
