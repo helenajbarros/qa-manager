@@ -1,8 +1,6 @@
-# .gitignore na raiz
-@"
 node_modules/
 dist/
 .env
 .env.local
 *.db
-"@ | Out-File -FilePath "C:\Users\Helena\Documents\qa-manager\.gitignore" -Encoding utf8
+uploads/
