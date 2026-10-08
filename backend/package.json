@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev:ts": "nodemon --exec ts-node src/server.ts",
-    "build": "tsc && node -e \"require('fs').copyFileSync('src/docs/openapi.yaml','dist/docs/openapi.yaml')\"",
+    "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit"
   },
@@ -21,9 +21,7 @@
     "multer": "^1.4.5-lts.1",
     "pg": "^8.11.3",
     "sql.js": "1.10.3",
-    "swagger-ui-express": "^5.0.1",
-    "xlsx": "^0.18.5",
-    "yamljs": "^0.3.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -32,8 +30,6 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.0.0",
-    "@types/swagger-ui-express": "^4.1.8",
-    "@types/yamljs": "^0.2.34",
     "nodemon": "^3.0.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.0"
