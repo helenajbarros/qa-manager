@@ -363,6 +363,58 @@ export default function TestCases() {
     setPage(1);
   }
 
+  function buildCaseFields(title: string, moduleName: string): { description: string; steps: string; expected_result: string; priority: string } {
+    const t = title.toLowerCase();
+    // Determina prioridade pelo título
+    const priority =
+      t.includes("crítico") || t.includes("critico") || t.includes("falha") || t.includes("crash") || t.includes("segurança") || t.includes("seguranca") ? "critical" :
+      t.includes("inválid") || t.includes("invalido") || t.includes("erro") || t.includes("sem permissão") || t.includes("negad") ? "high" :
+      t.includes("editar") || t.includes("atualizar") || t.includes("excluir") || t.includes("deletar") ? "medium" : "medium";
+
+    // Detecta padrões comuns e monta campos
+    const isValidacao = t.includes("válid") || t.includes("valida") || t.includes("validar");
+    const isEdicao    = t.includes("editar") || t.includes("atualizar") || t.includes("alterar");
+    const isExclusao  = t.includes("excluir") || t.includes("deletar") || t.includes("remover");
+    const isCriacao   = t.includes("criar") || t.includes("cadastrar") || t.includes("adicionar") || t.includes("novo") || t.includes("nova");
+    const isListagem  = t.includes("listar") || t.includes("listagem") || t.includes("visualizar") || t.includes("exibir") || t.includes("consultar");
+    const isLogin     = t.includes("login") || t.includes("autenticação") || t.includes("autenticar") || t.includes("acesso") || t.includes("senha");
+    const isPermissao = t.includes("permissão") || t.includes("permissao") || t.includes("perfil") || t.includes("acesso negado") || t.includes("sem acesso");
+
+    let description = `Verificar o comportamento do sistema ao ${title.toLowerCase()}.`;
+    let steps = "";
+    let expected_result = "";
+
+    if (isLogin) {
+      steps = "1. Acesse a página de login\n2. Informe as credenciais\n3. Clique em \"Entrar\"";
+      expected_result = isValidacao && (t.includes("inválid") || t.includes("incorret") || t.includes("errada"))
+        ? "O sistema exibe mensagem de erro informando credenciais inválidas e não realiza o login."
+        : "O sistema autentica o usuário e redireciona para a página inicial.";
+    } else if (isPermissao) {
+      steps = `1. Acesse o sistema com um usuário sem permissão para ${moduleName.toLowerCase()}\n2. Tente acessar a funcionalidade\n3. Observe o comportamento`;
+      expected_result = "O sistema exibe mensagem de acesso negado e não permite a operação.";
+    } else if (isExclusao) {
+      steps = `1. Acesse o módulo ${moduleName}\n2. Selecione o registro desejado\n3. Clique em excluir\n4. Confirme a exclusão`;
+      expected_result = "O sistema exclui o registro e exibe mensagem de sucesso. O item não aparece mais na listagem.";
+    } else if (isEdicao) {
+      steps = `1. Acesse o módulo ${moduleName}\n2. Selecione o registro desejado\n3. Clique em editar\n4. Altere os campos necessários\n5. Salve as alterações`;
+      expected_result = "O sistema salva as alterações com sucesso e exibe os dados atualizados.";
+    } else if (isCriacao) {
+      steps = `1. Acesse o módulo ${moduleName}\n2. Clique em novo / adicionar\n3. Preencha os campos obrigatórios\n4. Salve o registro`;
+      expected_result = "O sistema salva o novo registro com sucesso e exibe-o na listagem.";
+    } else if (isListagem) {
+      steps = `1. Acesse o módulo ${moduleName}\n2. Observe os registros exibidos\n3. Aplique filtros se disponíveis`;
+      expected_result = "O sistema exibe corretamente a listagem de registros com as informações esperadas.";
+    } else if (isValidacao) {
+      steps = `1. Acesse o módulo ${moduleName}\n2. Tente realizar a ação com dados inválidos ou em branco\n3. Observe o comportamento do sistema`;
+      expected_result = "O sistema exibe mensagem de validação adequada e não prossegue com a operação inválida.";
+    } else {
+      steps = `1. Acesse o módulo ${moduleName}\n2. Execute a ação: ${title}\n3. Observe o resultado`;
+      expected_result = "O sistema executa a ação corretamente e apresenta o resultado esperado sem erros.";
+    }
+
+    return { description, steps, expected_result, priority };
+  }
+
   async function generateSuggestedCases(indices: number[]) {
     if (!aiAnalysis?.suggestions?.length || !pid) return;
     setGenLoading(true); setGenResult(null);
@@ -389,8 +441,12 @@ export default function TestCases() {
       if ((cases || []).find(c => c.title.toLowerCase() === title.toLowerCase())) { skipped++; continue; }
       const module_id = await getOrCreateMod(moduleName);
       if (!module_id) { skipped++; continue; }
-      try { await testCasesApi.create({ title, module_id, priority: "medium" }); created++; }
-      catch { skipped++; }
+      const fields = buildCaseFields(title, moduleName);
+      try {
+        await testCasesApi.create({ title, module_id, priority: fields.priority,
+          description: fields.description, steps: fields.steps, expected_result: fields.expected_result });
+        created++;
+      } catch { skipped++; }
     }
     setGenResult({ created, skipped }); setGenLoading(false);
     if (created > 0) refetch();

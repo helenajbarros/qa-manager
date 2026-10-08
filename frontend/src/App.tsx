@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, Component, ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth }    from "./context/AuthContext.js";
 import { useProject } from "./context/ProjectContext.js";
@@ -16,8 +16,38 @@ import Users      from "./pages/Users.js";
 import Projects   from "./pages/Projects.js";
 import Backup     from "./pages/Backup.js";
 
+// Error boundary to catch runtime crashes and show a message instead of white screen
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean; error: string}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+  static getDerivedStateFromError(err: any) {
+    return { hasError: true, error: err?.message || String(err) };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{height:"100vh",display:"flex",flexDirection:"column",
+          alignItems:"center",justifyContent:"center",background:"#F8F9FB",
+          gap:16,fontFamily:"system-ui,sans-serif",padding:24,textAlign:"center"}}>
+          <div style={{fontSize:48}}>⚠️</div>
+          <h2 style={{fontSize:18,fontWeight:700,color:"#111"}}>Algo deu errado</h2>
+          <p style={{fontSize:13,color:"#6B7280",maxWidth:400}}>{this.state.error}</p>
+          <button onClick={()=>window.location.reload()}
+            style={{padding:"8px 20px",background:"#2563EB",color:"#fff",border:"none",
+              borderRadius:8,cursor:"pointer",fontSize:14}}>
+            Recarregar página
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 interface GuardProps {
-  children: React.ReactNode;
+  children: ReactNode;
   adminOnly?: boolean;
   managerOk?: boolean;
 }
@@ -92,42 +122,48 @@ export default function App() {
       window.history.replaceState(null, "", "/qa-manager" + savedRedirect);
     }
     return (
-      <Routes>
-        <Route path="/share/:token" element={<ShareBug />} />
-        <Route path="*" element={<ShareBug />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/share/:token" element={<ShareBug />} />
+          <Route path="*" element={<ShareBug />} />
+        </Routes>
+      </ErrorBoundary>
     );
   }
 
   if (!user) {
     return (
-      <Routes>
-        <Route path="/share/:token" element={<ShareBug />} />
-        <Route path="*" element={<Login />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/share/:token" element={<ShareBug />} />
+          <Route path="*" element={<Login />} />
+        </Routes>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="app">
-      <RedirectHandler />
-      <Sidebar />
-      <main className="main">
-        <Routes>
-          <Route path="/"             element={<Guard><Dashboard /></Guard>} />
-          <Route path="/modules"      element={<Guard><Modules /></Guard>} />
-          <Route path="/test-cases"   element={<Guard><TestCases /></Guard>} />
-          <Route path="/cycles"       element={<Guard><Cycles /></Guard>} />
-          <Route path="/bugs"         element={<Guard><Bugs /></Guard>} />
-          <Route path="/bugs/:id"     element={<Guard><BugDetail /></Guard>} />
-          <Route path="/cycles/:id/test-plan" element={<Guard><TestPlan /></Guard>} />
-          <Route path="/projects"     element={<Guard managerOk><Projects /></Guard>} />
-          <Route path="/users"        element={<Guard managerOk><Users /></Guard>} />
-          <Route path="/backup"       element={<Guard adminOnly><Backup /></Guard>} />
-          <Route path="/share/:token" element={<ShareBug />} />
-          <Route path="*"             element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <ErrorBoundary>
+      <div className="app">
+        <RedirectHandler />
+        <Sidebar />
+        <main className="main">
+          <Routes>
+            <Route path="/"             element={<Guard><Dashboard /></Guard>} />
+            <Route path="/modules"      element={<Guard><Modules /></Guard>} />
+            <Route path="/test-cases"   element={<Guard><TestCases /></Guard>} />
+            <Route path="/cycles"       element={<Guard><Cycles /></Guard>} />
+            <Route path="/bugs"         element={<Guard><Bugs /></Guard>} />
+            <Route path="/bugs/:id"     element={<Guard><BugDetail /></Guard>} />
+            <Route path="/cycles/:id/test-plan" element={<Guard><TestPlan /></Guard>} />
+            <Route path="/projects"     element={<Guard managerOk><Projects /></Guard>} />
+            <Route path="/users"        element={<Guard managerOk><Users /></Guard>} />
+            <Route path="/backup"       element={<Guard adminOnly><Backup /></Guard>} />
+            <Route path="/share/:token" element={<ShareBug />} />
+            <Route path="*"             element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </ErrorBoundary>
   );
 }
