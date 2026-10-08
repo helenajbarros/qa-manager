@@ -252,8 +252,6 @@ export default function TestCases() {
   }
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
-  const [genLoading, setGenLoading] = useState(false);
-  const [genResult,  setGenResult]  = useState<{created:number;skipped:number} | null>(null);
 
   // --- Import Excel state ---
   const [importStep,     setImportStep]     = useState<"idle"|"mapping"|"importing"|"done">("idle");
@@ -340,46 +338,6 @@ export default function TestCases() {
     } finally {
       setImportLoading(false);
     }
-  }
-
-  async function generateSuggestedCases() {
-    if (!aiAnalysis?.suggestions?.length || !pid) return;
-    setGenLoading(true);
-    setGenResult(null);
-    let created = 0; let skipped = 0;
-    const modList = [...(modules || [])];
-
-    async function getOrCreateMod(name: string): Promise<number | null> {
-      const trimmed = name.trim();
-      if (!trimmed) return null;
-      const existing = modList.find(m => m.name.toLowerCase() === trimmed.toLowerCase());
-      if (existing) return existing.id;
-      try {
-        const created = await modulesApi.create({ name: trimmed, project_id: Number(pid) });
-        modList.push(created as any);
-        return (created as any).id;
-      } catch { return null; }
-    }
-
-    for (const s of aiAnalysis.suggestions as string[]) {
-      const clean = s.replace(/<[^>]+>/g, "");
-      const match = clean.match(/^\*?\*?([^*]+)\*?\*?\s*[—–-]\s*(.+)$/);
-      if (!match) { skipped++; continue; }
-      const moduleName = match[1].trim();
-      const title = match[2].replace(/^(Adicionar caso para:|Criar caso para:|Adicionar:|Criar:)\s*/i, "").trim();
-      if (!title) { skipped++; continue; }
-      const already = (cases || []).find(c => c.title.toLowerCase() === title.toLowerCase());
-      if (already) { skipped++; continue; }
-      const module_id = await getOrCreateMod(moduleName);
-      if (!module_id) { skipped++; continue; }
-      try {
-        await testCasesApi.create({ title, module_id, priority: "medium" });
-        created++;
-      } catch { skipped++; }
-    }
-    setGenResult({ created, skipped });
-    setGenLoading(false);
-    if (created > 0) refetch();
   }
 
   if (l1||l2) return <Loading />;
@@ -849,32 +807,9 @@ export default function TestCases() {
               <div style={{textAlign:"center",padding:24,color:"var(--text-muted)"}}>Erro ao carregar análise.</div>
             )}
           </div>
-          {!aiLoading && aiAnalysis?.suggestions?.length > 0 && (
-            <div style={{marginTop:12,padding:"12px",background:"#F0FDF4",borderRadius:8,border:"1px solid #6EE7B7"}}>
-              {genResult ? (
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                  <span style={{fontSize:13,color:"#065F46",fontWeight:600}}>
-                    ✅ {genResult.created} caso(s) criado(s){genResult.skipped > 0 ? `, ${genResult.skipped} ignorado(s) (já existiam)` : ""}
-                  </span>
-                  <button className="btn btn-sm" onClick={() => setGenResult(null)}
-                    style={{fontSize:12,padding:"4px 12px"}}>Criar novamente</button>
-                </div>
-              ) : (
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                  <span style={{fontSize:13,color:"#065F46"}}>
-                    💡 <strong>{aiAnalysis.suggestions.length} caso(s)</strong> sugeridos prontos para criar
-                  </span>
-                  <button className="btn btn-primary" onClick={generateSuggestedCases} disabled={genLoading}
-                    style={{background:"#10B981",border:"none",fontWeight:600,minWidth:180}}>
-                    {genLoading ? "⏳ Criando..." : "✨ Criar casos sugeridos"}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
           {!aiLoading && (
             <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}>
-              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); setGenResult(null); }}>Fechar</button>
+              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); }}>Fechar</button>
             </div>
           )}
         </Modal>

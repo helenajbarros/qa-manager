@@ -22,7 +22,9 @@ interface BugData extends Bug {
 }
 
 function getBase() {
-  return import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
+  return import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : "https://qa-manager-api.onrender.com/api";
 }
 
 function Avatar({ name, size = 28 }: AvatarProps) {
