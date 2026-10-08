@@ -9,6 +9,15 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function() {
+        var redirect = sessionStorage.getItem('spa_redirect');
+        if (redirect && redirect !== '/') {
+          sessionStorage.removeItem('spa_redirect');
+          window.history.replaceState(null, '', '/qa-manager' + redirect);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
