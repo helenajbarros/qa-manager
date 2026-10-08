@@ -119,15 +119,14 @@ function CycleForm({ initial={}, onSave, onCancel, saving }) {
 }
 
 function AddCasesModal({ cycleId, existingIds, projectId, onClose, onAdded }) {
-  const { data: allCasesRaw, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId, limit:9999}:{}), [projectId]);
-  const allCases = (allCasesRaw as any)?.data ?? allCasesRaw ?? [];
+  const { data: allCases, loading } = useAsync(() => testCasesApi.list(projectId?{project_id:projectId}:{}), [projectId]);
   const [selected, setSelected] = useState([]);
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState("");
   const [filterMod,setFilterMod]= useState("");
 
   const available = (allCases||[]).filter(c => {
-    if (existingIds.includes(Number(c.id))) return false;
+    if (existingIds.includes(c.id)) return false;
     if (search && !c.title.toLowerCase().includes(search.toLowerCase()) && !String(c.id).includes(search)) return false;
     if (filterMod && String(c.module_id) !== filterMod) return false;
     return true;
@@ -413,7 +412,7 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
   const [activeTab, setActiveTab] = useState("execucoes");
   const { currentProject } = useProject();
 
-  const existingIds = (execs||[]).map(e=>Number(e.test_case_id));
+  const existingIds = (execs||[]).map(e=>e.test_case_id);
   const filtered    = (execs||[]).filter(e => {
     if (filter && e.status !== filter) return false;
     if (search && !e.test_case_title.toLowerCase().includes(search.toLowerCase()) &&
@@ -421,9 +420,8 @@ function CycleDetail({ cycle, onBack, onRefresh }) {
         !String(e.test_case_id).includes(search)) return false;
     return true;
   });
-  const sortedExecs = [...filtered].sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
-  const totalPages = Math.ceil(sortedExecs.length / PAGE_SIZE);
-  const paged      = sortedExecs.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const stats = (execs||[]).reduce((a,e)=>({...a,[e.status]:(a[e.status]||0)+1}),{});
   const types = cycle.test_types ? cycle.test_types.split(",").filter(Boolean) : [];
 
@@ -619,9 +617,8 @@ export default function Cycles() {
     return true;
   });
 
-  const sortedCycles = [...filtered].sort((a,b) => new Date((b as any).created_at||0).getTime() - new Date((a as any).created_at||0).getTime());
-  const totalPages = Math.ceil(sortedCycles.length / PAGE_SIZE);
-  const paged      = sortedCycles.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
   async function handleSave(form) {
     setSaving(true); setErr(null);

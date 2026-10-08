@@ -144,7 +144,7 @@ function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeCha
   );
 }
 
-function BugForm({ initial={}, modules, testCases, cycles=[], users, onSave, onCancel, saving, bugId, onFileUpload, onFileDelete, envOpts=[] }) {
+function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, saving, bugId, onFileUpload, onFileDelete, envOpts=[] }) {
   const [form, setForm] = useState({
     title:          initial.title          || "",
     description:    initial.description    || "",
@@ -165,31 +165,10 @@ function BugForm({ initial={}, modules, testCases, cycles=[], users, onSave, onC
     environment:    initial.environment    || null,
     environment_id: initial.environment_id || null,
     version:        initial.version        || "",
-    cycle_id:       String((initial as any).cycle_id || ""),
     actual_result:  initial.actual_result  || "",
     expected_result: initial.expected_result || "",
   });
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
-
-  // Quando seleciona ciclo, preenche versão automaticamente (se versão estiver vazia)
-  const handleCycleChange = (cycleId: string) => {
-    const cycle = (cycles as any[]).find(c => String(c.id) === cycleId);
-    setForm(f => ({
-      ...f,
-      cycle_id: cycleId,
-      version: f.version || (cycle?.version || ""),
-    }));
-  };
-
-  // Quando digita versão, tenta encontrar ciclo com essa versão e preenche (se ciclo não selecionado)
-  const handleVersionChange = (v: string) => {
-    let newCycleId = form.cycle_id;
-    if (!form.cycle_id) {
-      const match = (cycles as any[]).find(c => c.version && c.version === v.trim());
-      if (match) newCycleId = String(match.id);
-    }
-    setForm(f => ({...f, version: v, cycle_id: newCycleId}));
-  };
 
   return (
     <>
@@ -213,25 +192,13 @@ function BugForm({ initial={}, modules, testCases, cycles=[], users, onSave, onC
           <Select data-testid="select-bug-status" value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={STATUS_OPTS} />
         </Field>
         <Field label="Versão">
-          <input value={(form as any).version||""} onChange={e=>handleVersionChange(e.target.value)}
+          <input value={(form as any).version||""} onChange={e=>setForm(f=>({...f,version:e.target.value}))}
             placeholder="Ex: 1.2.0" style={{width:"100%"}} />
         </Field>
         <Field label="Ambiente">
           <Select value={String(form.environment_id||'')} onChange={v=>{ const env = envOpts.find(e=>String(e.value)===v); setForm(f=>({...f,environment_id:v?Number(v):null,environment:env?.label||null})); }} options={envOpts.length > 0 ? envOpts : [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}]} />
         </Field>
       </div>
-      <Field label="Ciclo de teste">
-        <Select
-          value={String((form as any).cycle_id||"")}
-          onChange={handleCycleChange}
-          options={(cycles as any[]).map(c=>({value:String(c.id),label:c.name+(c.version?` (v${c.version})`:"")+( c.status==="active"?" ✓":"")}))}
-          placeholder="Nenhum ciclo"
-        />
-        {(form as any).cycle_id && (() => {
-          const c = (cycles as any[]).find(x=>String(x.id)===String((form as any).cycle_id));
-          return c ? <span style={{fontSize:11,color:"var(--text-muted)",marginTop:4,display:"block"}}>🔁 {c.name}{c.version?` — v${c.version}`:""}</span> : null;
-        })()}
-      </Field>
       <div className="form-row">
         <Field label="Módulo">
           <Select value={form.module_id} onChange={v=>setForm(f=>({...f,module_id:v}))}
@@ -310,8 +277,7 @@ export default function Bugs() {
 
   const { data: bugs,      loading: l1, error: e1, refetch } = useAsync(() => bugsApi.list(pid ? {project_id:pid} : {}), [pid, location.state?.refresh]);
   const { data: modules,   loading: l2, error: e2 }          = useAsync(() => modulesApi.list(pid ? {project_id:pid} : {}), [pid]);
-  const { data: testCasesRaw }                               = useAsync(() => testCasesApi.list(pid ? {project_id:pid, limit:9999} : {}), [pid]);
-  const testCases = (testCasesRaw as any)?.data ?? testCasesRaw ?? [];
+  const { data: testCases }                                   = useAsync(() => testCasesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: cycles }                                      = useAsync(() => cyclesApi.list(pid ? {project_id:pid} : {}), [pid]);
   const { data: users }                                       = useAsync(() => usersApi.mentions(), []);
   const { data: envsRaw }  = useAsync(() => pid ? environmentsApi.list(pid) : Promise.resolve([]), [pid], { noCache: true });
@@ -340,11 +306,17 @@ export default function Bugs() {
   const [cycleBugIdsSet, setCycleBugIdsSet] = useState<Set<number> | null>(null);
   useEffect(() => {
     if (!filterCycle || filterCycle === "") {
-      setCycleBugIdsSet(null); // sem filtro de ciclo
+      // Todos os ciclos: busca bug_ids vinculados para mostrar só eles
+      cyclesApi.getAllBugIds(pid).then(ids => {
+        setCycleBugIdsSet(new Set((ids || []).map(Number)));
+      }).catch(() => setCycleBugIdsSet(new Set()));
       return;
     }
     if (filterCycle === "none") {
-      setCycleBugIdsSet(null); // filtro por cycle_id IS NULL — tratado direto no filter
+      // Busca todos os bug_ids vinculados a algum ciclo para excluí-los
+      cyclesApi.getAllBugIds(pid).then(ids => {
+        setCycleBugIdsSet(ids ? new Set(ids.map(Number)) : new Set());
+      }).catch(() => setCycleBugIdsSet(new Set()));
       return;
     }
     cyclesApi.getBugs(filterCycle).then(ids => {
@@ -382,16 +354,19 @@ export default function Bugs() {
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) &&
         !(b.created_by_name||"").toLowerCase().includes(search.toLowerCase()) &&
         !String(b.id).includes(search)) return false;
-    if (filterCycle === "none") {
-      // Bugs sem vínculo com ciclo — usa cycle_id direto no bug
-      return !(b as any).cycle_id;
-    }
     if (filterCycle && filterCycle !== "none") {
-      // Filtro por ciclo específico — usa lista de bug_ids via execuções OU cycle_id
-      if (cycleBugIdsSet) return cycleBugIdsSet.has(Number(b.id));
-      return String((b as any).cycle_id) === filterCycle;
+      if (!cycleBugIdsSet) return true;
+      return cycleBugIdsSet.has(Number(b.id));
     }
-    return true;
+    if (filterCycle === "none") {
+      // Bugs sem vínculo com nenhum ciclo
+      if (!cycleBugIdsSet) return true;
+      return !cycleBugIdsSet.has(Number(b.id));
+    }
+    // Todos os ciclos: mostrar só bugs vinculados a algum ciclo
+    // null = ainda carregando, Set vazio = nenhum bug vinculado
+    if (cycleBugIdsSet === null) return true; // carregando
+    return cycleBugIdsSet.has(Number(b.id));
   });
 
   const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
@@ -402,9 +377,8 @@ export default function Bugs() {
   const countArquivados = (bugs || []).filter(b =>
     ["fixed","closed"].includes(b.status) && b.closed_by_archive
   ).length;
-  const sorted      = [...filtered].sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
-  const totalPages  = Math.ceil(sorted.length / PAGE_SIZE);
-  const paged       = sorted.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const totalPages  = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged       = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const activeCycles   = (cycles || []).filter(c => c.status === "active");
   const closedCycles   = (cycles || [])
     .filter(c => c.status !== "active")
@@ -512,13 +486,7 @@ export default function Bugs() {
           {key:"fixed",     label:"Corrigidos",    color:"var(--success)"},
           {key:"closed",    label:"Fechados",      color:"var(--text-muted)"}
         ].map(({key,label,color}) => (
-          <div key={key} onClick={() => {
-            const next = filterSt === key ? "" : key;
-            setFilterSt(next);
-            if (next === "fixed" || next === "closed") setActiveTab("finalizados");
-            if (next === "open" || next === "in_progress") setActiveTab("ativos");
-            setPage(1);
-          }}
+          <div key={key} onClick={() => setFilterSt(f => f===key ? "" : key)}
             style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:8,padding:"10px 18px",cursor:"pointer",
               outline:filterSt===key ? `2px solid ${color}` : undefined}}>
@@ -583,7 +551,7 @@ export default function Bugs() {
               <thead>
                 <tr>
                   <th>#</th><th>Título</th><th>TC</th><th>Módulo</th>
-                  <th>Sev.</th><th>Status</th><th>Versão</th><th>Responsável</th><th>Data</th><th>Tracker</th><th></th>
+                  <th>Sev.</th><th>Status</th><th>Responsável</th><th>Data</th><th>Tracker</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -608,10 +576,6 @@ export default function Bugs() {
                         <span title="Fechado automaticamente ao arquivar ciclo"
                           style={{marginLeft:4,fontSize:12}}>🔒</span>
                       )}
-                    </td>
-                    <td style={{fontSize:11,color:"var(--text-muted)"}}>
-                      {(b as any).version ? <span style={{fontWeight:500,color:"var(--text)"}}>{(b as any).version}</span> : "—"}
-                      {(b as any).cycle_name && <span title={(b as any).cycle_name} style={{display:"block",fontSize:10,color:"var(--accent)"}}>🔁 {(b as any).cycle_name}</span>}
                     </td>
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>
                       {b.assigned_to_name || b.created_by_name || "—"}
@@ -656,7 +620,6 @@ export default function Bugs() {
             initial={editBug}
             modules={modules||[]}
             testCases={testCases||[]}
-            cycles={cycles||[]}
             users={users||[]}
             bugId={editBug.id}
             onSave={handleSave}
