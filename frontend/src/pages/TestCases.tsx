@@ -463,8 +463,16 @@ export default function TestCases() {
   }
 
   async function handleDelete(id: number) {
-    try { await testCasesApi.delete(id); setConfirm(null); refetch(); }
-    catch(e) { setErr(e.message); }
+    try {
+      await testCasesApi.delete(id);
+      setConfirm(null);
+      setErr(null);
+      refetch();
+    } catch(e: any) {
+      setConfirm(null);
+      setErr("Não foi possível excluir o caso. Ele pode já ter sido removido.");
+      refetch();
+    }
   }
 
   async function openDetail(tc: TestCase) {
@@ -582,7 +590,7 @@ export default function TestCases() {
                           <div className="actions">
                             <button className="btn btn-sm" onClick={() => setModal({mode:"edit",item:c})}>✏</button>
                             {canManage && (
-                              <button className="btn btn-sm btn-danger" onClick={() => setConfirm(c)}>🗑</button>
+                              <button className="btn btn-sm btn-danger" onClick={() => { setErr(null); setConfirm(c); }}>🗑</button>
                             )}
                           </div>
                         )}
