@@ -263,6 +263,9 @@ export default function TestCases() {
   const [importResult,   setImportResult]   = useState<{success:number;errors:Array<{row:number;message:string}>}|null>(null);
   const [importErr,      setImportErr]      = useState<string|null>(null);
   const [importLoading,  setImportLoading]  = useState(false);
+  const [genLoading,     setGenLoading]     = useState(false);
+  const [genResult,      setGenResult]      = useState<{created:number;skipped:number}|null>(null);
+  const [selectedSugg,   setSelectedSugg]   = useState<Set<number>>(new Set());
 
   const IMPORT_FIELDS = [
     { key: "title",           label: "Título *",           required: true  },
@@ -358,6 +361,39 @@ export default function TestCases() {
   function handleFilterChange(fn) {
     fn();
     setPage(1);
+  }
+
+  async function generateSuggestedCases(indices: number[]) {
+    if (!aiAnalysis?.suggestions?.length || !pid) return;
+    setGenLoading(true); setGenResult(null);
+    let created = 0; let skipped = 0;
+    const modList = [...(modules || [])];
+    async function getOrCreateMod(name: string): Promise<number | null> {
+      const trimmed = name.trim();
+      if (!trimmed) return null;
+      const existing = modList.find(m => m.name.toLowerCase() === trimmed.toLowerCase());
+      if (existing) return existing.id;
+      try {
+        const novo = await modulesApi.create({ name: trimmed, project_id: Number(pid) });
+        modList.push(novo as any); return (novo as any).id;
+      } catch { return null; }
+    }
+    const toCreate = indices.map(i => aiAnalysis.suggestions[i]).filter(Boolean);
+    for (const s of toCreate) {
+      const clean = s.replace(/<[^>]+>/g, "");
+      const match = clean.match(/^\*?\*?([^*]+)\*?\*?\s*[—–-]\s*(.+)$/);
+      if (!match) { skipped++; continue; }
+      const moduleName = match[1].trim();
+      const title = match[2].replace(/^(Adicionar caso para:|Criar caso para:|Adicionar:|Criar:)\s*/i, "").trim();
+      if (!title) { skipped++; continue; }
+      if ((cases || []).find(c => c.title.toLowerCase() === title.toLowerCase())) { skipped++; continue; }
+      const module_id = await getOrCreateMod(moduleName);
+      if (!module_id) { skipped++; continue; }
+      try { await testCasesApi.create({ title, module_id, priority: "medium" }); created++; }
+      catch { skipped++; }
+    }
+    setGenResult({ created, skipped }); setGenLoading(false);
+    if (created > 0) refetch();
   }
 
   async function handleSave(form: TestCaseFormData) {
@@ -788,12 +824,63 @@ export default function TestCases() {
                 {(aiAnalysis.suggestions?.length > 0 || (aiAnalysis.summary?.total_cases > 0 && aiAnalysis.summary?.total_modules > 0)) && (
                 <div>
                   <div style={{fontWeight:700,color:"#10B981",marginBottom:8}}>💡 Sugestões</div>
-                  {aiAnalysis.suggestions?.length > 0 ? (
-                    aiAnalysis.suggestions.map((s: string,i: number) => (
-                      <div key={i} style={{padding:"6px 12px",background:"#F0FDF4",borderRadius:6,marginBottom:4,borderLeft:"3px solid #10B981",fontSize:12}}
-                        dangerouslySetInnerHTML={{__html: s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}} />
-                    ))
-                  ) : aiAnalysis.summary?.total_cases > 0 && aiAnalysis.summary?.total_modules > 0 ? (
+                  {aiAnalysis.suggestions?.length > 0 ? (<>
+                    {/* Barra de ações */}
+                    {!genResult && (
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                        marginBottom:8,padding:"6px 10px",background:"#F0FDF4",borderRadius:6,
+                        border:"1px solid #6EE7B7",flexWrap:"wrap",gap:6}}>
+                        <div style={{display:"flex",gap:8,alignItems:"center",fontSize:12}}>
+                          <button style={{fontSize:11,padding:"2px 8px",borderRadius:4,border:"1px solid #10B981",
+                            background:"none",color:"#047857",cursor:"pointer"}}
+                            onClick={()=>setSelectedSugg(new Set(aiAnalysis.suggestions.map((_:any,i:number)=>i)))}>
+                            Selecionar todos
+                          </button>
+                          <button style={{fontSize:11,padding:"2px 8px",borderRadius:4,border:"1px solid #D1D5DB",
+                            background:"none",color:"#6B7280",cursor:"pointer"}}
+                            onClick={()=>setSelectedSugg(new Set())}>
+                            Desmarcar
+                          </button>
+                          <span style={{color:"#6B7280"}}>{selectedSugg.size} selecionado(s)</span>
+                        </div>
+                        <button className="btn btn-primary"
+                          disabled={genLoading || selectedSugg.size === 0}
+                          onClick={()=>generateSuggestedCases(Array.from(selectedSugg))}
+                          style={{background:"#10B981",border:"none",fontWeight:600,
+                            fontSize:12,padding:"5px 14px",opacity:selectedSugg.size===0?0.5:1}}>
+                          {genLoading ? "⏳ Criando…" : `✨ Criar selecionados (${selectedSugg.size})`}
+                        </button>
+                      </div>
+                    )}
+                    {/* Resultado */}
+                    {genResult && (
+                      <div style={{marginBottom:8,padding:"8px 12px",background:"#DCFCE7",borderRadius:6,
+                        border:"1px solid #6EE7B7",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                        <span style={{fontSize:13,color:"#065F46",fontWeight:600}}>
+                          ✅ {genResult.created} caso(s) criado(s){genResult.skipped>0?`, ${genResult.skipped} ignorado(s)`:""}
+                        </span>
+                        <button style={{fontSize:11,padding:"2px 8px",borderRadius:4,border:"1px solid #10B981",
+                          background:"none",color:"#047857",cursor:"pointer"}}
+                          onClick={()=>{ setGenResult(null); setSelectedSugg(new Set()); }}>
+                          Criar novamente
+                        </button>
+                      </div>
+                    )}
+                    {/* Lista com checkboxes */}
+                    {aiAnalysis.suggestions.map((s: string, i: number) => (
+                      <label key={i} style={{display:"flex",alignItems:"flex-start",gap:8,
+                        padding:"7px 10px",background: selectedSugg.has(i)?"#DCFCE7":"#F9FAFB",
+                        borderRadius:6,marginBottom:4,borderLeft:`3px solid ${selectedSugg.has(i)?"#10B981":"#D1D5DB"}`,
+                        fontSize:12,cursor:"pointer",transition:"background 0.15s"}}>
+                        <input type="checkbox" checked={selectedSugg.has(i)} onChange={e=>{
+                          const s2 = new Set(selectedSugg);
+                          e.target.checked ? s2.add(i) : s2.delete(i);
+                          setSelectedSugg(s2);
+                        }} style={{marginTop:2,accentColor:"#10B981",flexShrink:0}}/>
+                        <span dangerouslySetInnerHTML={{__html: s.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")}}/>
+                      </label>
+                    ))}
+                  </>) : aiAnalysis.summary?.total_cases > 0 && aiAnalysis.summary?.total_modules > 0 ? (
                     <div style={{padding:"16px",background:"#F0FDF4",borderRadius:8,border:"1px solid #6EE7B7",textAlign:"center"}}>
                       <div style={{fontSize:28,marginBottom:8}}>🏆</div>
                       <div style={{fontWeight:700,color:"#065F46",fontSize:14}}>Cobertura excelente!</div>
@@ -809,7 +896,7 @@ export default function TestCases() {
           </div>
           {!aiLoading && (
             <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}>
-              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); }}>Fechar</button>
+              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); setGenResult(null); setSelectedSugg(new Set()); }}>Fechar</button>
             </div>
           )}
         </Modal>
