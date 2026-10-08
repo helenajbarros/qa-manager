@@ -252,6 +252,141 @@ export default function TestCases() {
   }
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
+  const [genLoading, setGenLoading] = useState(false);
+  const [genResult,  setGenResult]  = useState<{created:number;skipped:number} | null>(null);
+
+  // --- Import Excel state ---
+  const [importStep,     setImportStep]     = useState<"idle"|"mapping"|"importing"|"done">("idle");
+  const [importFile,     setImportFile]     = useState<File | null>(null);
+  const [importCols,     setImportCols]     = useState<string[]>([]);
+  const [importPreview,  setImportPreview]  = useState<Record<string,string>[]>([]);
+  const [importTotal,    setImportTotal]    = useState(0);
+  const [importMapping,  setImportMapping]  = useState<Record<string,string>>({});
+  const [importResult,   setImportResult]   = useState<{success:number;errors:Array<{row:number;message:string}>}|null>(null);
+  const [importErr,      setImportErr]      = useState<string|null>(null);
+  const [importLoading,  setImportLoading]  = useState(false);
+
+  const IMPORT_FIELDS = [
+    { key: "title",           label: "Título *",           required: true  },
+    { key: "module",          label: "Módulo",             required: false },
+    { key: "description",     label: "Descrição",          required: false },
+    { key: "preconditions",   label: "Pré-condições",      required: false },
+    { key: "steps",           label: "Passos",             required: false },
+    { key: "expected_result", label: "Resultado esperado", required: false },
+    { key: "priority",        label: "Prioridade",         required: false },
+  ];
+
+  function openImport() {
+    setImportStep("idle");
+    setImportFile(null);
+    setImportCols([]);
+    setImportPreview([]);
+    setImportMapping({});
+    setImportResult(null);
+    setImportErr(null);
+    document.getElementById("import-excel-input")?.click();
+  }
+
+  async function handleImportFileSelect(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFile(file);
+    setImportLoading(true);
+    setImportErr(null);
+    try {
+      const parsed = await testCasesApi.parseExcel(file);
+      setImportCols(parsed.columns || []);
+      setImportPreview(parsed.preview || []);
+      setImportTotal(parsed.total || 0);
+      // auto-map obvious columns
+      const autoMap: Record<string,string> = {};
+      const lower = (s: string) => s.toLowerCase().trim();
+      const HINTS: Record<string, string[]> = {
+        title:           ["título","titulo","title","nome","name","caso","test case"],
+        module:          ["módulo","modulo","module","área","area","categoria","feature"],
+        description:     ["descrição","descricao","description","desc","objetivo"],
+        preconditions:   ["pré-condições","pre-condicoes","preconditions","pré-condição","precondição","pre-requisitos","pré-requisitos"],
+        steps:           ["passos","steps","passo","procedimento","etapas"],
+        expected_result: ["resultado esperado","expected result","resultado","expected","resultado_esperado"],
+        priority:        ["prioridade","priority","prio"],
+      };
+      for (const [field, hints] of Object.entries(HINTS)) {
+        const match = parsed.columns.find((c: string) => hints.some(h => lower(c).includes(h)));
+        if (match) autoMap[field] = match;
+      }
+      setImportMapping(autoMap);
+      setImportStep("mapping");
+    } catch(err: any) {
+      setImportErr("Erro ao ler arquivo: " + (err.message || String(err)));
+    } finally {
+      setImportLoading(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleImportConfirm() {
+    if (!importFile || !pid) return;
+    setImportStep("importing");
+    setImportLoading(true);
+    setImportErr(null);
+    try {
+      const result = await testCasesApi.importExcel(importFile, pid, importMapping);
+      setImportResult(result);
+      setImportStep("done");
+      if (result.success > 0) refetch();
+    } catch(err: any) {
+      setImportErr("Erro na importação: " + (err.message || String(err)));
+      setImportStep("mapping");
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  async function generateSuggestedCases() {
+    if (!aiAnalysis?.suggestions?.length || !pid) return;
+    setGenLoading(true);
+    setGenResult(null);
+    let created = 0; let skipped = 0;
+    const modList: Module[] = modules || [];
+
+    async function getOrCreateMod(name: string): Promise<number | null> {
+      const found = modList.find(m => m.name.toLowerCase() === name.toLowerCase());
+      if (found) return found.id as number;
+      try {
+        const created = await modulesApi.create({ name: name.trim(), project_id: pid });
+        const newMod = (created as any)?.data ?? created as any;
+        modList.push(newMod);
+        return newMod.id;
+      } catch { return null; }
+    }
+
+    for (const s of aiAnalysis.suggestions as string[]) {
+      // Format: "**ModuleName** — Adicionar caso para: title"  or  "**ModuleName** — Criar caso de regressão para bug..."
+      const match = s.replace(/<[^>]+>/g, "").match(/^\*?\*?([^*]+)\*?\*?\s*[—–-]\s*(.+)$/);
+      if (!match) { skipped++; continue; }
+      const modName = match[1].trim();
+      let title = match[2].trim();
+      // Remove "Adicionar caso para: " prefix
+      title = title.replace(/^adicionar caso para:\s*/i, "").replace(/^criar caso de regressão para bug conhecido:\s*/i, "Regressão: ");
+      // Clean markdown bold
+      title = title.replace(/\*\*(.*?)\*\*/g, "$1");
+      if (!title) { skipped++; continue; }
+      // Check duplicate
+      const alreadyExists = (cases || []).some((c: any) =>
+        c.title.toLowerCase().trim() === title.toLowerCase().trim()
+      );
+      if (alreadyExists) { skipped++; continue; }
+      const module_id = await getOrCreateMod(modName);
+      if (!module_id) { skipped++; continue; }
+      try {
+        await testCasesApi.create({ module_id, title, priority: "medium" });
+        created++;
+      } catch { skipped++; }
+    }
+    setGenResult({ created, skipped });
+    setGenLoading(false);
+    if (created > 0) refetch();
+  }
 
   if (l1||l2) return <Loading />;
   if (e1||e2) return <ErrorMsg msg={e1||e2} />;
@@ -339,7 +474,14 @@ export default function TestCases() {
             🎯 Relatório de Gaps
           </button>
           {!isViewer && (
-            <button data-testid="btn-novo-caso" className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
+            <>
+              <input id="import-excel-input" type="file" accept=".xlsx,.xls" style={{display:"none"}} onChange={handleImportFileSelect} />
+              <button className="btn" onClick={openImport} title="Importar casos de teste via Excel"
+                style={{background:"#059669",color:"white",border:"none",fontWeight:600}}>
+                {importLoading ? "⏳" : "⬆"} Importar Excel
+              </button>
+              <button data-testid="btn-novo-caso" className="btn btn-primary" onClick={() => setModal({mode:"create"})}>+ Novo caso</button>
+            </>
           )}
         </div>
       </div>
@@ -511,6 +653,125 @@ export default function TestCases() {
           onConfirm={() => handleDelete(confirm.id)} onCancel={() => setConfirm(null)} />
       )}
 
+      {/* Modal Import Excel */}
+      {(importStep === "mapping" || importStep === "importing" || importStep === "done") && (
+        <div className="modal-overlay" onClick={(e: any) => {
+          if (importStep !== "importing" && e.target === e.currentTarget) {
+            setImportStep("idle");
+          }
+        }}>
+          <div className="modal" style={{maxWidth:680}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <h3 style={{margin:0}}>⬆ Importar casos de teste via Excel</h3>
+              {importStep !== "importing" && (
+                <button className="btn btn-sm" onClick={() => setImportStep("idle")}>✕</button>
+              )}
+            </div>
+
+            {importStep === "done" && importResult ? (
+              <div style={{textAlign:"center",padding:"16px 0"}}>
+                <div style={{fontSize:48,marginBottom:12}}>{importResult.success > 0 ? "✅" : "⚠️"}</div>
+                <div style={{fontWeight:700,fontSize:18,marginBottom:8}}>
+                  {importResult.success} caso(s) importado(s) com sucesso
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div style={{textAlign:"left",marginTop:16}}>
+                    <div style={{fontWeight:600,color:"#EF4444",marginBottom:8}}>
+                      {importResult.errors.length} linha(s) com erro:
+                    </div>
+                    <div style={{maxHeight:200,overflowY:"auto",background:"var(--bg)",borderRadius:6,padding:"8px 12px"}}>
+                      {importResult.errors.map((e,i) => (
+                        <div key={i} style={{fontSize:12,color:"#EF4444",padding:"3px 0",borderBottom:"1px solid var(--border)"}}>
+                          Linha {e.row}: {e.message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button className="btn btn-primary" style={{marginTop:20}} onClick={() => setImportStep("idle")}>Fechar</button>
+              </div>
+            ) : importStep === "importing" ? (
+              <div style={{textAlign:"center",padding:"32px 0"}}>
+                <div style={{fontSize:32,marginBottom:12}}>⏳</div>
+                <div style={{fontSize:14,color:"var(--text-muted)"}}>Importando {importTotal} linha(s)...</div>
+              </div>
+            ) : (
+              <>
+                <div style={{marginBottom:12,fontSize:13,color:"var(--text-muted)"}}>
+                  Arquivo: <strong>{importFile?.name}</strong> — <strong>{importTotal}</strong> linha(s) detectadas
+                </div>
+
+                {importErr && (
+                  <div style={{background:"#FEF2F2",border:"1px solid #EF4444",borderRadius:6,
+                    padding:"8px 12px",fontSize:13,color:"#DC2626",marginBottom:12}}>{importErr}</div>
+                )}
+
+                <div style={{marginBottom:16}}>
+                  <div style={{fontWeight:600,marginBottom:10,fontSize:13}}>Mapeamento de colunas</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {IMPORT_FIELDS.map(f => (
+                      <div key={f.key} style={{display:"flex",flexDirection:"column",gap:4}}>
+                        <label style={{fontSize:12,fontWeight:600,color:"var(--text-muted)"}}>
+                          {f.label}{f.required && <span style={{color:"#EF4444"}}> *</span>}
+                        </label>
+                        <select
+                          value={importMapping[f.key] || ""}
+                          onChange={e => setImportMapping(m => ({...m, [f.key]: e.target.value}))}
+                          style={{padding:"5px 8px",borderRadius:6,border:"1px solid var(--border)",
+                            fontSize:12,background:"var(--card)",color:"var(--text)"}}>
+                          <option value="">— não importar —</option>
+                          {importCols.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {importPreview.length > 0 && importMapping.title && (
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontWeight:600,marginBottom:8,fontSize:13}}>Preview (primeiras {importPreview.length} linhas)</div>
+                    <div style={{overflowX:"auto",borderRadius:6,border:"1px solid var(--border)"}}>
+                      <table style={{width:"100%",fontSize:11,borderCollapse:"collapse"}}>
+                        <thead>
+                          <tr style={{background:"var(--bg)"}}>
+                            {["title","module","priority","steps"].filter(k => importMapping[k]).map(k => (
+                              <th key={k} style={{padding:"5px 8px",textAlign:"left",fontWeight:600,
+                                color:"var(--text-muted)",borderBottom:"1px solid var(--border)"}}>
+                                {IMPORT_FIELDS.find(f=>f.key===k)?.label.replace(" *","")}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.map((row, i) => (
+                            <tr key={i} style={{borderBottom:"1px solid var(--border)"}}>
+                              {["title","module","priority","steps"].filter(k => importMapping[k]).map(k => (
+                                <td key={k} style={{padding:"5px 8px",maxWidth:200,overflow:"hidden",
+                                  textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                  {row[importMapping[k]] || "—"}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="modal-footer">
+                  <button className="btn" onClick={() => setImportStep("idle")}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={handleImportConfirm}
+                    disabled={!importMapping.title}>
+                    ✓ Importar {importTotal} caso(s)
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {showAI && (
         <Modal title="🎯 Relatório de Gaps — Casos de Teste" onClose={()=>{ setShowAI(false); setAiAnalysis(null); }}>
           <div style={{maxHeight:"60vh",overflowY:"auto",padding:"8px 0"}}>
@@ -594,9 +855,32 @@ export default function TestCases() {
               <div style={{textAlign:"center",padding:24,color:"var(--text-muted)"}}>Erro ao carregar análise.</div>
             )}
           </div>
+          {!aiLoading && aiAnalysis?.suggestions?.length > 0 && (
+            <div style={{marginTop:12,padding:"12px",background:"#F0FDF4",borderRadius:8,border:"1px solid #6EE7B7"}}>
+              {genResult ? (
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                  <span style={{fontSize:13,color:"#065F46",fontWeight:600}}>
+                    ✅ {genResult.created} caso(s) criado(s){genResult.skipped > 0 ? `, ${genResult.skipped} ignorado(s) (já existiam)` : ""}
+                  </span>
+                  <button className="btn btn-sm" onClick={() => setGenResult(null)}
+                    style={{background:"none",border:"1px solid #10B981",color:"#065F46"}}>Criar novamente</button>
+                </div>
+              ) : (
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                  <span style={{fontSize:13,color:"#065F46"}}>
+                    💡 <strong>{aiAnalysis.suggestions.length} caso(s)</strong> sugeridos prontos para criar
+                  </span>
+                  <button className="btn btn-primary" onClick={generateSuggestedCases} disabled={genLoading}
+                    style={{background:"#10B981",border:"none",fontWeight:600,minWidth:180}}>
+                    {genLoading ? "⏳ Criando..." : "✨ Criar casos sugeridos"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {!aiLoading && (
             <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}>
-              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); }}>Fechar</button>
+              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); setGenResult(null); }}>Fechar</button>
             </div>
           )}
         </Modal>
