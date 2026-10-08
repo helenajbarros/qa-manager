@@ -252,8 +252,6 @@ export default function TestCases() {
   }
   const [saving,    setSaving]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
-  const [genLoading, setGenLoading] = useState(false);
-  const [genResult,  setGenResult]  = useState<{created:number;skipped:number} | null>(null);
 
   // --- Import Excel state ---
   const [importStep,     setImportStep]     = useState<"idle"|"mapping"|"importing"|"done">("idle");
@@ -340,52 +338,6 @@ export default function TestCases() {
     } finally {
       setImportLoading(false);
     }
-  }
-
-  async function generateSuggestedCases() {
-    if (!aiAnalysis?.suggestions?.length || !pid) return;
-    setGenLoading(true);
-    setGenResult(null);
-    let created = 0; let skipped = 0;
-    const modList: Module[] = modules || [];
-
-    async function getOrCreateMod(name: string): Promise<number | null> {
-      const found = modList.find(m => m.name.toLowerCase() === name.toLowerCase());
-      if (found) return found.id as number;
-      try {
-        const created = await modulesApi.create({ name: name.trim(), project_id: pid });
-        const newMod = (created as any)?.data ?? created as any;
-        modList.push(newMod);
-        return newMod.id;
-      } catch { return null; }
-    }
-
-    for (const s of aiAnalysis.suggestions as string[]) {
-      // Format: "**ModuleName** — Adicionar caso para: title"  or  "**ModuleName** — Criar caso de regressão para bug..."
-      const match = s.replace(/<[^>]+>/g, "").match(/^\*?\*?([^*]+)\*?\*?\s*[—–-]\s*(.+)$/);
-      if (!match) { skipped++; continue; }
-      const modName = match[1].trim();
-      let title = match[2].trim();
-      // Remove "Adicionar caso para: " prefix
-      title = title.replace(/^adicionar caso para:\s*/i, "").replace(/^criar caso de regressão para bug conhecido:\s*/i, "Regressão: ");
-      // Clean markdown bold
-      title = title.replace(/\*\*(.*?)\*\*/g, "$1");
-      if (!title) { skipped++; continue; }
-      // Check duplicate
-      const alreadyExists = (cases || []).some((c: any) =>
-        c.title.toLowerCase().trim() === title.toLowerCase().trim()
-      );
-      if (alreadyExists) { skipped++; continue; }
-      const module_id = await getOrCreateMod(modName);
-      if (!module_id) { skipped++; continue; }
-      try {
-        await testCasesApi.create({ module_id, title, priority: "medium" });
-        created++;
-      } catch { skipped++; }
-    }
-    setGenResult({ created, skipped });
-    setGenLoading(false);
-    if (created > 0) refetch();
   }
 
   if (l1||l2) return <Loading />;
@@ -855,32 +807,9 @@ export default function TestCases() {
               <div style={{textAlign:"center",padding:24,color:"var(--text-muted)"}}>Erro ao carregar análise.</div>
             )}
           </div>
-          {!aiLoading && aiAnalysis?.suggestions?.length > 0 && (
-            <div style={{marginTop:12,padding:"12px",background:"#F0FDF4",borderRadius:8,border:"1px solid #6EE7B7"}}>
-              {genResult ? (
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                  <span style={{fontSize:13,color:"#065F46",fontWeight:600}}>
-                    ✅ {genResult.created} caso(s) criado(s){genResult.skipped > 0 ? `, ${genResult.skipped} ignorado(s) (já existiam)` : ""}
-                  </span>
-                  <button className="btn btn-sm" onClick={() => setGenResult(null)}
-                    style={{background:"none",border:"1px solid #10B981",color:"#065F46"}}>Criar novamente</button>
-                </div>
-              ) : (
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                  <span style={{fontSize:13,color:"#065F46"}}>
-                    💡 <strong>{aiAnalysis.suggestions.length} caso(s)</strong> sugeridos prontos para criar
-                  </span>
-                  <button className="btn btn-primary" onClick={generateSuggestedCases} disabled={genLoading}
-                    style={{background:"#10B981",border:"none",fontWeight:600,minWidth:180}}>
-                    {genLoading ? "⏳ Criando..." : "✨ Criar casos sugeridos"}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
           {!aiLoading && (
             <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}>
-              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); setGenResult(null); }}>Fechar</button>
+              <button className="btn btn-primary" onClick={()=>{ setShowAI(false); setAiAnalysis(null); }}>Fechar</button>
             </div>
           )}
         </Modal>

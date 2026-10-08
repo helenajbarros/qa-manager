@@ -67,3 +67,70 @@ export async function update(id: number | string, { module_id, title, descriptio
 export async function remove(id: number | string) {
   return execute("DELETE FROM test_cases WHERE id=$1", [id]);
 }
+
+export async function importFromExcel(
+  project_id: number | string,
+  rows: Array<Record<string, string>>,
+  mapping: { title: string; description?: string; preconditions?: string; steps?: string; expected_result?: string; priority?: string; module?: string },
+  userId?: number
+) {
+  const moduleCache: Record<string, number> = {};
+
+  async function getOrCreateModule(name: string): Promise<number> {
+    const key = name.trim().toLowerCase();
+    if (moduleCache[key]) return moduleCache[key];
+    const existing = await query<{ id: number }>(
+      "SELECT id FROM modules WHERE LOWER(name)=$1 AND project_id=$2",
+      [key, project_id]
+    );
+    if (existing[0]) { moduleCache[key] = existing[0].id; return existing[0].id; }
+    const created = await query<{ id: number }>(
+      "INSERT INTO modules (name, project_id) VALUES ($1,$2) RETURNING id",
+      [name.trim(), project_id]
+    );
+    moduleCache[key] = created[0].id;
+    return created[0].id;
+  }
+
+  const PRI_MAP: Record<string, string> = {
+    alta: "high", high: "high", crítica: "critical", critica: "critical", critical: "critical",
+    baixa: "low", low: "low", média: "medium", media: "medium", medium: "medium"
+  };
+
+  const results: { success: number; errors: Array<{ row: number; message: string }> } = { success: 0, errors: [] };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const title = (row[mapping.title] || "").trim();
+      if (!title) { results.errors.push({ row: i + 2, message: "Título vazio" }); continue; }
+
+      const moduleName = mapping.module ? (row[mapping.module] || "").trim() : "";
+      let module_id: number | null = null;
+      if (moduleName) {
+        module_id = await getOrCreateModule(moduleName);
+      }
+
+      const rawPri = mapping.priority ? (row[mapping.priority] || "").trim().toLowerCase() : "";
+      const priority = PRI_MAP[rawPri] || "medium";
+
+      await query<{ id: number }>(
+        "INSERT INTO test_cases (module_id,title,description,preconditions,steps,expected_result,priority) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
+        [
+          module_id,
+          title,
+          mapping.description ? (row[mapping.description] || null) : null,
+          mapping.preconditions ? (row[mapping.preconditions] || null) : null,
+          mapping.steps ? (row[mapping.steps] || null) : null,
+          mapping.expected_result ? (row[mapping.expected_result] || null) : null,
+          priority,
+        ]
+      );
+      results.success++;
+    } catch (err) {
+      results.errors.push({ row: i + 2, message: (err as Error).message });
+    }
+  }
+
+  return results;
+}

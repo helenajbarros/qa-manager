@@ -61,6 +61,26 @@ export const testCasesApi = {
   update:      (id: number, d: Partial<TestCase>) => api.put<TestCase>(`/test-cases/${id}`, d),
   delete:      (id: number)            => api.delete<void>(`/test-cases/${id}`),
   getActivity: (id: number)            => api.get<unknown[]>(`/test-cases/${id}/activity`),
+  parseExcel: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const token = getToken();
+    return fetch(`${getApiBase()}/test-cases/excel/parse`, {
+      method: "POST", body: fd,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(r => r.json()).then(j => j.data ?? j);
+  },
+  importExcel: (file: File, project_id: number | string, mapping: Record<string, string>) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("project_id", String(project_id));
+    fd.append("mapping", JSON.stringify(mapping));
+    const token = getToken();
+    return fetch(`${getApiBase()}/test-cases/excel/import`, {
+      method: "POST", body: fd,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(r => r.json()).then(j => j.data ?? j);
+  },
 };
 
 export const testPlansApi = {
@@ -86,8 +106,9 @@ export const cyclesApi = {
   updateExecution: (id: number, eid: number, d: Partial<Execution>) => api.put<Execution>(`/cycles/${id}/executions/${eid}`, d),
   deleteExecution: (id: number, eid: number)    => api.delete<void>(`/cycles/${id}/executions/${eid}`),
   getActivity:     (id: number)                 => api.get<unknown[]>(`/cycles/${id}/activity`),
-  getBugs:         (id: number)                 => api.get<Bug[]>(`/cycles/${id}/bugs`),
-  getAllBugIds:     (project_id?: number|string) => api.get<number[]>(`/cycles/all-bug-ids${project_id?`?project_id=${project_id}`:''}`),
+  getBugs:                (id: number)                 => api.get<Bug[]>(`/cycles/${id}/bugs`),
+  getAllBugIds:            (project_id?: number|string) => api.get<number[]>(`/cycles/all-bug-ids${project_id?`?project_id=${project_id}`:''}`),
+  getExecutionsByTestCase:(testCaseId: number|string)  => api.get<any[]>(`/cycles/test-case/${testCaseId}/executions`),
 };
 
 export const bugsApi = {
