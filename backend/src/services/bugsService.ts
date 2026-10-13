@@ -87,6 +87,27 @@ export async function create(data: any) {
     [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, created_by_id||null, project_id||1, assigned_to_id||null, pr_url||null, steps||null, false, environment||null, environment_id||null, actual_result||null, expected_result||null, os||null, browser||null, impact||null, evidence_url||null, data.version||null]);
   const bug = await findById(rows[0].id);
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
+
+  // Auto-marcar execuções do caso de teste como "failed" nos ciclos ativos
+  if (test_case_id) {
+    try {
+      const executions = await query<{ id: number; cycle_id: number }>(
+        `SELECT e.id, e.cycle_id FROM test_executions e
+         JOIN test_cycles c ON c.id = e.cycle_id
+         WHERE e.test_case_id = $1 AND c.status != 'archived'`,
+        [test_case_id]
+      );
+      for (const exec of executions) {
+        await execute(
+          "UPDATE test_executions SET status='failed', bug_id=$1 WHERE id=$2",
+          [rows[0].id, exec.id]
+        );
+      }
+    } catch (err) {
+      console.error("[bugsService] erro ao marcar execuções como failed:", (err as Error).message);
+    }
+  }
+
   return bug;
 }
 
