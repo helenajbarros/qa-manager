@@ -33,7 +33,9 @@ export const show = async (req: AuthRequest, res: Response, next: NextFunction):
 export const store = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.body.title?.trim()) { r.badRequest(res, "title obrigatório"); return; }
-    r.created(res, await svc.create(req.body));
+    const data = { ...req.body, created_by_id: req.user?.id ?? req.body.created_by_id };
+    console.log("[bugsController] store test_case_id:", data.test_case_id, "created_by_id:", data.created_by_id);
+    r.created(res, await svc.create(data));
   } catch(e) { next(e); }
 };
 

@@ -89,14 +89,17 @@ export async function create(data: any) {
   await logActivity(rows[0].id, created_by_id, "criou o bug", null);
 
   // Auto-marcar execuções do caso de teste como "failed" nos ciclos ativos
-  if (test_case_id) {
+  const tcId = test_case_id ? parseInt(String(test_case_id)) : null;
+  console.log("[bugsService] create bug_id:", rows[0].id, "test_case_id:", tcId);
+  if (tcId && !isNaN(tcId)) {
     try {
       const executions = await query<{ id: number; cycle_id: number }>(
         `SELECT e.id, e.cycle_id FROM test_executions e
          JOIN test_cycles c ON c.id = e.cycle_id
          WHERE e.test_case_id = $1 AND c.status != 'archived'`,
-        [test_case_id]
+        [tcId]
       );
+      console.log("[bugsService] execuções encontradas para marcar failed:", executions.length);
       for (const exec of executions) {
         await execute(
           "UPDATE test_executions SET status='failed', bug_id=$1 WHERE id=$2",
