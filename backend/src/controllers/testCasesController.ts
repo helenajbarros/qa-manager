@@ -16,6 +16,8 @@ export const show         = async (req: AuthRequest, res: Response, next: NextFu
 export const store        = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.created(res, await svc.create(req.body, req.user?.id)); } catch(e){next(e);} };
 export const update       = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { const x=await svc.update(req.params.id,req.body,req.user?.id); x?r.ok(res,x):r.notFound(res,"Recurso"); } catch(e){next(e);} };
 export const destroy      = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { const x=await svc.remove(req.params.id); (x as any).changes===0?r.notFound(res,"Recurso"):r.noContent(res); } catch(e){next(e);} };
+export const bulkDestroy  = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.bulkRemove(req.body?.ids)); } catch(e){next(e);} };
+export const bulkEdit     = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.bulkUpdate(req.body?.ids, req.body || {}, req.user?.id)); } catch(e){next(e);} };
 export const listActivity = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => { try { r.ok(res, await svc.getActivity(req.params.id)); } catch(e){next(e);} };
 
 export const parseExcel = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {

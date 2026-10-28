@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useMemo, ChangeEvent, CSSProperties } from "react";
 import { useAsync }    from "../hooks/useAsync.js";
 import { testCasesApi, modulesApi, usersApi } from "../services/resources.js";
 import { useProject }  from "../context/ProjectContext.js";
@@ -41,24 +41,37 @@ const PRI_OPTS = [
 ];
 const PAGE_SIZE = 10;
 
+function pageWindow(page: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
+  const out: (number | "…")[] = [1];
+  const from = Math.max(2, page - 1), to = Math.min(total - 1, page + 1);
+  if (from > 2) out.push("…");
+  for (let p = from; p <= to; p++) out.push(p);
+  if (to < total - 1) out.push("…");
+  out.push(total);
+  return out;
+}
+
 function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeChange }) {
   if (totalPages <= 1 && !onPageSizeChange) return null;
+  const btn = (disabled: boolean): CSSProperties => ({padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
+    background:"none",cursor:disabled?"not-allowed":"pointer",color:disabled?"var(--text-muted)":"var(--text)",fontSize:12});
   return (
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8,
       padding:"12px 0 0",fontSize:12,color:"var(--text-muted)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <span>{total} item(s) — Página {page} de {totalPages}</span>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span>{total} item(s) — Página {page} de {Math.max(totalPages,1)}</span>
         {onPageSizeChange && <select value={pageSize} onChange={e=>{onPageSizeChange(Number(e.target.value))}}
           style={{fontSize:11,padding:"2px 6px",borderRadius:4,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer"}}>
-          {[10,25,50,999].map(s=><option key={s} value={s}>{s===999?"Todos":s}</option>)}
+          {[10,25,50,100,999].map(s=><option key={s} value={s}>{s===999?"Todos":`${s} por página`}</option>)}
         </select>}
       </div>
-      <div style={{display:"flex",gap:4}}>
-        <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1}
-          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
-            background:"none",cursor:page===1?"not-allowed":"pointer",
-            color:page===1?"var(--text-muted)":"var(--text)",fontSize:12}}>← Anterior</button>
-        {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+      {totalPages > 1 && (
+      <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+        <button onClick={()=>onChange(Math.max(1,page-1))} disabled={page===1} style={btn(page===1)}>← Anterior</button>
+        {pageWindow(page, totalPages).map((p, i) => p === "…"
+          ? <span key={`e${i}`} style={{padding:"0 4px"}}>…</span>
+          : (
           <button key={p} onClick={()=>onChange(p)}
             style={{padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",
               background:p===page?"var(--accent)":"none",
@@ -66,11 +79,9 @@ function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeCha
             {p}
           </button>
         ))}
-        <button onClick={()=>onChange(Math.min(totalPages,page+1))} disabled={page===totalPages}
-          style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--border)",
-            background:"none",cursor:page===totalPages?"not-allowed":"pointer",
-            color:page===totalPages?"var(--text-muted)":"var(--text)",fontSize:12}}>Próxima →</button>
+        <button onClick={()=>onChange(Math.min(totalPages,page+1))} disabled={page===totalPages} style={btn(page===totalPages)}>Próxima →</button>
       </div>
+      )}
     </div>
   );
 }
@@ -153,6 +164,16 @@ export default function TestCases() {
   const [filterPri, setFilterPri] = useState("");
   const [page,      setPage]      = useState(1);
   const [pageSize,  setPageSize]  = useState(10);
+  // seleção em lote
+  const [selected,  setSelected]  = useState<Set<number>>(new Set());
+  const [bulkDelAsk, setBulkDelAsk] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkForm,  setBulkForm]  = useState({ module_id: "", priority: "", assigned_to_id: "" });
+  const [bulkBusy,  setBulkBusy]  = useState(false);
+  const [bulkMsg,   setBulkMsg]   = useState<string | null>(null);
+
+  // mudou busca/filtro/projeto: a seleção volta ao zero (evita apagar/editar sem querer o que ficou escondido)
+  useEffect(() => { setSelected(new Set()); }, [search, filterMod, filterPri, pid]);
   const [showExport, setShowExport] = useState(false);
   const [showAI,     setShowAI]     = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
@@ -357,6 +378,44 @@ export default function TestCases() {
   const sortedCases = [...filtered].sort((a,b) => new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime());
   const totalPages = Math.ceil(sortedCases.length / pageSize);
   const paged      = sortedCases.slice((page-1)*pageSize, page*pageSize);
+
+  const pageIds        = paged.map(c => c.id);
+  const allPageChecked = pageIds.length > 0 && pageIds.every(id => selected.has(id));
+  const somePageChecked = pageIds.some(id => selected.has(id));
+  const toggleOne = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const togglePage = () => setSelected(prev => { const n = new Set(prev); if (allPageChecked) pageIds.forEach(id => n.delete(id)); else pageIds.forEach(id => n.add(id)); return n; });
+  const selectAllFiltered = () => setSelected(new Set(sortedCases.map(c => c.id)));
+
+  async function runBulkDelete() {
+    setBulkBusy(true); setErr(null);
+    try {
+      const ids = [...selected];
+      const r: any = await testCasesApi.bulkDelete(ids);
+      setBulkDelAsk(false); setSelected(new Set());
+      setBulkMsg(`${r?.deleted ?? ids.length} caso(s) excluído(s).`);
+      refetch();
+    } catch (e: any) {
+      setBulkDelAsk(false);
+      setErr(e?.message || "Não foi possível excluir os casos selecionados.");
+    } finally { setBulkBusy(false); }
+  }
+  async function runBulkEdit() {
+    const data: any = {};
+    if (bulkForm.module_id) data.module_id = bulkForm.module_id;
+    if (bulkForm.priority) data.priority = bulkForm.priority;
+    if (bulkForm.assigned_to_id) data.assigned_to_id = bulkForm.assigned_to_id === "none" ? null : bulkForm.assigned_to_id;
+    if (!Object.keys(data).length) { setErr("Escolha pelo menos um campo para alterar."); return; }
+    setBulkBusy(true); setErr(null);
+    try {
+      const ids = [...selected];
+      const r: any = await testCasesApi.bulkUpdate(ids, data);
+      setBulkEditOpen(false); setBulkForm({ module_id: "", priority: "", assigned_to_id: "" }); setSelected(new Set());
+      setBulkMsg(`${r?.updated ?? ids.length} caso(s) atualizado(s).`);
+      refetch();
+    } catch (e: any) {
+      setErr(e?.message || "Não foi possível editar os casos selecionados.");
+    } finally { setBulkBusy(false); }
+  }
 
   function handleFilterChange(fn) {
     fn();
@@ -565,17 +624,47 @@ export default function TestCases() {
         <span style={{fontSize:12,color:"var(--text-muted)",alignSelf:"center"}}>{filtered.length} caso(s)</span>
       </div>
 
+      {bulkMsg && (
+        <div style={{marginBottom:12,padding:"8px 12px",borderRadius:6,background:"#ECFDF5",border:"1px solid #A7F3D0",color:"#065F46",fontSize:13,display:"flex",justifyContent:"space-between"}}>
+          <span>✓ {bulkMsg}</span>
+          <button onClick={()=>setBulkMsg(null)} style={{background:"none",border:"none",cursor:"pointer",color:"inherit"}}>✕</button>
+        </div>
+      )}
+      {!isViewer && selected.size > 0 && (
+        <div data-testid="bulk-bar" style={{position:"sticky",top:0,zIndex:20,marginBottom:12,padding:"10px 14px",borderRadius:8,
+          background:"#EFF6FF",border:"1px solid #BFDBFE",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",fontSize:13}}>
+          <strong>{selected.size} selecionado(s)</strong>
+          {selected.size < sortedCases.length && (
+            <button className="btn btn-sm" onClick={selectAllFiltered}>Selecionar todos os {sortedCases.length}</button>
+          )}
+          <button className="btn btn-sm" onClick={()=>setSelected(new Set())}>Limpar seleção</button>
+          <span style={{flex:1}} />
+          <button className="btn btn-sm btn-primary" onClick={()=>{ setErr(null); setBulkEditOpen(true); }}>✏ Editar selecionados</button>
+          {canManage && <button className="btn btn-sm btn-danger" onClick={()=>{ setErr(null); setBulkDelAsk(true); }}>🗑 Excluir selecionados</button>}
+        </div>
+      )}
+
       <div className="card">
         {!filtered.length ? <Empty icon="📋" text="Nenhum caso encontrado." /> : (
           <>
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>ID</th><th>Título</th><th>Módulo</th><th>Prioridade</th><th>Responsável</th><th>Criado em</th><th></th></tr>
+                  <tr>
+                    {!isViewer && <th style={{width:34}}>
+                      <input type="checkbox" aria-label="Selecionar todos desta página" title="Selecionar todos desta página"
+                        checked={allPageChecked} ref={el => { if (el) el.indeterminate = !allPageChecked && somePageChecked; }}
+                        onChange={togglePage} style={{cursor:"pointer"}} />
+                    </th>}
+                    <th>ID</th><th>Título</th><th>Módulo</th><th>Prioridade</th><th>Responsável</th><th>Criado em</th><th></th></tr>
                 </thead>
                 <tbody>
                   {paged.map(c => (
-                    <tr key={c.id}>
+                    <tr key={c.id} style={selected.has(c.id) ? {background:"#EFF6FF"} : undefined}>
+                      {!isViewer && <td>
+                        <input type="checkbox" aria-label={`Selecionar caso ${c.id}`} checked={selected.has(c.id)}
+                          onChange={() => toggleOne(c.id)} style={{cursor:"pointer"}} />
+                      </td>}
                       <td>
                         <button onClick={() => openDetail(c)}
                           style={{background:"none",border:"none",cursor:"pointer",
@@ -707,6 +796,41 @@ export default function TestCases() {
         <Modal title={modal.mode==="create"?"Novo caso de teste":"Editar caso"} onClose={() => setModal(null)}>
           <TestCaseForm initial={modal.item||{}} modules={modules||[]} users={users||[]}
             onSave={handleSave} onCancel={() => setModal(null)} saving={saving} />
+        </Modal>
+      )}
+      {bulkDelAsk && (
+        <ConfirmModal message={`Excluir ${selected.size} caso(s) de teste selecionado(s)? As execuções deles nos ciclos também serão removidas. Esta ação não pode ser desfeita.`}
+          onConfirm={runBulkDelete} onCancel={() => setBulkDelAsk(false)} />
+      )}
+      {bulkEditOpen && (
+        <Modal title={`Editar ${selected.size} caso(s) de teste`} onClose={() => !bulkBusy && setBulkEditOpen(false)}>
+          <p style={{fontSize:13,color:"var(--text-muted)",margin:"4px 0 14px"}}>Só o que você escolher abaixo será alterado nos casos selecionados. O resto fica como está.</p>
+          {err && <ErrorMsg msg={err} />}
+          <div style={{display:"grid",gap:12}}>
+            <label style={{fontSize:13}}>Módulo
+              <select value={bulkForm.module_id} onChange={e=>setBulkForm(f=>({...f,module_id:e.target.value}))} style={{display:"block",width:"100%",marginTop:4,padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)"}}>
+                <option value="">— manter —</option>
+                {(modules||[]).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
+            <label style={{fontSize:13}}>Prioridade
+              <select value={bulkForm.priority} onChange={e=>setBulkForm(f=>({...f,priority:e.target.value}))} style={{display:"block",width:"100%",marginTop:4,padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)"}}>
+                <option value="">— manter —</option>
+                {PRI_OPTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label style={{fontSize:13}}>Responsável
+              <select value={bulkForm.assigned_to_id} onChange={e=>setBulkForm(f=>({...f,assigned_to_id:e.target.value}))} style={{display:"block",width:"100%",marginTop:4,padding:"6px 10px",borderRadius:6,border:"1px solid var(--border)"}}>
+                <option value="">— manter —</option>
+                <option value="none">Sem responsável</option>
+                {(users||[]).map((u:any)=><option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="modal-footer">
+            <button className="btn" disabled={bulkBusy} onClick={() => setBulkEditOpen(false)}>Cancelar</button>
+            <button className="btn btn-primary" disabled={bulkBusy} onClick={runBulkEdit}>{bulkBusy ? "Salvando…" : "Aplicar aos selecionados"}</button>
+          </div>
         </Modal>
       )}
       {confirm && (

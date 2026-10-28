@@ -65,7 +65,48 @@ export async function update(id: number | string, { module_id, title, descriptio
 }
 
 export async function remove(id: number | string) {
+  // execuções do caso saem junto: sem isso sobravam linhas órfãs nos ciclos (contavam nos totais do ciclo)
+  try { await execute("DELETE FROM test_executions WHERE test_case_id=$1", [id]); } catch { /* segue: o importante é apagar o caso */ }
   return execute("DELETE FROM test_cases WHERE id=$1", [id]);
+}
+
+const cleanIds = (ids: unknown): number[] =>
+  [...new Set((Array.isArray(ids) ? ids : []).map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 5000);
+
+/** Exclui vários casos de uma vez (e as execuções deles). Devolve quantos foram apagados. */
+export async function bulkRemove(ids: unknown): Promise<{ deleted: number }> {
+  const list = cleanIds(ids);
+  let deleted = 0;
+  for (let i = 0; i < list.length; i += 200) {
+    const chunk = list.slice(i, i + 200);
+    const ph = chunk.map((_, k) => `$${k + 1}`).join(",");
+    try { await execute(`DELETE FROM test_executions WHERE test_case_id IN (${ph})`, chunk); } catch { /* segue */ }
+    const r: any = await execute(`DELETE FROM test_cases WHERE id IN (${ph})`, chunk);
+    deleted += Number(r?.changes ?? chunk.length);
+  }
+  return { deleted };
+}
+
+/** Edita vários casos de uma vez: só os campos enviados mudam (módulo, prioridade, responsável). */
+export async function bulkUpdate(ids: unknown, fields: { module_id?: any; priority?: any; assigned_to_id?: any }, userId?: number): Promise<{ updated: number }> {
+  const list = cleanIds(ids);
+  const sets: string[] = []; const vals: unknown[] = []; const notes: string[] = [];
+  if (fields.module_id !== undefined && fields.module_id !== "") { vals.push(Number(fields.module_id)); sets.push(`module_id=$${vals.length}`); notes.push("módulo"); }
+  if (fields.priority) {
+    if (!["low", "medium", "high", "critical"].includes(String(fields.priority))) throw Object.assign(new Error("Prioridade inválida"), { status: 400 });
+    vals.push(String(fields.priority)); sets.push(`priority=$${vals.length}`); notes.push(`prioridade → ${PRI_LABEL[String(fields.priority)] || fields.priority}`);
+  }
+  if (fields.assigned_to_id !== undefined && fields.assigned_to_id !== "") { vals.push(fields.assigned_to_id === null || fields.assigned_to_id === "none" ? null : Number(fields.assigned_to_id)); sets.push(`assigned_to_id=$${vals.length}`); notes.push("responsável"); }
+  if (!sets.length || !list.length) return { updated: 0 };
+  let updated = 0;
+  for (let i = 0; i < list.length; i += 200) {
+    const chunk = list.slice(i, i + 200);
+    const ph = chunk.map((_, k) => `$${vals.length + k + 1}`).join(",");
+    const r: any = await execute(`UPDATE test_cases SET ${sets.join(",")} WHERE id IN (${ph})`, [...vals, ...chunk]);
+    updated += Number(r?.changes ?? chunk.length);
+  }
+  for (const id of list.slice(0, 500)) await logActivity(id, userId ?? null, "editou em lote", notes.join(", "));
+  return { updated };
 }
 
 export async function importFromExcel(
