@@ -640,3 +640,8 @@ export default function Bugs() {
       {confirm && (
         <ConfirmModal message={`Excluir o bug "${confirm.title}"?`}
           onConfirm={() => handleDelete(confirm.id)} onCancel={() => setConfirm(null)} />
+
+      )}
+    </div>
+  );
+}

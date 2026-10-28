@@ -480,18 +480,19 @@ function applyFilters(data, filters) {
     ? bugs_per_module?.filter(m => String(m.id) === String(module_id))
     : bugs_per_module;
 
+  // Os números de execução vêm do backend, já contados por CASO (um caso em vários ciclos conta uma vez).
+  // Só recalcula aqui quando há filtro de módulo, a partir dos módulos (que seguem a mesma regra).
   let passed, failed, blocked, not_executed;
   if (module_id && filteredModules?.length) {
-    // Quando filtra por módulo, usa os dados de execução do módulo (mais precisos)
     passed       = filteredModules.reduce((a, m) => a + (m.passed       || 0), 0);
     failed       = filteredModules.reduce((a, m) => a + (m.failed       || 0), 0);
     blocked      = filteredModules.reduce((a, m) => a + (m.blocked      || 0), 0);
     not_executed = filteredModules.reduce((a, m) => a + (m.not_executed || 0), 0);
   } else {
-    passed       = filteredCyclesForCalc.reduce((a, c) => a + (c.passed       || 0), 0);
-    failed       = filteredCyclesForCalc.reduce((a, c) => a + (c.failed       || 0), 0);
-    blocked      = filteredCyclesForCalc.reduce((a, c) => a + (c.blocked      || 0), 0);
-    not_executed = filteredCyclesForCalc.reduce((a, c) => a + (c.not_executed || 0), 0);
+    passed       = summary.passed       || 0;
+    failed       = summary.failed       || 0;
+    blocked      = summary.blocked      || 0;
+    not_executed = summary.not_executed || 0;
   }
 
   const total    = passed + failed + blocked + not_executed;
@@ -504,13 +505,14 @@ function applyFilters(data, filters) {
     const bOpen       = filteredBpm.reduce((a, m) => a + (m.open_bugs  || 0), 0);
     const bFixed      = filteredBpm.reduce((a, m) => a + (m.fixed_bugs || 0), 0);
     const bTotal      = filteredBpm.reduce((a, m) => a + (m.total_bugs || 0), 0);
-    const bInProgress = bTotal - bOpen - bFixed > 0 ? bTotal - bOpen - bFixed : 0;
+    const bInProgress = filteredBpm.reduce((a, m) => a + (m.in_progress_bugs || 0), 0);
+    const bClosed     = filteredBpm.reduce((a, m) => a + (m.closed_bugs      || 0), 0);
     filteredBugsSummary = {
       total:       bTotal,
       open:        bOpen,
       fixed:       bFixed,
       in_progress: bInProgress,
-      closed:      0, // bugs_per_module não traz closed separado
+      closed:      bClosed,
     };
   }
 
