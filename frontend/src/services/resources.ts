@@ -60,8 +60,6 @@ export const testCasesApi = {
   create:      (d: Partial<TestCase>)  => api.post<TestCase>("/test-cases", d),
   update:      (id: number, d: Partial<TestCase>) => api.put<TestCase>(`/test-cases/${id}`, d),
   delete:      (id: number)            => api.delete<void>(`/test-cases/${id}`),
-  bulkDelete:  (ids: number[])         => api.post<{ deleted: number }>("/test-cases/bulk-delete", { ids }),
-  bulkUpdate:  (ids: number[], d: { module_id?: number | string; priority?: string; assigned_to_id?: number | string | null }) => api.post<{ updated: number }>("/test-cases/bulk-update", { ids, ...d }),
   getActivity: (id: number)            => api.get<unknown[]>(`/test-cases/${id}/activity`),
   parseExcel: (file: File) => {
     const fd = new FormData();
@@ -145,4 +143,19 @@ export const backupApi = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     }).then(r => r.json()).then(j => j.data ?? j);
   },
+};
+export interface ClickupStatus { hasToken: boolean; listId: string | null; listName: string | null; listPath: string | null; mirrorOn: boolean; autoSend: boolean }
+export interface ClickupList { id: string; name: string; path: string; teamId: string }
+export interface ClickupSendResult { sent: { id: number; title: string; url: string }[]; skipped: { id: number; title: string; reason: string }[]; failed: { id: number; title: string; error: string }[] }
+export interface ClickupSyncResult { checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }
+export const clickupApi = {
+  status: ()                         => api.get<ClickupStatus>("/integrations/clickup/status"),
+  saveToken: (token: string)         => api.put<ClickupStatus>("/integrations/clickup/config", { token }),
+  saveList: (list: ClickupList)      => api.put<ClickupStatus>("/integrations/clickup/config", { list }),
+  setAutoSend: (on: boolean)         => api.put<ClickupStatus>("/integrations/clickup/config", { auto_send: on }),
+  remove: ()                         => api.delete<{ ok: boolean }>("/integrations/clickup/config"),
+  lists: ()                          => api.get<ClickupList[]>("/integrations/clickup/lists"),
+  mirror: (on: boolean)              => api.post<{ mirrorOn: boolean; url?: string }>("/integrations/clickup/mirror", { on }),
+  send: (bug_ids: number[])          => api.post<ClickupSendResult>("/integrations/clickup/send", { bug_ids }),
+  sync: (project_id?: number)        => api.post<ClickupSyncResult>("/integrations/clickup/sync", { project_id }),
 };

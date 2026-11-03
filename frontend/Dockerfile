@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# no Docker a tela fala com o backend do próprio compose (via nginx, em /api) e NÃO com o servidor publicado no .env.production
+ENV VITE_API_URL=""
 RUN npm run build
 
 # ── Runtime stage: serve os arquivos estáticos com Nginx ────────

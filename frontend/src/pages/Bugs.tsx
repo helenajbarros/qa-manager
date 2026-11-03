@@ -1,11 +1,12 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAsync }    from "../hooks/useAsync.js";
-import { bugsApi, modulesApi, testCasesApi, cyclesApi, usersApi, environmentsApi } from "../services/resources.js";
+import { clickupApi, bugsApi, modulesApi, testCasesApi, cyclesApi, usersApi, environmentsApi } from "../services/resources.js";
 import { useAuth }     from "../context/AuthContext.js";
 import { useProject }  from "../context/ProjectContext.js";
 import { FileUpload }  from "../components/FileUpload.js";
 import { Loading, ErrorMsg, Empty, Modal, ConfirmModal, Field, Select, Severity, BugStatus } from "../components/UI.js";
+import ClickupPanel, { inClickup } from "../components/ClickupPanel.js";
 import type { Bug, Module, TestCase, Cycle, MentionUser } from "../types/index.js";
 
 const OS_OPTS      = ["Windows","macOS","Linux","Android","iOS"].map(v=>({value:v,label:v}));
@@ -272,6 +273,8 @@ export default function Bugs() {
   const pid      = currentProject?.id;
   const isViewer  = user?.role === "viewer";
   const canManage = user?.role === "admin" || user?.role === "manager";
+  const canSendClickup = ["admin", "manager", "editor"].includes(user?.role ?? "");
+  const [clickupSel, setClickupSel] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -392,6 +395,8 @@ export default function Bugs() {
       let saved;
       if (!editBug.id) {
         saved = await bugsApi.create({...form, project_id:pid, created_by_id:user?.id});
+        // envio automático ao ClickUp (se o admin ligou): só para bug criado aqui; se falhar, o bug fica criado e dá para enviar depois
+        try { const cs = await clickupApi.status(); if (cs.autoSend && cs.hasToken && cs.listName && ["admin","manager","editor"].includes(user?.role ?? "")) await clickupApi.send([saved.id]); } catch(_) { /* envio manual depois */ }
         // Após criar navega direto para a página do bug
         setEditBug(null);
         refetch();
@@ -548,6 +553,8 @@ export default function Bugs() {
         </div>
       )}
 
+      <ClickupPanel bugs={filtered} selected={clickupSel} setSelected={setClickupSel} projectId={pid} isAdmin={user?.role === "admin"} canSend={canSendClickup} onChanged={() => refetch()} />
+
       <div className="card">
         {!filtered.length ? <Empty icon="🐛" text="Nenhum bug encontrado." /> : (
           <>
@@ -555,13 +562,16 @@ export default function Bugs() {
             <table>
               <thead>
                 <tr>
-                  <th>#</th><th>Título</th><th>TC</th><th>Módulo</th>
+                  {canSendClickup && <th title="Marcar para enviar ao ClickUp"></th>}<th>#</th><th>Título</th><th>TC</th><th>Módulo</th>
                   <th>Sev.</th><th>Status</th><th>Responsável</th><th>Data</th><th>Tracker</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {paged.map(b => (
                   <tr data-testid={`bug-row-${b.id}`} key={b.id}>
+                    {canSendClickup && (
+                      <td>{!inClickup(b) && <input type="checkbox" title="Marcar para enviar ao ClickUp" checked={clickupSel.has(b.id)} onChange={() => setClickupSel((cur) => { const n = new Set(cur); if (n.has(b.id)) n.delete(b.id); else n.add(b.id); return n; })} />}</td>
+                    )}
                     <td style={{color:"var(--text-muted)",fontSize:12,fontWeight:600}}>{b.id}</td>
                     <td style={{fontWeight:500,maxWidth:220}}>
                       <button onClick={() => navigate("/bugs/" + b.id)}
@@ -591,7 +601,7 @@ export default function Bugs() {
                     <td>
                       {b.tracker_url
                         ? <a href={b.tracker_url} target="_blank" rel="noreferrer"
-                            style={{color:"var(--accent)",fontSize:12,whiteSpace:"nowrap"}}>🔗 Abrir</a>
+                            style={{color:"var(--accent)",fontSize:12,whiteSpace:"nowrap"}}>{inClickup(b) ? "✅ ClickUp" : "🔗 Abrir"}</a>
                         : "—"}
                     </td>
                     <td>

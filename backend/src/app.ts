@@ -25,6 +25,7 @@ import backupRouter       from "./routes/backup";
 import environmentsRouter from "./routes/environments";
 import aiRouter from "./routes/ai";
 import testPlansRouter    from "./routes/testPlans";
+import clickupRouter, { clickupWebhook } from "./routes/clickup";
 
 const UPLOAD_DIR = process.env.QA_UPLOAD_DIR || path.resolve(__dirname, "../uploads");
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch(_) {}
@@ -47,6 +48,8 @@ const apiLimiter = rateLimit({
 });
 
 app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
+// webhook do ClickUp precisa do corpo cru para conferir a assinatura: vem ANTES do express.json
+app.post("/api/integrations/clickup/webhook", ...clickupWebhook);
 app.use(express.json());
 app.use(requestLogger);
 app.use("/uploads", express.static(UPLOAD_DIR));
@@ -73,6 +76,7 @@ app.use("/api/dashboard",            authenticate, dashboardRouter);
 app.use("/api/export",               authenticate, exportRouter);
 app.use("/api/backup",               backupRouter);
 app.use("/api/notifications",        notificationsRouter);
+app.use("/api/integrations/clickup", clickupRouter);
 
 app.get("/api/health", (_req, res) =>
   res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV })

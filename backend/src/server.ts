@@ -12,6 +12,7 @@ import { addBugTestType }         from "./database/migrations_bug_test_type";
 import { addNotificationsTable }  from "./database/migrations_notifications";
 import { addBugsV150Fields }       from "./database/migrations_bugs_v150";
 import { addEnvironmentsTable }    from "./database/migrations_environments";
+import { addSettingsTable }       from "./database/migrations_settings";
 import { runSeed }                from "./database/seed";
 import app from "./app";
 
@@ -31,6 +32,7 @@ async function start(): Promise<void> {
   await addNotificationsTable();
   await addBugsV150Fields();
   await addEnvironmentsTable();
+  await addSettingsTable();
   await runSeed();
   app.listen(PORT, () => {
     console.log(`\n🚀 QA System rodando na porta ${PORT}`);
