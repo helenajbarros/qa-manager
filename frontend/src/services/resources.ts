@@ -144,13 +144,14 @@ export const backupApi = {
     }).then(r => r.json()).then(j => j.data ?? j);
   },
 };
-export interface ClickupStatus { hasToken: boolean; listId: string | null; listName: string | null; listPath: string | null; mirrorOn: boolean; autoSend: boolean }
+export interface ClickupStatus { hasMyToken: boolean; hasToken: boolean; listId: string | null; listName: string | null; listPath: string | null; mirrorOn: boolean; autoSend: boolean }
 export interface ClickupList { id: string; name: string; path: string; teamId: string }
 export interface ClickupSendResult { sent: { id: number; title: string; url: string }[]; skipped: { id: number; title: string; reason: string }[]; failed: { id: number; title: string; error: string }[] }
 export interface ClickupSyncResult { checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }
 export const clickupApi = {
   status: ()                         => api.get<ClickupStatus>("/integrations/clickup/status"),
-  saveToken: (token: string)         => api.put<ClickupStatus>("/integrations/clickup/config", { token }),
+  saveToken: (token: string)         => api.put<ClickupStatus>("/integrations/clickup/my-token", { token }),
+  removeMyToken: ()                  => api.delete<ClickupStatus>("/integrations/clickup/my-token"),
   saveList: (list: ClickupList)      => api.put<ClickupStatus>("/integrations/clickup/config", { list }),
   setAutoSend: (on: boolean)         => api.put<ClickupStatus>("/integrations/clickup/config", { auto_send: on }),
   remove: ()                         => api.delete<{ ok: boolean }>("/integrations/clickup/config"),

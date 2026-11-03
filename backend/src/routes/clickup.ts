@@ -26,23 +26,30 @@ export const clickupWebhook = [
 ];
 
 const router = Router();
-router.get("/status", authenticate, async (_req, res) => { try { ok(res, await svc.status()); } catch (e) { fail(res, e); } });
+const uid = (req: any) => (req as AuthRequest).user?.id;
+router.get("/status", authenticate, async (req, res) => { try { ok(res, await svc.status(uid(req))); } catch (e) { fail(res, e); } });
+router.put("/my-token", authenticate, requireEditor, async (req, res) => {
+  try { await svc.saveUserToken(uid(req)!, String(req.body?.token || "")); ok(res, await svc.status(uid(req))); } catch (e) { fail(res, e); }
+});
+router.delete("/my-token", authenticate, requireEditor, async (req, res) => {
+  try { await svc.removeUserToken(uid(req)!); ok(res, await svc.status(uid(req))); } catch (e) { fail(res, e); }
+});
 router.put("/config", authenticate, requireAdmin, async (req, res) => {
   try {
     const { token, list, auto_send } = req.body || {};
     if (token) await svc.saveToken(String(token));
     if (typeof auto_send === "boolean") await svc.setAutoSend(auto_send);
     if (list?.id) await svc.saveList(list);
-    ok(res, await svc.status());
+    ok(res, await svc.status(uid(req)));
   } catch (e) { fail(res, e); }
 });
 router.delete("/config", authenticate, requireAdmin, async (_req, res) => { try { await svc.removeCfg(); ok(res, { ok: true }); } catch (e) { fail(res, e); } });
-router.get("/lists", authenticate, requireAdmin, async (_req, res) => { try { ok(res, await svc.lists()); } catch (e) { fail(res, e); } });
+router.get("/lists", authenticate, requireAdmin, async (req, res) => { try { ok(res, await svc.lists(uid(req))); } catch (e) { fail(res, e); } });
 router.post("/mirror", authenticate, requireAdmin, async (req, res) => {
   try {
-    if (req.body?.on === false) { await svc.disableMirror(); return ok(res, { mirrorOn: false }); }
+    if (req.body?.on === false) { await svc.disableMirror(uid(req)); return ok(res, { mirrorOn: false }); }
     const base = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get("host")}`;
-    const r = await svc.enableMirror(base);
+    const r = await svc.enableMirror(base, uid(req));
     ok(res, { mirrorOn: true, ...r });
   } catch (e) { fail(res, e); }
 });
@@ -54,6 +61,6 @@ router.post("/send", authenticate, requireEditor, async (req, res) => {
   } catch (e) { fail(res, e); }
 });
 router.post("/sync", authenticate, requireEditor, async (req, res) => {
-  try { ok(res, await svc.syncAll(req.body?.project_id ? Number(req.body.project_id) : undefined)); } catch (e) { fail(res, e); }
+  try { ok(res, await svc.syncAll(req.body?.project_id ? Number(req.body.project_id) : undefined, uid(req))); } catch (e) { fail(res, e); }
 });
 export default router;

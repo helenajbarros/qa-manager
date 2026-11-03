@@ -396,7 +396,7 @@ export default function Bugs() {
       if (!editBug.id) {
         saved = await bugsApi.create({...form, project_id:pid, created_by_id:user?.id});
         // envio automático ao ClickUp (se o admin ligou): só para bug criado aqui; se falhar, o bug fica criado e dá para enviar depois
-        try { const cs = await clickupApi.status(); if (cs.autoSend && cs.hasToken && cs.listName && ["admin","manager","editor"].includes(user?.role ?? "")) await clickupApi.send([saved.id]); } catch(_) { /* envio manual depois */ }
+        try { const cs = await clickupApi.status(); if (cs.autoSend && cs.hasMyToken && cs.listName && ["admin","manager","editor"].includes(user?.role ?? "")) await clickupApi.send([saved.id]); } catch(_) { /* envio manual depois */ }
         // Após criar navega direto para a página do bug
         setEditBug(null);
         refetch();

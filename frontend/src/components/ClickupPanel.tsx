@@ -21,7 +21,7 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
   const load = () => clickupApi.status().then(setSt).catch(() => setSt(null));
   useEffect(() => { load(); }, []);
   if (!st) return null;
-  const configured = st.hasToken && !!st.listName;
+  const configured = st.hasMyToken && !!st.listName;
   const pending = bugs.filter((b) => !inClickup(b));
   const count = [...selected].filter((id) => pending.some((b) => b.id === id)).length;
 
@@ -50,7 +50,7 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <strong>ClickUp</strong>
         {!configured ? (
-          <span style={{ color: "var(--warning)" }}>{isAdmin ? "Falta configurar o token e a lista (veja ⚙ ao lado)." : "O admin ainda não configurou o ClickUp."}</span>
+          <span style={{ color: "var(--warning)" }}>{!st.hasMyToken ? "Cole o seu token pessoal do ClickUp em ⚙ (a task sai no seu nome)." : "O admin ainda não escolheu a lista do ClickUp."}</span>
         ) : (
           <>
             <span>Lista: <strong>{st.listName}</strong></span>
@@ -62,37 +62,38 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
             <span style={{ color: st.mirrorOn ? "var(--success)" : "var(--text-muted)", fontSize: 12 }}>{st.mirrorOn ? "● espelhamento automático ligado" : "espelhamento automático desligado"}</span>
           </>
         )}
-        {isAdmin && <button className="btn btn-sm" onClick={() => setOpen(!open)} title="Configurar ClickUp">⚙</button>}
+        {canSend && <button className="btn btn-sm" onClick={() => setOpen(!open)} title="Configurar ClickUp">⚙</button>}
       </div>
       {msg && <div style={{ marginTop: 8, fontSize: 12, color: msg.ok ? "var(--success)" : "var(--danger)" }}>{msg.text}</div>}
-      {isAdmin && open && (
+      {canSend && open && (
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)", display: "grid", gap: 10 }}>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Token do ClickUp (Configurações → Apps → API Token, começa com pk_). Cole só aqui; fica criptografado e não volta para a tela. Todos os usuários enviam por ele.</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Seu token pessoal do ClickUp (ClickUp → Configurações → API da ClickUp, começa com pk_). Cada pessoa usa o seu: as tasks saem com o seu nome. Cole só aqui; fica criptografado e não volta para a tela.</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input type="password" autoComplete="off" style={{ ...inp, minWidth: 260 }} placeholder={st.hasToken ? "•••• salvo (cole outro para trocar)" : "pk_…"} value={token} onChange={(e) => setToken(e.target.value)} />
-            <button className="btn btn-primary btn-sm" disabled={!!busy || !token} onClick={() => run("token", async () => { setSt(await clickupApi.saveToken(token)); setToken(""); return "Token salvo."; })}>Salvar token</button>
-            <button className="btn btn-sm" disabled={!!busy || !st.hasToken} onClick={() => run("lists", async () => { const l = await clickupApi.lists(); setLists(l); setPick(l[0]?.id || ""); return l.length ? `${l.length} lista(s). Escolha abaixo.` : "Nenhuma lista nesse token."; })}>{busy === "lists" ? "Buscando…" : "Buscar listas (boards)"}</button>
+            <input type="password" autoComplete="off" style={{ ...inp, minWidth: 260 }} placeholder={st.hasMyToken ? "•••• salvo (cole outro para trocar)" : "pk_…"} value={token} onChange={(e) => setToken(e.target.value)} />
+            <button className="btn btn-primary btn-sm" disabled={!!busy || !token} onClick={() => run("token", async () => { setSt(await clickupApi.saveToken(token)); setToken(""); return "Seu token foi salvo."; })}>Salvar meu token</button>
+            {st.hasMyToken && <button className="btn btn-sm" disabled={!!busy} onClick={() => run("rmtoken", async () => { setSt(await clickupApi.removeMyToken()); return "Seu token foi removido."; })}>Remover meu token</button>}
+            {isAdmin && <button className="btn btn-sm" disabled={!!busy || !st.hasMyToken} onClick={() => run("lists", async () => { const l = await clickupApi.lists(); setLists(l); setPick(l[0]?.id || ""); return l.length ? `${l.length} lista(s). Escolha abaixo.` : "Nenhuma lista nesse token."; })}>{busy === "lists" ? "Buscando…" : "Buscar listas (boards)"}</button>}
           </div>
-          {!!lists.length && (
+          {isAdmin && !!lists.length && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <select style={{ ...inp, minWidth: 320 }} value={pick} onChange={(e) => setPick(e.target.value)}>{lists.map((l) => <option key={l.id} value={l.id}>{l.path}</option>)}</select>
               <button className="btn btn-primary btn-sm" disabled={!!busy || !pick} onClick={() => run("pick", async () => { const l = lists.find((x) => x.id === pick)!; setSt(await clickupApi.saveList(l)); return `As tasks vão para: ${l.path}.`; })}>Usar esta lista</button>
             </div>
           )}
-          {configured && (
+          {isAdmin && configured && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 12 }}>Quando a task mudar de status no ClickUp (ex.: “em andamento”), o bug muda aqui:</span>
               <button className="btn btn-sm" disabled={!!busy} onClick={() => run("mirror", async () => { const r = await clickupApi.mirror(!st.mirrorOn); await load(); return r.mirrorOn ? "Espelhamento ligado." : "Espelhamento desligado."; })}>{st.mirrorOn ? "Desligar espelhamento" : "Ligar espelhamento automático"}</button>
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Precisa do servidor publicado em https. Sem isso, use “↻ Sincronizar status”.</span>
             </div>
           )}
-          {configured && (
+          {isAdmin && configured && (
             <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, cursor: "pointer" }}>
               <input type="checkbox" checked={st.autoSend} disabled={!!busy} onChange={(e) => run("auto", async () => { setSt(await clickupApi.setAutoSend(e.target.checked)); return e.target.checked ? "Agora todo bug criado na tela “Novo bug” vai direto ao ClickUp." : "Envio automático desligado: os bugs vão só quando você marcar e enviar."; })} />
               Enviar ao ClickUp assim que um bug for criado na tela “Novo bug” (bugs do Autopilot continuam manuais)
             </label>
           )}
-          {(st.hasToken || st.listName) && <button className="btn btn-sm btn-danger" style={{ justifySelf: "start" }} onClick={() => { if (window.confirm("Remover o token e a lista do ClickUp?")) run("rm", async () => { await clickupApi.remove(); await load(); return "ClickUp removido."; }); }}>Remover ClickUp</button>}
+          {isAdmin && (st.hasToken || st.listName) && <button className="btn btn-sm btn-danger" style={{ justifySelf: "start" }} onClick={() => { if (window.confirm("Remover a configuração do ClickUp (lista e espelhamento)? Os tokens pessoais continuam salvos.")) run("rm", async () => { await clickupApi.remove(); await load(); return "ClickUp removido."; }); }}>Remover ClickUp</button>}
         </div>
       )}
     </div>

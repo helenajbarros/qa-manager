@@ -42,9 +42,9 @@ export async function saveCfg(cfg: Cfg): Promise<void> {
   if (ex.length) await execute("UPDATE app_settings SET value=$1 WHERE key=$2", [v, KEY]);
   else await execute("INSERT INTO app_settings (key,value) VALUES ($1,$2)", [KEY, v]);
 }
-export async function status() {
+export async function status(userId?: number | null) {
   const c = await loadCfg();
-  return { hasToken: !!c.tokenEnc, listId: c.listId || null, listName: c.listName || null, listPath: c.listPath || null, mirrorOn: !!c.webhookId, autoSend: !!c.autoSend };
+  return { hasMyToken: !!(await userToken(userId)), hasToken: !!c.tokenEnc, listId: c.listId || null, listName: c.listName || null, listPath: c.listPath || null, mirrorOn: !!c.webhookId, autoSend: !!c.autoSend };
 }
 
 async function call(token: string, method: string, path: string, body?: unknown): Promise<any> {
@@ -59,16 +59,38 @@ async function call(token: string, method: string, path: string, body?: unknown)
     if (res.status === 429 && attempt < 3) { await new Promise((r) => setTimeout(r, 4000 * attempt)); continue; }
     const json: any = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (res.status === 401) throw new Error("O ClickUp recusou o token (401). Gere outro em ClickUp → Configurações → Apps → API Token.");
+      if (res.status === 401) throw new Error("O ClickUp recusou o token (401). Gere outro em ClickUp → Configurações → API da ClickUp.");
       throw new Error(`ClickUp ${res.status}: ${json?.err || json?.error || "erro"}`);
     }
     return json;
   }
   throw new Error("ClickUp não respondeu.");
 }
-async function token(): Promise<string> {
-  const t = dec((await loadCfg()).tokenEnc);
-  if (!t) throw new Error("O admin precisa configurar o token do ClickUp primeiro.");
+const TOKEN_RE = /^pk_[A-Za-z0-9_]{10,}$/;
+const userKey = (id: number) => `clickup_user_${id}`;
+async function setSetting(key: string, value: string) {
+  const ex = await query("SELECT key FROM app_settings WHERE key=$1", [key]);
+  if (ex.length) await execute("UPDATE app_settings SET value=$1 WHERE key=$2", [value, key]);
+  else await execute("INSERT INTO app_settings (key,value) VALUES ($1,$2)", [key, value]);
+}
+/** Token pessoal de quem está logado (cada usuário gera o seu no ClickUp). */
+export async function userToken(userId?: number | null): Promise<string> {
+  if (!userId) return "";
+  const r = await query<{ value: string }>("SELECT value FROM app_settings WHERE key=$1", [userKey(userId)]);
+  return dec(r[0]?.value);
+}
+export async function saveUserToken(userId: number, t: string): Promise<void> {
+  const v = String(t || "").trim();
+  if (!TOKEN_RE.test(v)) throw new Error("Isso não parece um token pessoal do ClickUp (começa com pk_). Pegue em ClickUp → Configurações → API da ClickUp.");
+  await setSetting(userKey(userId), enc(v));
+}
+export async function removeUserToken(userId: number): Promise<void> {
+  await execute("DELETE FROM app_settings WHERE key=$1", [userKey(userId)]);
+}
+/** Para listar boards, espelhar e sincronizar: token de quem pediu, senão o token do admin. */
+async function token(userId?: number | null): Promise<string> {
+  const t = (await userToken(userId)) || dec((await loadCfg()).tokenEnc);
+  if (!t) throw new Error("Cole o seu token pessoal do ClickUp primeiro (botão ⚙ ClickUp).");
   return t;
 }
 
@@ -90,8 +112,8 @@ export async function removeCfg(): Promise<void> {
 }
 
 export interface ListOption { id: string; name: string; path: string; teamId: string }
-export async function lists(): Promise<ListOption[]> {
-  const t = await token();
+export async function lists(userId?: number | null): Promise<ListOption[]> {
+  const t = await token(userId);
   const out: ListOption[] = [];
   for (const team of (await call(t, "GET", "/team")).teams || []) {
     for (const s of (await call(t, "GET", `/team/${team.id}/space?archived=false`)).spaces || []) {
@@ -129,7 +151,9 @@ export interface SendResult { sent: { id: number; title: string; url: string }[]
 
 /** Envia os bugs escolhidos. Quem já tem link do ClickUp em tracker_url é pulado. */
 export async function sendBugs(ids: number[], userId?: number): Promise<SendResult> {
-  const t = await token();
+  // envio: SEMPRE com o token de quem enviou, para a task sair com o nome dele
+  const t = await userToken(userId);
+  if (!t) throw new Error("Você ainda não colou o seu token do ClickUp. Abra ⚙ ClickUp e cole o seu (assim a task sai no seu nome).");
   const cfg = await loadCfg();
   if (!cfg.listId) throw new Error("O admin precisa escolher a lista (board) do ClickUp.");
   const res: SendResult = { sent: [], skipped: [], failed: [] };
@@ -167,12 +191,12 @@ export function mapStatus(s: { status?: string; type?: string } | undefined | nu
 }
 
 /** Aplica no bug o status que a task tem no ClickUp. Devolve o que mudou (ou null). */
-export async function mirrorTask(taskId: string, clickupStatus?: { status?: string; type?: string }): Promise<{ id: number; from: string; to: string; clickup: string } | null> {
+export async function mirrorTask(taskId: string, clickupStatus?: { status?: string; type?: string }, userId?: number | null): Promise<{ id: number; from: string; to: string; clickup: string } | null> {
   const rows = await query<any>("SELECT id,status,closed_by_archive FROM bugs WHERE tracker_url LIKE $1", [`%/t/${taskId}%`]);
   const bug = rows[0];
   if (!bug) return null;
   let st = clickupStatus;
-  if (!st) st = (await call(await token(), "GET", `/task/${taskId}`)).status;
+  if (!st) st = (await call(await token(userId), "GET", `/task/${taskId}`)).status;
   const to = mapStatus(st);
   if (!to || to === bug.status) return null;
   await execute("UPDATE bugs SET status=$1 WHERE id=$2", [to, bug.id]);
@@ -181,8 +205,8 @@ export async function mirrorTask(taskId: string, clickupStatus?: { status?: stri
 }
 
 /** "Sincronizar agora": confere no ClickUp os bugs que já foram para lá e ainda não estão fechados. */
-export async function syncAll(projectId?: number): Promise<{ checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }> {
-  const t = await token();
+export async function syncAll(projectId?: number, userId?: number | null): Promise<{ checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }> {
+  const t = await token(userId);
   const rows = await query<any>(`SELECT id,tracker_url,status FROM bugs WHERE tracker_url LIKE '%clickup.com/t/%' AND status <> 'closed' ${projectId ? "AND project_id=$1" : ""} ORDER BY id DESC LIMIT 200`, projectId ? [projectId] : []);
   const out = { checked: 0, changed: [] as { id: number; from: string; to: string; clickup: string }[], unmapped: [] as string[], failed: 0 };
   let i = 0;
@@ -208,8 +232,8 @@ export async function syncAll(projectId?: number): Promise<{ checked: number; ch
 }
 
 /** Liga o espelhamento automático: cria o webhook no ClickUp apontando para este servidor. */
-export async function enableMirror(publicBase: string): Promise<{ url: string }> {
-  const t = await token();
+export async function enableMirror(publicBase: string, userId?: number | null): Promise<{ url: string }> {
+  const t = await token(userId);
   const cfg = await loadCfg();
   if (!cfg.teamId || !cfg.listId) throw new Error("Escolha a lista do ClickUp antes de ligar o espelhamento.");
   const url = `${publicBase.replace(/\/$/, "")}/api/integrations/clickup/webhook`;
@@ -219,9 +243,9 @@ export async function enableMirror(publicBase: string): Promise<{ url: string }>
   await saveCfg({ ...cfg, webhookId: String(w.id || w.webhook?.id), webhookSecretEnc: enc(String(w.webhook?.secret || "")), webhookUrl: url });
   return { url };
 }
-export async function disableMirror(): Promise<void> {
+export async function disableMirror(userId?: number | null): Promise<void> {
   const cfg = await loadCfg();
-  try { if (cfg.webhookId) await call(await token(), "DELETE", `/webhook/${cfg.webhookId}`); } catch { /* segue */ }
+  try { if (cfg.webhookId) await call(await token(userId), "DELETE", `/webhook/${cfg.webhookId}`); } catch { /* segue */ }
   await saveCfg({ ...cfg, webhookId: undefined, webhookSecretEnc: undefined, webhookUrl: undefined });
 }
 

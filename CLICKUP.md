@@ -24,3 +24,6 @@ Bugs vindos do QA Autopilot continuam manuais. Se o ClickUp falhar, o bug é cri
 
 ## Rodando local com Docker
 Abra `http://localhost:8080/qa-manager/` (login inicial `admin@qa.com` / `admin123`). A tela usa o backend do próprio compose, não o servidor publicado.
+
+## Token: cada pessoa usa o seu (v1.8.3)
+Cada usuário (editor ou acima) cola o próprio token pessoal em ⚙ ClickUp (ClickUp → Configurações → API da ClickUp). A task sai no nome de quem enviou. Sem token pessoal, o envio é bloqueado. O admin escolhe a lista e liga o espelhamento. Os tokens ficam criptografados no banco.

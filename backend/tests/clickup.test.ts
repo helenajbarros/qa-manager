@@ -72,6 +72,11 @@ describe("ClickUp (QA Manager)", () => {
     expect((await request(app).put("/api/integrations/clickup/config").set("Authorization", `Bearer ${tokenFor("editor")}`).send({ auto_send: false })).status).toBe(403);
   });
 
+  it("token pessoal: viewer não grava; token inválido é recusado", async () => {
+    expect((await request(app).put("/api/integrations/clickup/my-token").set("Authorization", `Bearer ${tokenFor("viewer")}`).send({ token: "pk_123456789012" })).status).toBe(403);
+    const bad = await request(app).put("/api/integrations/clickup/my-token").set("Authorization", `Bearer ${tokenFor("editor")}`).send({ token: "abc" });
+    expect(bad.status).toBe(400);
+  });
   it("configurar o token exige admin; enviar exige editor (viewer não)", async () => {
     expect((await request(app).put("/api/integrations/clickup/config").set("Authorization", `Bearer ${tokenFor("editor")}`).send({ token: "pk_123456789012" })).status).toBe(403);
     expect((await request(app).post("/api/integrations/clickup/send").set("Authorization", `Bearer ${tokenFor("viewer")}`).send({ bug_ids: [1] })).status).toBe(403);
