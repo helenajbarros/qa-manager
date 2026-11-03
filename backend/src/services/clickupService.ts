@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { query, execute } from "../database/connection";
 import * as bugs from "./bugsService";
 
@@ -147,7 +149,51 @@ export function buildTask(b: any): { name: string; markdown_description: string;
 export const isClickupUrl = (u?: string | null) => /clickup\.com\/t\//i.test(String(u || ""));
 export const taskIdOf = (u?: string | null) => (String(u || "").match(/clickup\.com\/t\/(?:[^/]+\/)?([A-Za-z0-9_-]+)/i) || [])[1] || null;
 
-export interface SendResult { sent: { id: number; title: string; url: string }[]; skipped: { id: number; title: string; reason: string }[]; failed: { id: number; title: string; error: string }[] }
+export interface SendResult { sent: { id: number; title: string; url: string; attached?: number }[]; skipped: { id: number; title: string; reason: string }[]; failed: { id: number; title: string; error: string }[] }
+
+/** Anexa na task os arquivos de evidência do bug (prints etc.). Devolve quantos foram. Erros não derrubam o envio. */
+async function attachFiles(t: string, taskId: string, files: any[]): Promise<number> {
+  let n = 0;
+  const dir = process.env.QA_UPLOAD_DIR || "uploads";
+  for (const f of (files || []).slice(0, 10)) {
+    try {
+      const full = path.resolve(dir, String(f.filename));
+      if (!fs.existsSync(full) || fs.statSync(full).size > 90 * 1024 * 1024) continue;
+      const form = new FormData();
+      form.append("attachment", new Blob([fs.readFileSync(full)], { type: f.mimetype || "application/octet-stream" }), String(f.originalname || f.filename));
+      const res = await fetch(`${API}/task/${taskId}/attachment`, { method: "POST", headers: { Authorization: t }, body: form, signal: AbortSignal.timeout(60000) });
+      if (res.ok) n++;
+    } catch { /* segue com os outros */ }
+  }
+  return n;
+}
+
+/** Status do bug (QA Manager) → nome de status que existe na lista do ClickUp (cada lista tem os seus). */
+export function pickClickupStatus(target: "open" | "in_progress" | "fixed" | "closed", listStatuses: { status: string; type?: string }[]): string | null {
+  const cands = (listStatuses || []).filter((x) => mapStatus(x) === target);
+  return cands[0]?.status || null;
+}
+
+/** QA Manager → ClickUp: quando o status do bug muda aqui, muda também na task. Quem fez a mudança precisa ter token (ou o admin ter). */
+export async function pushStatus(bugId: number, newStatus: string, userId?: number | null): Promise<void> {
+  const b: any = (await query<any>("SELECT id,tracker_url FROM bugs WHERE id=$1", [bugId]))[0];
+  const taskId = taskIdOf(b?.tracker_url);
+  if (!taskId) return;
+  const target = (["open", "in_progress", "fixed", "closed"] as const).find((x) => x === newStatus);
+  if (!target) return;
+  try {
+    const t = await token(userId);
+    const task = await call(t, "GET", `/task/${taskId}`);
+    if (mapStatus(task.status) === target) return; // já está igual: evita eco com o webhook
+    const list = await call(t, "GET", `/list/${task.list?.id}`);
+    const name = pickClickupStatus(target, list.statuses || []);
+    if (!name) { await bugs.logActivity(bugId, userId ?? null, "não consegui mudar o status no ClickUp", `a lista não tem um status equivalente a "${target}"`); return; }
+    await call(t, "PUT", `/task/${taskId}`, { status: name });
+    await bugs.logActivity(bugId, userId ?? null, "status enviado ao ClickUp", name);
+  } catch (e: any) {
+    await bugs.logActivity(bugId, userId ?? null, "falha ao mudar o status no ClickUp", String(e.message).slice(0, 160)).catch(() => {});
+  }
+}
 
 /** Envia os bugs escolhidos. Quem já tem link do ClickUp em tracker_url é pulado. */
 export async function sendBugs(ids: number[], userId?: number): Promise<SendResult> {
@@ -166,7 +212,8 @@ export async function sendBugs(ids: number[], userId?: number): Promise<SendResu
       const url = String(task.url || `https://app.clickup.com/t/${task.id}`);
       await execute("UPDATE bugs SET tracker_url=$1 WHERE id=$2", [url, id]);
       await bugs.logActivity(id, userId ?? null, "enviou ao ClickUp", url);
-      res.sent.push({ id, title: b.title, url });
+      const attached = await attachFiles(t, String(task.id), b.evidence_files || []);
+      res.sent.push({ id, title: b.title, url, attached });
     } catch (e: any) {
       res.failed.push({ id, title: b.title, error: String(e.message).slice(0, 160) });
       if (/401/.test(String(e.message))) break;

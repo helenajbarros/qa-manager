@@ -126,7 +126,13 @@ export async function update(id: number | string, data: any, userId?: number) {
   await execute(`UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,environment=$14,environment_id=$15,actual_result=$16,expected_result=$17,closed_by_archive=$18,os=$19,browser=$20,impact=$21,evidence_url=$22,version=$23 WHERE id=$24`,
     [title.trim(), description||null, comment||null, tracker_url||null, severity||"medium", priority||"medium", status||"open", mod||null, test_case_id||null, assigned_to_id||null, pr_url||null, steps||null, test_type||null, environment||null, environment_id2||null, actual_result||null, expected_result||null, archiveVal, os||null, browser||null, impact||null, evidence_url||null, data.version||null, id]);
   if (prev) {
-    if (prev.status !== status) await logActivity(id, userId ?? null, "alterou o status", `${prev.status} → ${status}`);
+    if (prev.status !== status) {
+      await logActivity(id, userId ?? null, "alterou o status", `${prev.status} → ${status}`);
+      // se o bug já está no ClickUp, leva o novo status para a task (sem travar a edição se falhar)
+      if (/clickup\.com\/t\//i.test(String(prev.tracker_url || ""))) {
+        import("./clickupService").then((m) => m.pushStatus(Number(id), String(status), userId)).catch(() => {});
+      }
+    }
     if (prev.assigned_to_id !== (assigned_to_id || null)) {
       await logActivity(id, userId ?? null, "alterou o responsável", null);
       if (assigned_to_id && assigned_to_id !== userId) {

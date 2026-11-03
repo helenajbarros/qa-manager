@@ -10,13 +10,21 @@ jest.mock("../src/database/connection", () => ({ query: (...a: any[]) => mockQue
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import app from "../src/app";
-import { mapStatus, buildTask, taskIdOf, enc, dec, isClickupUrl } from "../src/services/clickupService";
+import { mapStatus, buildTask, taskIdOf, enc, dec, isClickupUrl, pickClickupStatus } from "../src/services/clickupService";
 
 const tokenFor = (role: string) => jwt.sign({ id: 1, role }, process.env.JWT_SECRET as string);
 
 describe("ClickUp (QA Manager)", () => {
   beforeEach(() => { mockQuery.mockReset(); mockExecute.mockReset(); });
 
+  it("escolhe na lista do ClickUp o status equivalente ao do bug", () => {
+    const l = [{ status: "to do", type: "open" }, { status: "em andamento", type: "custom" }, { status: "em revisão", type: "custom" }, { status: "concluído", type: "done" }, { status: "fechado", type: "closed" }];
+    expect(pickClickupStatus("open", l)).toBe("to do");
+    expect(pickClickupStatus("in_progress", l)).toBe("em andamento");
+    expect(pickClickupStatus("fixed", l)).toBe("concluído");
+    expect(pickClickupStatus("closed", l)).toBe("fechado");
+    expect(pickClickupStatus("fixed", [{ status: "to do", type: "open" }])).toBeNull();
+  });
   it("mapeia status do ClickUp para o do bug", () => {
     expect(mapStatus({ status: "open", type: "open" })).toBe("open");
     expect(mapStatus({ status: "em andamento", type: "custom" })).toBe("in_progress");

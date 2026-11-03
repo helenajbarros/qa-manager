@@ -27,3 +27,8 @@ Abra `http://localhost:8080/qa-manager/` (login inicial `admin@qa.com` / `admin1
 
 ## Token: cada pessoa usa o seu (v1.8.3)
 Cada usuário (editor ou acima) cola o próprio token pessoal em ⚙ ClickUp (ClickUp → Configurações → API da ClickUp). A task sai no nome de quem enviou. Sem token pessoal, o envio é bloqueado. O admin escolhe a lista e liga o espelhamento. Os tokens ficam criptografados no banco.
+
+## v1.8.6: anexos e status nos dois sentidos
+- Ao enviar, os arquivos de evidência do bug (até 10) são anexados na task.
+- Mudou o status do bug aqui → muda na task (usa o status equivalente da lista; se não houver, registra no histórico). Usa o token de quem mudou.
+- Mudou na task → muda aqui (webhook ou "Sincronizar status").

@@ -37,7 +37,7 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
     run("send", async () => {
       const r = await clickupApi.send(ids);
       setSelected(new Set()); onChanged();
-      return `${r.sent.length} task(s) criada(s) no ClickUp${r.skipped.length ? `, ${r.skipped.length} já estavam lá` : ""}${r.failed.length ? `. Falhou: ${r.failed.slice(0, 2).map((f) => f.error).join("; ")}` : "."}`;
+      return `${r.sent.length} task(s) criada(s) no ClickUp${r.sent.reduce((a, x) => a + (x.attached || 0), 0) ? ` (com ${r.sent.reduce((a, x) => a + (x.attached || 0), 0)} anexo(s))` : ""}${r.skipped.length ? `, ${r.skipped.length} já estavam lá` : ""}${r.failed.length ? `. Falhou: ${r.failed.slice(0, 2).map((f) => f.error).join("; ")}` : "."}`;
     });
   };
   const sync = () => run("sync", async () => {
