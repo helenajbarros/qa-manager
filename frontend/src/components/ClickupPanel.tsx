@@ -15,6 +15,7 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState("");
   const [open, setOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [token, setToken] = useState("");
   const [lists, setLists] = useState<ClickupList[]>([]);
   const [pick, setPick] = useState("");
@@ -62,7 +63,7 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
             <span style={{ color: st.mirrorOn ? "var(--success)" : "var(--text-muted)", fontSize: 12 }}>{st.mirrorOn ? "● espelhamento automático ligado" : "espelhamento automático desligado"}</span>
           </>
         )}
-        {canSend && <button className="btn btn-sm" onClick={() => setOpen(!open)} title="Configurar ClickUp">⚙</button>}
+        {canSend && <button className="btn btn-sm" onClick={() => setOpen(!open)} title="Mostrar/ocultar o token e as configurações">{open ? "▾" : "▸"} ⚙ Meu token</button>}
       </div>
       {msg && <div style={{ marginTop: 8, fontSize: 12, color: msg.ok ? "var(--success)" : "var(--danger)" }}>{msg.text}</div>}
       {canSend && open && (
@@ -80,6 +81,8 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
               <button className="btn btn-primary btn-sm" disabled={!!busy || !pick} onClick={() => run("pick", async () => { const l = lists.find((x) => x.id === pick)!; setSt(await clickupApi.saveList(l)); return `As tasks vão para: ${l.path}.`; })}>Usar esta lista</button>
             </div>
           )}
+          {isAdmin && configured && <button className="btn btn-sm" style={{ justifySelf: "start" }} onClick={() => setAdminOpen(!adminOpen)}>{adminOpen ? "▾" : "▸"} Opções do admin (espelhamento, envio automático, remover geral)</button>}
+          {isAdmin && adminOpen && (<div style={{ display: "grid", gap: 10 }}>
           {isAdmin && configured && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 12 }}>Quando a task mudar de status no ClickUp (ex.: “em andamento”), o bug muda aqui:</span>
@@ -93,7 +96,8 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
               Enviar ao ClickUp assim que um bug for criado na tela “Novo bug” (bugs do Autopilot continuam manuais)
             </label>
           )}
-          {isAdmin && (st.hasToken || st.listName) && <button className="btn btn-sm btn-danger" style={{ justifySelf: "start" }} onClick={() => { if (window.confirm("Remover a configuração do ClickUp (lista e espelhamento)? Os tokens pessoais continuam salvos.")) run("rm", async () => { await clickupApi.remove(); await load(); return "ClickUp removido."; }); }}>Remover ClickUp</button>}
+          {isAdmin && (st.hasToken || st.listName) && <button className="btn btn-sm btn-danger" style={{ justifySelf: "start" }} onClick={() => { if (window.confirm("Isso apaga a lista, o espelhamento e o token antigo compartilhado para TODOS os usuários. Os tokens pessoais continuam salvos. Continuar?")) run("rm", async () => { await clickupApi.remove(); await load(); return "ClickUp removido."; }); }}>Remover configuração geral (lista e espelhamento, vale para todos)</button>}
+          </div>)}
         </div>
       )}
     </div>
