@@ -16,9 +16,16 @@ export const clickupWebhook = [
       const raw: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
       if (!(await svc.verifySignature(raw, String(req.headers["x-signature"] || "")))) { res.status(401).json({ success: false, error: "assinatura inválida" }); return; }
       const p = JSON.parse(raw.toString("utf8") || "{}");
+      const items: any[] = p.history_items || [];
       if (p.event === "taskStatusUpdated" && p.task_id) {
-        const hist = (p.history_items || []).find((h: any) => h.field === "status");
-        await svc.mirrorTask(String(p.task_id), hist?.after || undefined);
+        const hist = items.find((h: any) => h.field === "status");
+        await svc.mirrorTask(String(p.task_id), hist?.after || undefined, null, hist?.user);
+      }
+      if (p.event === "taskAssigneeUpdated" && p.task_id) {
+        for (const h of items) {
+          if (h.field === "assignee_add") await svc.mirrorAssignee(String(p.task_id), { add: h.after }, h.user);
+          else if (h.field === "assignee_rem") await svc.mirrorAssignee(String(p.task_id), { remove: h.before }, h.user);
+        }
       }
       res.json({ success: true });
     } catch (e) { fail(res, e, 500); }

@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { query, execute } from "../database/connection";
 import * as bugs from "./bugsService";
+import * as notif from "./notificationsService";
 
 /**
  * ClickUp ↔ QA Manager.
@@ -237,8 +238,25 @@ export function mapStatus(s: { status?: string; type?: string } | undefined | nu
   return null;
 }
 
-/** Aplica no bug o status que a task tem no ClickUp. Devolve o que mudou (ou null). */
-export async function mirrorTask(taskId: string, clickupStatus?: { status?: string; type?: string }, userId?: number | null): Promise<{ id: number; from: string; to: string; clickup: string } | null> {
+export interface CuUser { id?: number | string; username?: string; email?: string }
+const who = (u?: CuUser | null) => String(u?.username || u?.email || "").trim();
+
+/** Acha o usuário do QA Manager que corresponde a uma pessoa do ClickUp: primeiro pelo e-mail, depois pelo nome. */
+export async function findQmUser(cu?: CuUser | null): Promise<{ id: number; name: string } | null> {
+  if (!cu) return null;
+  if (cu.email) {
+    const r = await query<any>("SELECT id,name FROM users WHERE LOWER(email)=LOWER($1) LIMIT 1", [String(cu.email).trim()]);
+    if (r[0]) return { id: r[0].id, name: r[0].name };
+  }
+  if (cu.username) {
+    const r = await query<any>("SELECT id,name FROM users WHERE LOWER(name)=LOWER($1) LIMIT 2", [String(cu.username).trim()]);
+    if (r.length === 1) return { id: r[0].id, name: r[0].name };
+  }
+  return null;
+}
+
+/** Aplica no bug o status que a task tem no ClickUp e registra QUEM moveu (nome do usuário do ClickUp). */
+export async function mirrorTask(taskId: string, clickupStatus?: { status?: string; type?: string }, userId?: number | null, actor?: CuUser | null): Promise<{ id: number; from: string; to: string; clickup: string } | null> {
   const rows = await query<any>("SELECT id,status,closed_by_archive FROM bugs WHERE tracker_url LIKE $1", [`%/t/${taskId}%`]);
   const bug = rows[0];
   if (!bug) return null;
@@ -247,15 +265,54 @@ export async function mirrorTask(taskId: string, clickupStatus?: { status?: stri
   const to = mapStatus(st);
   if (!to || to === bug.status) return null;
   await execute("UPDATE bugs SET status=$1 WHERE id=$2", [to, bug.id]);
-  await bugs.logActivity(bug.id, null, "status alterado pelo ClickUp", `${bug.status} → ${to} (ClickUp: ${st?.status || "?"})`);
+  const qm = await findQmUser(actor);
+  // mesmo registro das mudanças feitas aqui (alimenta os relatórios de tempo de resolução), atribuído a quem moveu quando é usuário do QA Manager
+  await bugs.logActivity(bug.id, qm?.id ?? null, "alterou o status", `${bug.status} → ${to}`);
+  await bugs.logActivity(bug.id, null, `movido no ClickUp${who(actor) ? ` por ${who(actor)}` : ""}`, `status no ClickUp: ${st?.status || "?"}`);
   return { id: bug.id, from: bug.status, to, clickup: String(st?.status || "") };
 }
 
+/** Espelha o responsável: quem foi atribuído à task no ClickUp vira o responsável do bug. Com usuário do QA Manager (mesmo e-mail/nome) vira o responsável de fato; sem usuário, o NOME do ClickUp aparece mesmo assim. */
+export async function mirrorAssignee(taskId: string, change: { add?: CuUser; remove?: CuUser; all?: CuUser[] }, actor?: CuUser | null): Promise<{ id: number; to: string | null } | null> {
+  const bug = (await query<any>("SELECT id,title,assigned_to_id,clickup_assignee FROM bugs WHERE tracker_url LIKE $1", [`%/t/${taskId}%`]))[0];
+  if (!bug) return null;
+  const by = who(actor);
+  if (change.remove && !change.add && !change.all) {
+    const qm = await findQmUser(change.remove);
+    const name = who(change.remove);
+    const matchesUser = qm && bug.assigned_to_id === qm.id;
+    const matchesName = !qm && name && bug.clickup_assignee && bug.clickup_assignee.split(", ").includes(name);
+    if (matchesUser || matchesName) {
+      await execute("UPDATE bugs SET assigned_to_id=NULL, clickup_assignee=NULL WHERE id=$1", [bug.id]);
+      await bugs.logActivity(bug.id, null, `responsável removido no ClickUp${by ? ` por ${by}` : ""}`, qm?.name || name);
+      return { id: bug.id, to: null };
+    }
+    return null;
+  }
+  const list = change.all || (change.add ? [change.add] : []);
+  if (!list.length) return null;
+  let target: { id: number; name: string } | null = null;
+  for (const cu of list) { target = await findQmUser(cu); if (target) break; }
+  if (target) {
+    if (bug.assigned_to_id === target.id && !bug.clickup_assignee) return null;
+    await execute("UPDATE bugs SET assigned_to_id=$1, clickup_assignee=NULL WHERE id=$2", [target.id, bug.id]);
+    await bugs.logActivity(bug.id, null, `responsável alterado no ClickUp${by ? ` por ${by}` : ""}`, `→ ${target.name}`);
+    if (bug.assigned_to_id !== target.id) await notif.create({ user_id: target.id, type: "assigned", message: `Você foi atribuído (no ClickUp) ao bug #${bug.id}: "${bug.title}"`, link: `/bugs/${bug.id}` });
+    return { id: bug.id, to: target.name };
+  }
+  // ninguém tem usuário no QA Manager: guarda o nome do ClickUp para aparecer na tela
+  const names = list.map(who).filter(Boolean).join(", ");
+  if (!names || (bug.clickup_assignee === names && !bug.assigned_to_id)) return null;
+  await execute("UPDATE bugs SET assigned_to_id=NULL, clickup_assignee=$1 WHERE id=$2", [names.slice(0, 200), bug.id]);
+  await bugs.logActivity(bug.id, null, `responsável alterado no ClickUp${by ? ` por ${by}` : ""}`, `→ ${names} (sem usuário no QA Manager; cadastre com o mesmo e-mail para vincular)`);
+  return { id: bug.id, to: names };
+}
+
 /** "Sincronizar agora": confere no ClickUp os bugs que já foram para lá e ainda não estão fechados. */
-export async function syncAll(projectId?: number, userId?: number | null): Promise<{ checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }> {
+export async function syncAll(projectId?: number, userId?: number | null): Promise<{ checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; assignees: { id: number; to: string | null }[]; unmapped: string[]; failed: number }> {
   const t = await token(userId);
   const rows = await query<any>(`SELECT id,tracker_url,status FROM bugs WHERE tracker_url LIKE '%clickup.com/t/%' AND status <> 'closed' ${projectId ? "AND project_id=$1" : ""} ORDER BY id DESC LIMIT 200`, projectId ? [projectId] : []);
-  const out = { checked: 0, changed: [] as { id: number; from: string; to: string; clickup: string }[], unmapped: [] as string[], failed: 0 };
+  const out = { checked: 0, changed: [] as { id: number; from: string; to: string; clickup: string }[], assignees: [] as { id: number; to: string | null }[], unmapped: [] as string[], failed: 0 };
   let i = 0;
   await Promise.all(Array.from({ length: 3 }, async () => {
     while (i < rows.length) {
@@ -265,11 +322,13 @@ export async function syncAll(projectId?: number, userId?: number | null): Promi
       try {
         const task = await call(t, "GET", `/task/${id}`);
         out.checked++;
+        try { const a = await mirrorAssignee(id, { all: (task.assignees || []).map((x: any) => ({ id: x.id, username: x.username, email: x.email })) }); if (a) out.assignees.push(a); } catch { /* responsável é extra */ }
         const to = mapStatus(task.status);
         if (!to) { const n = String(task.status?.status || ""); if (n && !out.unmapped.includes(n)) out.unmapped.push(n); continue; }
         if (to !== r.status) {
           await execute("UPDATE bugs SET status=$1 WHERE id=$2", [to, r.id]);
-          await bugs.logActivity(r.id, null, "status alterado pelo ClickUp", `${r.status} → ${to} (ClickUp: ${task.status?.status})`);
+          await bugs.logActivity(r.id, null, "alterou o status", `${r.status} → ${to}`);
+          await bugs.logActivity(r.id, null, "movido no ClickUp (sincronização)", `status no ClickUp: ${task.status?.status}`);
           out.changed.push({ id: r.id, from: r.status, to, clickup: String(task.status?.status || "") });
         }
       } catch { out.failed++; }
@@ -286,7 +345,7 @@ export async function enableMirror(publicBase: string, userId?: number | null): 
   const url = `${publicBase.replace(/\/$/, "")}/api/integrations/clickup/webhook`;
   if (!/^https:\/\//i.test(url)) throw new Error("O ClickUp só aceita endereço https. Use o servidor publicado (ex.: Render), não localhost.");
   if (cfg.webhookId) { try { await call(t, "DELETE", `/webhook/${cfg.webhookId}`); } catch { /* já não existia */ } }
-  const w = await call(t, "POST", `/team/${cfg.teamId}/webhook`, { endpoint: url, events: ["taskStatusUpdated"], list_id: Number(cfg.listId) });
+  const w = await call(t, "POST", `/team/${cfg.teamId}/webhook`, { endpoint: url, events: ["taskStatusUpdated", "taskAssigneeUpdated"], list_id: Number(cfg.listId) });
   await saveCfg({ ...cfg, webhookId: String(w.id || w.webhook?.id), webhookSecretEnc: enc(String(w.webhook?.secret || "")), webhookUrl: url });
   return { url };
 }

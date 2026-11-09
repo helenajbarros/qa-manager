@@ -1162,17 +1162,18 @@ export default function BugDetail() {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                 borderBottom:"1px solid var(--border)",paddingBottom:8,gap:8}}>
                 <span style={{fontSize:11,color:"var(--text-muted)",flexShrink:0}}>Responsável</span>
-                {isEditing
+                {isEditing && !/clickup\.com\/t\//i.test(bug.tracker_url||"")
                   ? <Select value={form.assigned_to_id} onChange={v=>setForm(f=>({...f,assigned_to_id:v}))}
                       options={(users||[]).map(u=>({value:u.id,label:u.name}))} placeholder="—" />
-                  : bug.assigned_to_name
+                  : (bug.assigned_to_name || (bug as any).clickup_assignee)
                     ? <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                        <Avatar name={bug.assigned_to_name} size={20} />
+                        <Avatar name={bug.assigned_to_name || (bug as any).clickup_assignee} size={20} />
                         <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                          {bug.assigned_to_name}
+                          {bug.assigned_to_name || (bug as any).clickup_assignee}
                         </span>
                       </div>
                     : <span style={{fontSize:13,color:"var(--text-muted)"}}>—</span>}
+                {/clickup\.com\/t\//i.test(bug.tracker_url||"") && <span title="Este bug está no ClickUp: o responsável é definido lá e aparece aqui" style={{fontSize:10,color:"var(--text-muted)"}}>🔗 definido no ClickUp</span>}
               </div>
               {/* SO e Navegador */}
               {((bug as any).os || (bug as any).browser || isEditing) && (<>

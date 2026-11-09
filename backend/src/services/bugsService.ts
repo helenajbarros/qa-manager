@@ -116,11 +116,13 @@ export async function create(data: any) {
 
 export async function update(id: number | string, data: any, userId?: number) {
   const { title, description, comment, tracker_url, severity, priority, status,
-    module_id, test_case_id, assigned_to_id, pr_url, steps, test_type,
+    module_id, test_case_id, pr_url, steps, test_type,
     environment, actual_result, expected_result, closed_by_archive,
     os, browser, impact, evidence_url } = data;
   const prev = await findById(id) as any;
   const mod  = module_id || await extractModuleId(title);
+  // bug que está no ClickUp: o responsável (dev) é definido lá e espelhado; edição por aqui não troca
+  const assigned_to_id = /clickup\.com\/t\//i.test(String(prev?.tracker_url || "")) ? (prev?.assigned_to_id ?? null) : data.assigned_to_id;
   const archiveVal = closed_by_archive === true ? true : closed_by_archive === false ? false : prev?.closed_by_archive || false;
   const environment_id2 = data.environment_id;
   await execute(`UPDATE bugs SET title=$1,description=$2,comment=$3,tracker_url=$4,severity=$5,priority=$6,status=$7,module_id=$8,test_case_id=$9,assigned_to_id=$10,pr_url=$11,steps=$12,test_type=$13,environment=$14,environment_id=$15,actual_result=$16,expected_result=$17,closed_by_archive=$18,os=$19,browser=$20,impact=$21,evidence_url=$22,version=$23 WHERE id=$24`,

@@ -212,8 +212,10 @@ function BugForm({ initial={}, modules, testCases, users, onSave, onCancel, savi
       </div>
       <div className="form-row">
         <Field label="Responsável">
-          <Select value={form.assigned_to_id} onChange={v=>setForm(f=>({...f,assigned_to_id:v}))}
-            options={(users||[]).map(u=>({value:u.id,label:u.name}))} placeholder="Não atribuído" />
+          {/clickup\.com\/t\//i.test(form.tracker_url||"")
+            ? <div style={{fontSize:12,color:"var(--text-muted)",padding:"6px 0"}}>🔗 Definido no ClickUp (aparece aqui quando alguém for atribuído à task)</div>
+            : <Select value={form.assigned_to_id} onChange={v=>setForm(f=>({...f,assigned_to_id:v}))}
+                options={(users||[]).map(u=>({value:u.id,label:u.name}))} placeholder="Não atribuído" />}
         </Field>
         <Field label="PR / Commit">
           <input value={form.pr_url} onChange={set("pr_url")} placeholder="#241 ou URL do PR" />
@@ -563,7 +565,7 @@ export default function Bugs() {
               <thead>
                 <tr>
                   {canSendClickup && <th title="Marcar para enviar ao ClickUp"></th>}<th>#</th><th>Título</th><th>TC</th><th>Módulo</th>
-                  <th>Sev.</th><th>Status</th><th>Responsável</th><th>Data</th><th>Tracker</th><th></th>
+                  <th>Sev.</th><th>Status</th><th>Aberto por</th><th>Responsável (dev)</th><th>Data</th><th>Tracker</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -592,9 +594,8 @@ export default function Bugs() {
                           style={{marginLeft:4,fontSize:12}}>🔒</span>
                       )}
                     </td>
-                    <td style={{fontSize:12,color:"var(--text-muted)"}}>
-                      {b.assigned_to_name || b.created_by_name || "—"}
-                    </td>
+                    <td style={{fontSize:12,color:"var(--text-muted)"}}>{b.created_by_name || "—"}</td>
+                    <td style={{fontSize:12,color:(b.assigned_to_name||(b as any).clickup_assignee) ? "var(--text)" : "var(--text-muted)"}} title={(b as any).clickup_assignee && !b.assigned_to_name ? "Responsável no ClickUp (sem usuário no QA Manager)" : undefined}>{b.assigned_to_name || (b as any).clickup_assignee || "—"}</td>
                     <td style={{fontSize:11,color:"var(--text-muted)",whiteSpace:"nowrap"}}>
                       {b.created_at ? new Date(b.created_at).toLocaleDateString("pt-BR") : "—"}
                     </td>

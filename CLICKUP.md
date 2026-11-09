@@ -32,3 +32,13 @@ Cada usuário (editor ou acima) cola o próprio token pessoal em ⚙ ClickUp (Cl
 - Ao enviar, os arquivos de evidência do bug (até 10) são anexados na task.
 - Mudou o status do bug aqui → muda na task (usa o status equivalente da lista; se não houver, registra no histórico). Usa o token de quem mudou.
 - Mudou na task → muda aqui (webhook ou "Sincronizar status").
+
+## v1.8.7: quem moveu e responsável espelhados
+- Mudou o status da task no ClickUp → o bug muda aqui, o histórico mostra o status e **quem moveu** ("movido no ClickUp por Fulano"). Se a pessoa tiver usuário no QA Manager com o **mesmo e-mail** (ou mesmo nome), a mudança aparece no nome dela.
+- Atribuiu alguém à task → vira o **responsável** do bug (casando pelo e-mail/nome do usuário) e ele recebe notificação. Remover o responsável na task limpa aqui. Sem usuário correspondente, o histórico avisa para cadastrar com o mesmo e-mail.
+- "Sincronizar status" também atualiza o responsável.
+- **Importante:** quem já ligou o espelhamento deve **desligar e ligar de novo** (Opções do admin) para o ClickUp passar a avisar também as trocas de responsável.
+
+## v1.8.9: responsável travado + nome sem conta
+- Bug que está no ClickUp: o campo Responsável (dev) é definido lá; aqui fica só leitura ("🔗 definido no ClickUp") e editar o bug não o troca.
+- Se o dev atribuído no ClickUp ainda não tem usuário no QA Manager (e-mail/nome iguais), o **nome dele do ClickUp aparece mesmo assim** (lista e tela do bug); quando o usuário for cadastrado e a task for sincronizada, passa a ser o usuário de verdade. Coluna nova `bugs.clickup_assignee` criada sozinha.

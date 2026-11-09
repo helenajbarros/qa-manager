@@ -147,7 +147,7 @@ export const backupApi = {
 export interface ClickupStatus { hasMyToken: boolean; hasToken: boolean; listId: string | null; listName: string | null; listPath: string | null; mirrorOn: boolean; autoSend: boolean }
 export interface ClickupList { id: string; name: string; path: string; teamId: string }
 export interface ClickupSendResult { sent: { id: number; title: string; url: string; attached?: number }[]; skipped: { id: number; title: string; reason: string }[]; failed: { id: number; title: string; error: string }[] }
-export interface ClickupSyncResult { checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }
+export interface ClickupSyncResult { assignees?: { id: number; to: string | null }[]; checked: number; changed: { id: number; from: string; to: string; clickup: string }[]; unmapped: string[]; failed: number }
 export const clickupApi = {
   status: ()                         => api.get<ClickupStatus>("/integrations/clickup/status"),
   saveToken: (token: string)         => api.put<ClickupStatus>("/integrations/clickup/my-token", { token }),

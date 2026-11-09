@@ -42,8 +42,8 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
   };
   const sync = () => run("sync", async () => {
     const r = await clickupApi.sync(projectId);
-    if (r.changed.length) onChanged();
-    return `${r.checked} bug(s) conferido(s) no ClickUp; ${r.changed.length ? `atualizados: ${r.changed.map((c) => `#${c.id} → ${STATUS_PT[c.to] || c.to}`).join(", ")}` : "nenhuma mudança"}.${r.unmapped.length ? ` Status que não sei traduzir: ${r.unmapped.join(", ")}.` : ""}${r.failed ? ` ${r.failed} falharam.` : ""}`;
+    if (r.changed.length || r.assignees?.length) onChanged();
+    return `${r.checked} bug(s) conferido(s) no ClickUp; ${r.changed.length ? `atualizados: ${r.changed.map((c) => `#${c.id} → ${STATUS_PT[c.to] || c.to}`).join(", ")}` : "nenhuma mudança de status"}.${r.assignees?.length ? ` Responsável atualizado em: ${r.assignees.map((a) => `#${a.id} → ${a.to || "ninguém"}`).join(", ")}.` : ""}${r.unmapped.length ? ` Status que não sei traduzir: ${r.unmapped.join(", ")}.` : ""}${r.failed ? ` ${r.failed} falharam.` : ""}`;
   });
 
   return (
@@ -85,7 +85,7 @@ export default function ClickupPanel({ bugs, selected, setSelected, projectId, i
           {isAdmin && adminOpen && (<div style={{ display: "grid", gap: 10 }}>
           {isAdmin && configured && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12 }}>Quando a task mudar de status no ClickUp (ex.: “em andamento”), o bug muda aqui:</span>
+              <span style={{ fontSize: 12 }}>Quando a task mudar de status ou de responsável no ClickUp, o bug muda aqui (e o histórico mostra quem moveu):</span>
               <button className="btn btn-sm" disabled={!!busy} onClick={() => run("mirror", async () => { const r = await clickupApi.mirror(!st.mirrorOn); await load(); return r.mirrorOn ? "Espelhamento ligado." : "Espelhamento desligado."; })}>{st.mirrorOn ? "Desligar espelhamento" : "Ligar espelhamento automático"}</button>
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Precisa do servidor publicado em https. Sem isso, use “↻ Sincronizar status”.</span>
             </div>

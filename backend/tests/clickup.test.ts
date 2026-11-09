@@ -57,6 +57,58 @@ describe("ClickUp (QA Manager)", () => {
     expect(res.status).toBe(401);
     expect(mockExecute).not.toHaveBeenCalled();
   });
+  it("webhook: status movido registra QUEM moveu (usuário do QA Manager pelo e-mail)", async () => {
+    const body = JSON.stringify({ event: "taskStatusUpdated", task_id: "abc", history_items: [{ field: "status", user: { username: "João Dev", email: "joao@x.com" }, after: { status: "em andamento", type: "custom" } }] });
+    const sig = crypto.createHmac("sha256", "segredo").update(body).digest("hex");
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("app_settings")) return [{ value: JSON.stringify({ webhookSecretEnc: enc("segredo") }) }];
+      if (sql.includes("FROM bugs WHERE tracker_url")) return [{ id: 5, status: "open" }];
+      if (sql.includes("FROM users WHERE LOWER(email)")) return [{ id: 9, name: "João da Silva" }];
+      return [];
+    });
+    const res = await request(app).post("/api/integrations/clickup/webhook").set("Content-Type", "application/json").set("x-signature", sig).send(body);
+    expect(res.status).toBe(200);
+    const acts = mockQuery.mock.calls.filter((c) => String(c[0]).includes("INSERT INTO bug_activity")).map((c) => c[1]);
+    expect(acts).toContainEqual([5, 9, "alterou o status", "open → in_progress"]);
+    expect(acts).toContainEqual([5, null, "movido no ClickUp por João Dev", "status no ClickUp: em andamento"]);
+  });
+  it("webhook: responsável atribuído no ClickUp vira o responsável do bug", async () => {
+    const body = JSON.stringify({ event: "taskAssigneeUpdated", task_id: "abc", history_items: [{ field: "assignee_add", user: { username: "Maria QA", email: "maria@x.com" }, after: { username: "João Dev", email: "joao@x.com" } }] });
+    const sig = crypto.createHmac("sha256", "segredo").update(body).digest("hex");
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("app_settings")) return [{ value: JSON.stringify({ webhookSecretEnc: enc("segredo") }) }];
+      if (sql.includes("FROM bugs WHERE tracker_url")) return [{ id: 5, title: "Bug", assigned_to_id: null }];
+      if (sql.includes("FROM users WHERE LOWER(email)")) return [{ id: 9, name: "João da Silva" }];
+      return [];
+    });
+    const res = await request(app).post("/api/integrations/clickup/webhook").set("Content-Type", "application/json").set("x-signature", sig).send(body);
+    expect(res.status).toBe(200);
+    expect(mockExecute).toHaveBeenCalledWith("UPDATE bugs SET assigned_to_id=$1, clickup_assignee=NULL WHERE id=$2", [9, 5]);
+  });
+  it("bug que está no ClickUp: editar aqui não troca o responsável (fica o do ClickUp)", async () => {
+    const { update } = require("../src/services/bugsService");
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM bugs b")) return [{ id: 5, status: "open", title: "t", tracker_url: "https://app.clickup.com/t/abc", assigned_to_id: 3 }];
+      return [];
+    });
+    await update(5, { title: "t", status: "open", assigned_to_id: 7, tracker_url: "https://app.clickup.com/t/abc" }, 1);
+    const call = mockExecute.mock.calls.find((c) => String(c[0]).startsWith("UPDATE bugs SET title"));
+    expect(call![1][9]).toBe(3);
+    mockExecute.mockClear();
+    mockQuery.mockImplementation(async (sql: string) => (sql.includes("FROM bugs b") ? [{ id: 6, status: "open", title: "t", tracker_url: null, assigned_to_id: 3 }] : []));
+    await update(6, { title: "t", status: "open", assigned_to_id: 7 }, 1);
+    expect(mockExecute.mock.calls.find((c) => String(c[0]).startsWith("UPDATE bugs SET title"))![1][9]).toBe(7);
+  });
+  it("responsável do ClickUp sem usuário no QA Manager: o nome aparece mesmo assim", async () => {
+    const { mirrorAssignee } = require("../src/services/clickupService");
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM bugs WHERE tracker_url")) return [{ id: 5, title: "Bug", assigned_to_id: null, clickup_assignee: null }];
+      return []; // nenhum usuário com esse e-mail/nome
+    });
+    const r = await mirrorAssignee("abc", { add: { username: "Pedro Dev", email: "pedro@x.com" } }, { username: "Maria QA" });
+    expect(r).toEqual({ id: 5, to: "Pedro Dev" });
+    expect(mockExecute).toHaveBeenCalledWith("UPDATE bugs SET assigned_to_id=NULL, clickup_assignee=$1 WHERE id=$2", ["Pedro Dev", 5]);
+  });
   it("webhook com assinatura certa atualiza o status do bug", async () => {
     const body = JSON.stringify({ event: "taskStatusUpdated", task_id: "abc", history_items: [{ field: "status", after: { status: "em andamento", type: "custom" } }] });
     const sig = crypto.createHmac("sha256", "segredo").update(body).digest("hex");
