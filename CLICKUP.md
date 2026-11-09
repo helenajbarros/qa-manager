@@ -40,5 +40,5 @@ Cada usuário (editor ou acima) cola o próprio token pessoal em ⚙ ClickUp (Cl
 - **Importante:** quem já ligou o espelhamento deve **desligar e ligar de novo** (Opções do admin) para o ClickUp passar a avisar também as trocas de responsável.
 
 ## v1.8.9: responsável travado + nome sem conta
-- Bug que está no ClickUp: o campo Responsável (dev) é definido lá; aqui fica só leitura ("🔗 definido no ClickUp") e editar o bug não o troca.
+- Bug que está no ClickUp: o campo Responsável é definido lá; aqui fica só leitura ("🔗 definido no ClickUp") e editar o bug não o troca.
 - Se o dev atribuído no ClickUp ainda não tem usuário no QA Manager (e-mail/nome iguais), o **nome dele do ClickUp aparece mesmo assim** (lista e tela do bug); quando o usuário for cadastrado e a task for sincronizada, passa a ser o usuário de verdade. Coluna nova `bugs.clickup_assignee` criada sozinha.

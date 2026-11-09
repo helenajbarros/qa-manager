@@ -565,7 +565,7 @@ export default function Bugs() {
               <thead>
                 <tr>
                   {canSendClickup && <th title="Marcar para enviar ao ClickUp"></th>}<th>#</th><th>Título</th><th>TC</th><th>Módulo</th>
-                  <th>Sev.</th><th>Status</th><th>Aberto por</th><th>Responsável (dev)</th><th>Data</th><th>Tracker</th><th></th>
+                  <th>Sev.</th><th>Status</th><th>Aberto por</th><th>Responsável</th><th>Data</th><th>Tracker</th><th></th>
                 </tr>
               </thead>
               <tbody>
