@@ -166,6 +166,7 @@ tbody tr:hover td { background: var(--bg); }
 .badge-critical  { background: #1E1B4B; color: #C4B5FD; }
 .badge-open      { background: var(--danger-bg);  color: var(--danger); }
 .badge-in_progress { background: var(--warning-bg); color: var(--warning); }
+.badge-in_review { background: #EDE9FE; color: #5B21B6; }
 .badge-fixed     { background: var(--success-bg); color: var(--success); }
 .badge-closed    { background: var(--border-soft); color: var(--text-muted); }
 .badge-active    { background: var(--accent-bg);  color: var(--accent); }

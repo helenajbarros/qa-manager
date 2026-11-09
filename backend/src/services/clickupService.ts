@@ -170,7 +170,7 @@ async function attachFiles(t: string, taskId: string, files: any[]): Promise<num
 }
 
 /** Status do bug (QA Manager) → nome de status que existe na lista do ClickUp (cada lista tem os seus). */
-export function pickClickupStatus(target: "open" | "in_progress" | "fixed" | "closed", listStatuses: { status: string; type?: string }[]): string | null {
+export function pickClickupStatus(target: "open" | "in_progress" | "in_review" | "fixed" | "closed", listStatuses: { status: string; type?: string }[]): string | null {
   const cands = (listStatuses || []).filter((x) => mapStatus(x) === target);
   return cands[0]?.status || null;
 }
@@ -180,7 +180,7 @@ export async function pushStatus(bugId: number, newStatus: string, userId?: numb
   const b: any = (await query<any>("SELECT id,tracker_url FROM bugs WHERE id=$1", [bugId]))[0];
   const taskId = taskIdOf(b?.tracker_url);
   if (!taskId) return;
-  const target = (["open", "in_progress", "fixed", "closed"] as const).find((x) => x === newStatus);
+  const target = (["open", "in_progress", "in_review", "fixed", "closed"] as const).find((x) => x === newStatus);
   if (!target) return;
   try {
     const t = await token(userId);
@@ -224,14 +224,15 @@ export async function sendBugs(ids: number[], userId?: number): Promise<SendResu
 }
 
 /** Status do ClickUp → status do bug (open, in_progress, fixed, closed). null = não sei mapear (não mexe). */
-export function mapStatus(s: { status?: string; type?: string } | undefined | null): "open" | "in_progress" | "fixed" | "closed" | null {
+export function mapStatus(s: { status?: string; type?: string } | undefined | null): "open" | "in_progress" | "in_review" | "fixed" | "closed" | null {
   if (!s) return null;
   const type = String(s.type || "").toLowerCase();
   const name = String(s.status || "").toLowerCase();
   if (type === "closed") return "closed";
   if (type === "done") return /fechad|closed|cancel/.test(name) ? "closed" : "fixed";
   if (type === "open") return "open";
-  if (/andamento|progress|doing|desenvolv|fazendo|review|revis|test|homolog|valida/.test(name)) return "in_progress";
+  if (/review|revis|test|homolog|valida|reteste|aguardando/.test(name)) return "in_review";
+  if (/andamento|progress|doing|desenvolv|fazendo/.test(name)) return "in_progress";
   if (/conclu|complete|done|resolv|corrig|pronto|entregue/.test(name)) return "fixed";
   if (/fechad|closed|cancel/.test(name)) return "closed";
   if (/to do|a fazer|aberto|open|backlog|novo|pendente/.test(name)) return "open";

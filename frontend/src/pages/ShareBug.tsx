@@ -47,10 +47,11 @@ const SEV_COLORS: SevColors = {
   critical: {bg:"#FEE2E2",color:"#7F1D1D"},
 };
 const SEV_LABEL = {low:"Baixa",medium:"Média",high:"Alta",critical:"Crítica"};
-const ST_LABEL  = {open:"Aberto",in_progress:"Em andamento",fixed:"Corrigido",closed:"Fechado"};
+const ST_LABEL  = {open:"Aberto",in_progress:"Em andamento",in_review:"Em revisão",fixed:"Corrigido",closed:"Fechado"};
 const ST_COLORS = {
   open:        {bg:"#FEE2E2",color:"#991B1B"},
   in_progress: {bg:"#DBEAFE",color:"#1E40AF"},
+  in_review:   {bg:"#EDE9FE",color:"#5B21B6"},
   fixed:       {bg:"#DCFCE7",color:"#166534"},
   closed:      {bg:"#F3F4F6",color:"#6B7280"},
 };
@@ -294,7 +295,7 @@ export default function ShareBug() {
                         "editou o bug":"✏️","adicionou comentário":"💬","adicionou passo":"➕","removeu passo":"➖",
                       };
                       const translateDetail = d => d ? d
-                        .replace(/open/g,"Aberto").replace(/in_progress/g,"Em andamento")
+                        .replace(/open/g,"Aberto").replace(/in_progress/g,"Em andamento").replace(/in_review/g,"Em revisão")
                         .replace(/fixed/g,"Corrigido").replace(/closed/g,"Fechado")
                         .replace(/active/g,"Ativo").replace(/completed/g,"Concluído")
                         .replace(/archived/g,"Arquivado") : null;

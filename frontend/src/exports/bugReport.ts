@@ -14,7 +14,7 @@ export async function exportBugReport(projectName, projectId, filters) {
   });
 
   const bySeverity = { critical:0, high:0, medium:0, low:0 };
-  const byStatus   = { open:0, in_progress:0, fixed:0, closed:0 };
+  const byStatus: Record<string, number> = { open:0, in_progress:0, in_review:0, fixed:0, closed:0 };
   const byEnv: Record<string, number> = {};
   const byModule: Record<string, any>   = {};
   const byVersion: Record<string, any>  = {};

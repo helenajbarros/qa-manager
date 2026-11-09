@@ -22,7 +22,7 @@ interface BadgeOnlyProps { v: string; }
 
 // ── Constantes ────────────────────────────────────────────────
 const STATUS_EXEC: BadgeMap  = { passed: "Passou", failed: "Falhou", blocked: "Bloqueado", not_executed: "Não executado" };
-const STATUS_BUG:  BadgeMap  = { open: "Aberto", in_progress: "Em andamento", fixed: "Corrigido", closed: "Fechado" };
+const STATUS_BUG:  BadgeMap  = { open: "Aberto", in_progress: "Em andamento", in_review: "Em revisão", fixed: "Corrigido", closed: "Fechado" };
 const SEVERITY:    BadgeMap  = { low: "Baixa", medium: "Média", high: "Alta", critical: "Crítica" };
 const PRIORITY:    BadgeMap  = { low: "Baixa", medium: "Média", high: "Alta", critical: "Crítica" };
 const STATUS_CYCLE: BadgeMap = { active: "Ativo", completed: "Concluído", archived: "Arquivado" };

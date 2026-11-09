@@ -21,6 +21,7 @@ describe("ClickUp (QA Manager)", () => {
     const l = [{ status: "to do", type: "open" }, { status: "em andamento", type: "custom" }, { status: "em revisão", type: "custom" }, { status: "concluído", type: "done" }, { status: "fechado", type: "closed" }];
     expect(pickClickupStatus("open", l)).toBe("to do");
     expect(pickClickupStatus("in_progress", l)).toBe("em andamento");
+    expect(pickClickupStatus("in_review", l)).toBe("em revisão");
     expect(pickClickupStatus("fixed", l)).toBe("concluído");
     expect(pickClickupStatus("closed", l)).toBe("fechado");
     expect(pickClickupStatus("fixed", [{ status: "to do", type: "open" }])).toBeNull();
@@ -28,7 +29,8 @@ describe("ClickUp (QA Manager)", () => {
   it("mapeia status do ClickUp para o do bug", () => {
     expect(mapStatus({ status: "open", type: "open" })).toBe("open");
     expect(mapStatus({ status: "em andamento", type: "custom" })).toBe("in_progress");
-    expect(mapStatus({ status: "in review", type: "custom" })).toBe("in_progress");
+    expect(mapStatus({ status: "in review", type: "custom" })).toBe("in_review");
+    expect(mapStatus({ status: "em revisão", type: "custom" })).toBe("in_review");
     expect(mapStatus({ status: "complete", type: "done" })).toBe("fixed");
     expect(mapStatus({ status: "closed", type: "closed" })).toBe("closed");
     expect(mapStatus({ status: "coisa estranha", type: "custom" })).toBeNull();

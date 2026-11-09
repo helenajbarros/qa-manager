@@ -341,7 +341,7 @@ function ActivityTimeline({ activity }) {
   };
   const translateDetail = d => d ? d
     .replace(/open/g,"Aberto")
-    .replace(/in_progress/g,"Em andamento")
+    .replace(/in_progress/g,"Em andamento").replace(/in_review/g,"Em revisão")
     .replace(/fixed/g,"Corrigido")
     .replace(/closed/g,"Fechado")
     .replace(/active/g,"Ativo")

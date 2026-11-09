@@ -54,6 +54,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     bugRows = await query<any>(`SELECT COUNT(DISTINCT b.id) AS total,
       SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open,
       SUM(CASE WHEN b.status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN b.status='in_review' THEN 1 ELSE 0 END) AS in_review,
       SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed,
       SUM(CASE WHEN b.status='closed' THEN 1 ELSE 0 END) AS closed
       FROM test_executions e INNER JOIN bugs b ON b.id = e.bug_id
@@ -62,6 +63,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     bugRows = await query<any>(`SELECT COUNT(*) AS total,
       SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open,
       SUM(CASE WHEN status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN status='in_review' THEN 1 ELSE 0 END) AS in_review,
       SUM(CASE WHEN status='fixed' THEN 1 ELSE 0 END) AS fixed,
       SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) AS closed
       FROM bugs b WHERE 1=1 ${pWhereB} ${dWhereB}
@@ -71,6 +73,7 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     bugRows = await query<any>(`SELECT COUNT(DISTINCT b.id) AS total,
       SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open,
       SUM(CASE WHEN b.status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN b.status='in_review' THEN 1 ELSE 0 END) AS in_review,
       SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed,
       SUM(CASE WHEN b.status='closed' THEN 1 ELSE 0 END) AS closed
       FROM test_executions e
@@ -129,13 +132,14 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
     COUNT(DISTINCT b.id) AS total,
     SUM(CASE WHEN b.status='open' THEN 1 ELSE 0 END) AS open,
     SUM(CASE WHEN b.status='in_progress' THEN 1 ELSE 0 END) AS in_progress,
+    SUM(CASE WHEN b.status='in_review' THEN 1 ELSE 0 END) AS in_review,
     SUM(CASE WHEN b.status='fixed' THEN 1 ELSE 0 END) AS fixed,
     SUM(CASE WHEN b.status='closed' THEN 1 ELSE 0 END) AS closed
     FROM test_executions e JOIN test_cycles c ON c.id = e.cycle_id INNER JOIN bugs b ON b.id = e.bug_id
     WHERE 1=1 ${pWhere} GROUP BY e.cycle_id`);
   const bugsByCycle: Record<number, any> = {};
   bugsByCycleRows.forEach((r: any) => {
-    bugsByCycle[r.cycle_id] = { total: num(r.total), open: num(r.open), in_progress: num(r.in_progress), fixed: num(r.fixed), closed: num(r.closed) };
+    bugsByCycle[r.cycle_id] = { total: num(r.total), open: num(r.open), in_progress: num(r.in_progress), in_review: num(r.in_review), fixed: num(r.fixed), closed: num(r.closed) };
   });
 
   const cycleRows = await query<any>(`SELECT c.*,
@@ -178,10 +182,10 @@ export async function getDashboard({ project_id, cycle_id, date_from, date_to }:
   return {
     summary: { total_cases: totalCases, total_executions: total, passed, failed, blocked, not_executed: notExec,
       success_rate: rate(passed), fail_rate: rate(failed), block_rate: rate(blocked) },
-    bugs: { total: num(bugs.total), open: num(bugs.open), in_progress: num(bugs.in_progress), fixed: num(bugs.fixed), closed: num(bugs.closed) },
+    bugs: { total: num(bugs.total), open: num(bugs.open), in_progress: num(bugs.in_progress), in_review: num(bugs.in_review), fixed: num(bugs.fixed), closed: num(bugs.closed) },
     modules:         modRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_executions:num(m.total_executions), passed:num(m.passed), failed:num(m.failed), blocked:num(m.blocked), not_executed:num(m.not_executed)})),
     bugs_per_module: bpmRows.map((m: any) => ({...m, total_cases:num(m.total_cases), total_bugs:num(m.total_bugs), open_bugs:num(m.open_bugs), fixed_bugs:num(m.fixed_bugs)})),
-    cycles: cycleRows.map((c: any) => ({...c, total_executions:num(c.total_executions), passed:num(c.passed), failed:num(c.failed), blocked:num(c.blocked), not_executed:num(c.not_executed), bugs: bugsByCycle[c.id] || {total:0,open:0,in_progress:0,fixed:0,closed:0}})),
+    cycles: cycleRows.map((c: any) => ({...c, total_executions:num(c.total_executions), passed:num(c.passed), failed:num(c.failed), blocked:num(c.blocked), not_executed:num(c.not_executed), bugs: bugsByCycle[c.id] || {total:0,open:0,in_progress:0,in_review:0,fixed:0,closed:0}})),
     bugs_by_environment,
     all_bugs_versions: pid ? await query(`SELECT id, version, status FROM bugs WHERE project_id=$1 AND version IS NOT NULL AND version != ''`, [pid]) : [],
   };

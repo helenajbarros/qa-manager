@@ -74,7 +74,7 @@ function detectBrowser(): string {
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const ENV_OPTS    = [{value:"production",label:"Produção"},{value:"homologation",label:"Homologação"},{value:"staging",label:"Staging"},{value:"development",label:"Desenvolvimento"}];
-const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
+const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"in_review",label:"Em revisão"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 const ACT_ICONS   = {"criou o bug":"🐛","alterou o status":"🔄","alterou o responsável":"👤","editou o bug":"✏","adicionou passo":"➕","removeu passo":"➖"};
 
 function getBase() {
@@ -577,7 +577,7 @@ function ActivitySection({ activity }: ActivitySectionProps) {
                     background:color+"15",padding:"2px 8px",borderRadius:10,fontWeight:500}}>
                     {a.detail
                       .replace(/open/g,"Aberto")
-                      .replace(/in_progress/g,"Em andamento")
+                      .replace(/in_progress/g,"Em andamento").replace(/in_review/g,"Em revisão")
                       .replace(/fixed/g,"Corrigido")
                       .replace(/closed/g,"Fechado")
                       .replace(/active/g,"Ativo")

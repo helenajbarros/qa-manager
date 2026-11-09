@@ -109,7 +109,7 @@ const PAGE_SIZE = 10;
 const SEV_OPTS    = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 const PRIO_OPTS   = [{value:"low",label:"Baixa"},{value:"medium",label:"Média"},{value:"high",label:"Alta"},{value:"critical",label:"Crítica"}];
 // ENV_OPTS agora vem do projeto via environmentsApi
-const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
+const STATUS_OPTS = [{value:"open",label:"Aberto"},{value:"in_progress",label:"Em andamento"},{value:"in_review",label:"Em revisão"},{value:"fixed",label:"Corrigido"},{value:"closed",label:"Fechado"}];
 
 function Pagination({ page, totalPages, total, onChange, pageSize, onPageSizeChange }) {
   if (totalPages <= 1 && !onPageSizeChange) return null;
@@ -349,7 +349,7 @@ export default function Bugs() {
 
   const filtered = (bugs || []).filter(b => {
     // Filtro por aba
-    if (activeTab === "ativos"      && !["open","in_progress"].includes(b.status)) return false;
+    if (activeTab === "ativos"      && !["open","in_progress","in_review"].includes(b.status)) return false;
     if (activeTab === "finalizados" && !["fixed","closed"].includes(b.status))     return false;
     // Oculta bugs arquivados na aba Finalizados (toggle)
     if (activeTab === "finalizados" && !showArchived && (b.cycle_status === "archived" || b.closed_by_archive)) return false;
@@ -375,7 +375,7 @@ export default function Bugs() {
   });
 
   const counts           = (bugs || []).reduce((a, b) => ({...a, [b.status]:(a[b.status]||0)+1}), {});
-  const countAtivos      = (bugs || []).filter(b => ["open","in_progress"].includes(b.status)).length;
+  const countAtivos      = (bugs || []).filter(b => ["open","in_progress","in_review"].includes(b.status)).length;
   const countFinalizados = (bugs || []).filter(b =>
     ["fixed","closed"].includes(b.status) && !b.closed_by_archive
   ).length;
@@ -490,6 +490,7 @@ export default function Bugs() {
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
         {[{key:"open",      label:"Abertos",      color:"var(--danger)"},
           {key:"in_progress",label:"Em andamento", color:"var(--warning)"},
+          {key:"in_review", label:"Em revisão",    color:"#7C3AED"},
           {key:"fixed",     label:"Corrigidos",    color:"var(--success)"},
           {key:"closed",    label:"Fechados",      color:"var(--text-muted)"}
         ].map(({key,label,color}) => (
@@ -497,7 +498,7 @@ export default function Bugs() {
             const next = filterSt === key ? "" : key;
             setFilterSt(next);
             if (next === "fixed" || next === "closed") setActiveTab("finalizados");
-            else if (next === "open" || next === "in_progress") setActiveTab("ativos");
+            else if (next === "open" || next === "in_progress" || next === "in_review") setActiveTab("ativos");
           }}
             style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:8,padding:"10px 18px",cursor:"pointer",

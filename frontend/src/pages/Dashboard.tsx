@@ -604,6 +604,7 @@ export default function Dashboard() {
   const bugPie = [
     { name:"Aberto",       value: bugs.open },
     { name:"Em andamento", value: bugs.in_progress },
+    { name:"Em revisão",   value: (bugs as any).in_review || 0 },
     { name:"Corrigido",    value: bugs.fixed },
     { name:"Fechado",      value: bugs.closed },
   ].filter(d => d.value > 0);
@@ -677,7 +678,7 @@ export default function Dashboard() {
           {filters.cycle_id?.startsWith("version:") && <span>Versão: {filters.cycle_id.replace("version:","")}</span>}
           {filters.cycle_id === "no_cycle" && <span>Bugs sem vínculo com ciclo</span>}
           {filters.module_id && <span>Módulo: {data?.modules?.find(m=>String(m.id)===String(filters.module_id))?.name}</span>}
-          {filters.status    && <span>Status: {({open:"Aberto",in_progress:"Em andamento",fixed:"Corrigido",closed:"Fechado",reopened:"Reaberto"} as Record<string,string>)[filters.status] || filters.status}</span>}
+          {filters.status    && <span>Status: {({open:"Aberto",in_progress:"Em andamento",in_review:"Em revisão",fixed:"Corrigido",closed:"Fechado",reopened:"Reaberto"} as Record<string,string>)[filters.status] || filters.status}</span>}
           <span style={{ color:"var(--text-muted)" }}>— {cycles?.length || 0} ciclo(s)</span>
         </div>
       )}

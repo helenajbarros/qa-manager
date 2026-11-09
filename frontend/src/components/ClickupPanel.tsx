@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { clickupApi, type ClickupStatus, type ClickupList } from "../services/resources.js";
 
-const STATUS_PT: Record<string, string> = { open: "aberto", in_progress: "em andamento", fixed: "corrigido", closed: "fechado" };
+const STATUS_PT: Record<string, string> = { open: "aberto", in_progress: "em andamento", in_review: "em revisão", fixed: "corrigido", closed: "fechado" };
 export const inClickup = (b: { tracker_url?: string | null }) => /clickup\.com\/t\//i.test(String(b.tracker_url || ""));
 const box: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13 };
 const inp: React.CSSProperties = { padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 13 };
